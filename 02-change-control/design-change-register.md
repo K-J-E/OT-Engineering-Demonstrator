@@ -1,15 +1,10 @@
 # Design Change Register
 
-| ID | Title | Status |
-|---|---|---|
-| DC-001 | Consistent Network Entity Modelling | Applied — pending user acceptance/commit |
-| DC-002 | Selectable Fault Location in Exploration Mode | Proposed — not yet applied |
+| ID | Title | Status | Date |
+|---|---|---|---|
+| DC-001 | Consistent Network Entity Modelling | Applied / accepted baseline | 2026-08-08 |
+| DC-002 | Selectable Fault Location in Exploration Mode | Applied — verified draft for acceptance | 2026-08-08 |
 
-## DC-001 affected artefacts
+## Change-control rule
 
-- Engineering Design Brief: v0.1 → v0.2
-- System Requirements Specification: v0.1 → v0.2
-- Simplified Network Model: v0.1 → v0.2
-- Engineering Investigation & Research: no change required
-
-DC-002 remains explicitly out of this change.
+Changes are applied sequentially. Each change records rationale, artefact impact, requirements impact, validation/configuration impact and acceptance status. Detailed engineering source documents remain authoritative and are revised rather than replaced by condensed summaries.
