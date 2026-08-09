@@ -4,6 +4,7 @@
 |---|---|---|---|
 | DC-001 | Consistent Network Entity Modelling | Applied / accepted baseline | 2026-08-08 |
 | DC-002 | Selectable Fault Location in Exploration Mode | Applied / verified / accepted baseline | 2026-08-08 |
+| DC-003 | Generic Active-Fault Isolation Boundary Derivation | Applied / cross-document verified / accepted baseline | 2026-08-09 |
 
 ## Change-control rule
 

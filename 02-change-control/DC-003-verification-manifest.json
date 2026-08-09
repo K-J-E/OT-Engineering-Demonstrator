@@ -1,0 +1,85 @@
+{
+  "change_id": "DC-003",
+  "title": "Generic Active-Fault Isolation Boundary Derivation",
+  "status": "APPLIED / CROSS-DOCUMENT VERIFIED / ACCEPTED BASELINE",
+  "verification_date": "2026-08-09",
+  "lifecycle_gate": "DC-003 applied and cross-document verified before final Step 9 acceptance and implementation authorisation",
+  "implementation_authorised": false,
+  "implementation_configuration_packages_present": false,
+  "configuration_package_finding": "The repository contains approved engineering definitions of v1.0 and v1.1 in the Network Model. Immutable implementation packages do not yet exist because implementation has not begun.",
+  "requirements": {
+    "path": "01-engineering-source-documents/OT Project Requirements Specification.docx",
+    "sha256_before_and_after": "7d5522e53dd99e505b9853d6b0b0255c8b4585964909f5659e1ab13d7d1eaeea",
+    "unique_formal_requirements": 124,
+    "changed_by_dc003": false
+  },
+  "affected_authoritative_artefacts": [
+    {
+      "path": "01-engineering-source-documents/OT Engineering Design Brief.docx",
+      "version_before": "0.3",
+      "sha256_before": "e05b1d001bfb31ef1dee9cad0a608ffd3fdf0560b50cb8113041467439195e20",
+      "version_after": "0.4",
+      "sha256_after": "c65b0db3cf157a1ab1dc64f29cc86c49eda9f909952180abc0bbc20c52e9bfeb",
+      "pages_rendered_and_reviewed": 52
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Network Model.docx",
+      "version_before": "0.3",
+      "sha256_before": "0c10255ecd05007ced1b5beb9f56f4e9d0ba31cb91f977f65473fa72c2f8adba",
+      "version_after": "0.4",
+      "sha256_after": "824a0a03d7bd2d58d7d1be1408bddce75b700aad7d5345bbf49b79e3d029b8c9",
+      "pages_rendered_and_reviewed": 47
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project System Architecture.docx",
+      "version_before": "0.1",
+      "sha256_before": "677a14b9c1f5c53dd56679f2bbe108f50431acc4ab4020e37d9e30596d946cb7",
+      "version_after": "0.2",
+      "sha256_after": "249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77",
+      "pages_rendered_and_reviewed": 27
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Workflow Design.docx",
+      "version_before": "0.1",
+      "sha256_before": "27e96b38ea44cadbe260d799812ef53a259446c37b18f5a97bd0e75406f60341",
+      "version_after": "0.2",
+      "sha256_after": "f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547",
+      "pages_rendered_and_reviewed": 31
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
+      "version_before": "0.1",
+      "sha256_before": "6a4080741c4070efc98f0b82f92dd6744584a0b88af8912107a3efe330eb05c6",
+      "version_after": "0.2",
+      "sha256_after": "fe76e7446c0fd29cbb16c3a8bd634273a6ac219c06a248fbea0196ce24f0d74e",
+      "pages_rendered_and_reviewed": 41
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
+      "version_before": "0.2",
+      "sha256_before": "8a11b928762da63e9e82f2d2b6115fa6c0d19f26ba60ba9cd17a97c2b4787f81",
+      "version_after": "1.0",
+      "status_after": "Accepted Validation Plan Baseline",
+      "sha256_after": "c5725efd885b541e51a81945ed959bd8ba6f9f255a7f04dc01e7579b92858fef",
+      "pages_rendered_and_reviewed": 39,
+      "validation_catalogue_tests": 24,
+      "unique_rtm_rows": 124
+    }
+  ],
+  "cross_document_checks": {
+    "configuration_incidence_rule_consistent": true,
+    "boundary_conditions_a_b_c_consistent": true,
+    "all_open_plus_zero_source_path_proof_consistent": true,
+    "formal_sec_a2_separate_from_exploration": true,
+    "formal_n0_n5_answer_key_unchanged": true,
+    "no_section_specific_production_lookup_authorised": true,
+    "no_new_restoration_criterion": true,
+    "no_new_v1_ai_or_automation_behaviour": true,
+    "obsolete_increment_specific_gate_superseded": true,
+    "engineering_definitions_distinguished_from_future_packages": true,
+    "all_affected_docx_rendered_and_reviewed": true,
+    "total_pages_reviewed": 237,
+    "high_severity_accessibility_findings": 0
+  },
+  "final_result": "PASS"
+}

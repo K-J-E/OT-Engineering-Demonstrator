@@ -1,7 +1,7 @@
 {
   "baseline_date": "2026-08-09",
-  "baseline_name": "Current working baseline through Step 7 Workflow Design after DC-001 and DC-002",
-  "baseline_status": "CURRENT DRAFT ENGINEERING WORKING BASELINE",
+  "baseline_name": "Accepted engineering and validation-definition working baseline through Step 9 after DC-001, DC-002 and DC-003",
+  "baseline_status": "ACCEPTED ENGINEERING AND VALIDATION-DEFINITION BASELINE — IMPLEMENTATION NOT AUTHORISED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -11,7 +11,8 @@
   ],
   "accepted_changes": [
     "DC-001 — Consistent Network Entity Modelling",
-    "DC-002 — Selectable Fault Location in Exploration Mode"
+    "DC-002 — Selectable Fault Location in Exploration Mode",
+    "DC-003 — Generic Active-Fault Isolation Boundary Derivation"
   ],
   "documents": [
     {
@@ -39,12 +40,13 @@
     },
     {
       "path": "01-engineering-source-documents/OT Engineering Design Brief.docx",
-      "sha256": "e05b1d001bfb31ef1dee9cad0a608ffd3fdf0560b50cb8113041467439195e20",
-      "bytes": 72024,
-      "paragraphs": 1244,
-      "tables": 1,
+      "sha256": "c65b0db3cf157a1ab1dc64f29cc86c49eda9f909952180abc0bbc20c52e9bfeb",
+      "bytes": 74751,
+      "paragraphs": 1256,
+      "tables": 2,
       "inline_shapes": 1,
-      "version": "0.3"
+      "version": "0.4",
+      "completed_through_section": "23.4"
     },
     {
       "path": "01-engineering-source-documents/OT Project Requirements Specification.docx",
@@ -58,43 +60,74 @@
     },
     {
       "path": "01-engineering-source-documents/OT Project Network Model.docx",
-      "sha256": "0c10255ecd05007ced1b5beb9f56f4e9d0ba31cb91f977f65473fa72c2f8adba",
-      "bytes": 423442,
-      "paragraphs": 518,
-      "tables": 32,
+      "sha256": "824a0a03d7bd2d58d7d1be1408bddce75b700aad7d5345bbf49b79e3d029b8c9",
+      "bytes": 426864,
+      "paragraphs": 537,
+      "tables": 35,
       "inline_shapes": 2,
-      "version": "0.3",
-      "completed_through_section": "17.13"
+      "version": "0.4",
+      "completed_through_section": "18.7"
     },
     {
       "path": "01-engineering-source-documents/OT Project System Architecture.docx",
-      "sha256": "677a14b9c1f5c53dd56679f2bbe108f50431acc4ab4020e37d9e30596d946cb7",
-      "bytes": 543849,
-      "paragraphs": 298,
-      "tables": 10,
+      "sha256": "249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77",
+      "bytes": 546251,
+      "paragraphs": 311,
+      "tables": 12,
       "inline_shapes": 2,
-      "version": "0.1",
-      "completed_through_section": "25"
+      "version": "0.2",
+      "completed_through_section": "26.5"
     },
     {
       "path": "01-engineering-source-documents/OT Project Workflow Design.docx",
-      "sha256": "27e96b38ea44cadbe260d799812ef53a259446c37b18f5a97bd0e75406f60341",
-      "bytes": 617705,
-      "paragraphs": 241,
-      "tables": 29,
+      "sha256": "f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547",
+      "bytes": 620162,
+      "paragraphs": 252,
+      "tables": 31,
       "inline_shapes": 2,
-      "version": "0.1",
-      "completed_through_section": "26",
+      "version": "0.2",
+      "completed_through_section": "27.4",
       "verified_requirements_allocated": 124
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
+      "sha256": "fe76e7446c0fd29cbb16c3a8bd634273a6ac219c06a248fbea0196ce24f0d74e",
+      "bytes": 845842,
+      "paragraphs": 335,
+      "tables": 31,
+      "inline_shapes": 2,
+      "version": "0.2",
+      "completed_through_section": "35.6",
+      "verified_requirements_allocated": 124,
+      "demonstrator_design_decisions": 23
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
+      "sha256": "c5725efd885b541e51a81945ed959bd8ba6f9f255a7f04dc01e7579b92858fef",
+      "bytes": 837959,
+      "paragraphs": 113,
+      "tables": 24,
+      "inline_shapes": 0,
+      "version": "1.0",
+      "status": "Accepted Validation Plan Baseline",
+      "completed_through_section": "18",
+      "validation_catalogue_tests": 24,
+      "verified_requirements_mapped": 124,
+      "validation_plan_decisions": 18
     }
   ],
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
     "BASELINE-MANIFEST.json preserves the original pre-DC-001/DC-002 integrity record.",
-    "Detailed engineering documents remain working Drafts pending further controlled development and final client-facing packaging.",
-    "Network Model Sections 16 and 17 continue the planned detailed engineering development without changing the accepted DC-001 or DC-002 principles.",
+    "Detailed engineering design documents remain working Drafts because later controlled implementation findings and final client-facing packaging may require revision; the Step 9 Validation Plan v1.0 is an accepted validation-definition baseline.",
+    "DC-003 is applied and cross-document verified across the Engineering Design Brief, Network Model, System Architecture, Workflow Design, Demonstrator Design and Validation Plan without changing the Requirements Specification or its 124 unique requirements.",
+    "Network Model Sections 16–18 form the approved engineering answer key for the formal state sequence, DEF-001 and generic active-fault isolation boundary derivation.",
     "System Architecture v0.1 establishes the Step 6 logical components, information ownership, interfaces, scenario boundaries and architecture decisions without changing the accepted DC-001 or DC-002 principles.",
     "Workflow Design v0.1 establishes the Step 7 controlled operational and engineering workflows, resolves the 60-second project telemetry-age parameter and final event catalogue, and allocates all 124 formal requirements without introducing V2 automation into V1.",
+    "Demonstrator Design v0.2 establishes the Step 8 practical local application and applies the DC-003 backend boundary/action/presentation contract without changing approved engineering behaviour.",
+    "Validation Plan v1.0 is the accepted Step 9 baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, evidence strategy and an exact 124-row requirements-to-verification matrix.",
+    "No immutable implementation v1.0/v1.1 configuration packages exist yet. The Network Model supplies approved engineering definitions; the first authorised implementation baseline must instantiate, schema-validate and hash both packages before execution.",
+    "Substantive behavioural implementation remains prohibited until the user provides separate explicit implementation authorisation; Step 9 acceptance does not itself grant that authority.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."
   ]
 }

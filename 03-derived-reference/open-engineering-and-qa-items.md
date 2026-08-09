@@ -1,0 +1,55 @@
+---
+Status: Active tracking register
+Authority: Derived reference only
+Owner: Project engineering review process
+Updated: 2026-08-09
+---
+
+# Open Engineering and QA Items
+
+## Purpose and authority
+
+This register is a tracking and assurance aid only. It does not override the governing documents, detailed engineering source documents, requirements, architecture, workflow, demonstrator design or accepted design-change records. It is not a replacement for formal design-change control.
+
+Statuses below have been reconciled against the repository through accepted/applied DC-003 and the accepted Step 9 Validation Plan v1.0 baseline. A closed item is not reopened unless an authoritative repository artefact contains an actual contradiction.
+
+## Register
+
+| ID | Item | Reconciled status | When to deal with it | Required treatment / repository finding |
+|---|---|---|---|---|
+| **QA-001** | Requirements-count arithmetic was historically wrong: original 115 → DC-001 117 → DC-002 124, rather than 114 → 116 → 123. | **Closed** | Nothing further unless an outdated copy resurfaces. | The current Requirements Specification and downstream allocation records contain 124 unique formal requirements. No current contradiction was found. |
+| **QA-002** | DC-001 Word-document revision headers historically remained v0.1 even though the logical revision should have become v0.2. | **Closed / documented** | Nothing further unless final document-control history is polished. | DC-002 documents the inherited discrepancy and the current controlled sequence is coherent. Git history must not be rewritten merely to restate old headers. |
+| **QA-003** | Distinguish configured/nominal feeder load from derived currently supplied load, particularly because defective v1.0 makes FDR-B actually supply 5.70 MW although its configured normal load is 4.20 MW. | **Resolved in Step 8 / implementation watch** | Verify during the data-model and interface increments, especially I2 and I6. | Step 8 separates immutable configured load/capacity from derived supplied load. Implementation and views must retain those separate fields and labels. |
+| **QA-004** | Network Model traceability lists selected `REQ-EXP` requirements rather than mechanically listing the entire Exploration group. | **Watch only — not an error** | Step 9 RTM and final validation audit. | Step 9 maps every `REQ-EXP-*` requirement to verification. Specific traceability is preferred over attaching every requirement to every artefact. |
+| **QA-005** | The Network Model may eventually state explicitly that Sections 1–17 form the approved network baseline. | **Document-control polish** | When working Draft engineering documents move to Baseline/Approved status. | Update status language during final baselining. This is not currently a design change. |
+| **QA-006** | Architecture terms such as “ADMS Topology” and “ADMS Restoration Assessment” denote logical functions, not claims that they are separate deployed utility products. | **Resolved / watch only** | Implementation and interview preparation. | Step 8 preserves these as logical modules in one local demonstrator. Continue using conceptual wording. |
+| **QA-007** | Operational events must remain separate from validation PASS/FAIL, defect/correction and engineering-judgement records. | **Resolved in Steps 6–8 / implementation watch** | I3 events, I5 validation and I7 investigation. | Preserve the approved 15-type operational event catalogue and separate validation/evidence records. Do not add test or defect dispositions as operational-event types. |
+| **QA-008** | Evidence export format was initially deferred. | **Resolved by Step 8 / implementation watch** | Implement in I8 after Step 9 acceptance. | Use the approved self-contained ZIP containing `report.html`, canonical JSON records, figures, README and SHA-256 manifest. |
+| **QA-009** | Application build identity is required to prove DEF-001 v1.0 FAIL → v1.1 PASS without a code change. | **Resolved in Step 8 / implementation watch** | First implementation baseline, I5 and I7. | Preserve `application_build_id`; direct v1.0/v1.1 comparative executions must use the same build. |
+| **DQ-001** | Exploration fault-isolation action derivation is not completely explicit for arbitrary selected sections. | **Closed by accepted/applied DC-003** | Implementation and validation watch only. | DC-003 is applied across the six affected authoritative artefacts and cross-document verified. It defines generic incident boundaries, A/B/C evidence/action conditions, one-action recalculation and the all-open plus zero-source-path proof without hard-coded outcomes. |
+| **VP-001** | Complete formal validation test catalogue beyond `VT-TOP-DEF-001` was deliberately undefined. | **Closed by accepted Step 9 baseline** | Execute after implementation is separately authorised and reaches the relevant test boundary. | Validation Plan v1.0 accepts the 24-test catalogue and controlled procedures. |
+| **VP-002** | Controlled per-step scenario-time increments were deliberately undefined. | **Closed by accepted Step 9 baseline** | Implementation and execution watch. | Validation Plan v1.0 accepts the deterministic UTC scenario clock and exact 60.000 s / 60.001 s boundary cases. |
+| **VP-003** | Validation must cover all 124 requirements, including negative cases where correct operational failure/blocking yields validation PASS. | **Closed by accepted Step 9 baseline** | Execute and maintain coverage during implementation. | The accepted RTM contains exactly 124 unique requirement rows; targeted mappings for REQ-RST-005, REQ-TEL-003 and REQ-TEL-007 remain corrected. |
+| **VP-004** | Exploration Mode is not formal scenario evidence, but the `REQ-EXP-*` requirements still require verification. | **Closed by accepted Step 9 baseline** | Execute after implementation is separately authorised and reaches Exploration verification. | The accepted plan verifies all-section/common-engine/evidence-class behaviour and the SEC-A4 trustworthy-OPEN versus untrustworthy-last-OPEN subcase. |
+| **IMP-001** | Exact package/dependency patch versions are intentionally not selected. | **Open but intentionally deferred** | First implementation baseline / I1, after Step 9 acceptance. | Pin exact Python and npm dependencies in lock files and incorporate them into build identity. This is not a Validation Plan decision. |
+| **QA-010** | README and current-baseline manifest needed independent inspection after Step 8. | **Closed** | Nothing further unless those files change inconsistently. | Both files were inspected against the repository. The Step 8 Demonstrator Design hash, size, version and structural counts in the manifest match the actual file; README describes the same working baseline. |
+| **QA-011** | DC-003 did not explicitly distinguish trustworthy OPEN, trustworthy CLOSED and an untrustworthy last-reported boundary state. | **Closed by accepted/applied DC-003** | Implementation and validation watch. | Conditions A/B/C are applied consistently across the six authoritative artefacts. An untrustworthy boundary is UNPROVEN, blocks isolation and does not cause a redundant OPEN command; valid evidence/commands trigger full recalculation. |
+| **QA-012** | `REQ-RST-005 — Alternate Source Availability` used the isolation negative rather than the dedicated alternate-source negative. | **Closed in revised Step 9 draft** | Reconfirm during independent RTM review. | The authoritative requirement wording remains unchanged. RTM mapping is now `VT-FML-N0-N5-001` plus `VT-RST-SOURCE-001`. |
+| **QA-013** | Telemetry-quality RTM coverage was incomplete for `REQ-TEL-003` and `REQ-TEL-007`. | **Closed in revised Step 9 draft** | Reconfirm during independent RTM review. | `REQ-TEL-003` maps to fresh, UNCERTAIN and BAD cases. `REQ-TEL-007` maps to fresh, stale, future/invalid timestamp, UNCERTAIN and BAD cases. |
+| **QA-014** | Capacity equality, 1-kW exceedance and proposed-loop tests could be misread as runtime mutation of the canonical network. | **Closed in revised Step 9 draft** | Implementation watch after final acceptance. | Step 9 defines them as controlled lower-level domain fixtures and explicitly prohibits a free-form editor, canonical package mutation, arbitrary load/customer editing or uncontrolled topology mutation. |
+| **QA-015** | DEF-001 wording implied that the running demonstrator creates v1.1 and later wording overstated that implementation packages already existed. | **Closed in accepted Step 9 baseline** | First implementation baseline and evidence watch. | The repository currently contains approved v1.0/v1.1 engineering definitions, not implementation packages. After explicit implementation authorisation, the first implementation baseline must instantiate and hash both immutable packages before execution; the running demonstrator later selects the pre-existing implemented v1.1 and never creates or rewrites either package. |
+| **QA-016** | `VT-RST-ISOLATION-001` implied successful isolation immediately enabled alternate restoration assessment. | **Closed in revised Step 9 draft** | Reconfirm during workflow review. | Proven formal SEC-A2 isolation enables the approved next action, BRK-A reclose/N2→N3. Alternate restoration assessment remains unavailable until N3 preconditions are satisfied. |
+| **QA-017** | `VT-RST-SOURCE-001` used a vague unavailable-source condition. | **Closed in revised Step 9 draft** | Reconfirm during independent test-definition review. | Exact negative: ZS-01 AVAILABLE, BRK-B OPEN with GOOD/FRESH/valid telemetry, isolation proven and all other evidence valid; expected operational REJECTED and validation PASS. |
+
+## Current gates
+
+1. **Completed:** DC-003 independently re-reviewed, accepted, applied to all six affected authoritative artefacts and cross-document verified.
+2. **Completed:** Validation Plan v1.0 finalised as the accepted Step 9 baseline with 24 catalogue tests and 124/124 RTM coverage.
+3. **Current gate:** wait for explicit user authorisation before beginning any substantive demonstrator implementation.
+4. After authorisation, resolve **IMP-001** at the first implementation baseline/I1 and instantiate/hash the approved v1.0/v1.1 engineering definitions as immutable implementation packages before validation execution.
+
+## V2 Automation Candidates
+
+**V2 Automation Candidate — register reconciliation and impact analysis.** Rechecking statuses across change records, detailed documents, requirements, tests and manifests is repetitive and evidence-heavy; a future assurance assistant could identify candidate status changes and affected artefacts while leaving approval to the engineer.
+
+**V2 Automation Candidate — traceability completeness.** Mechanical detection of missing, duplicated or stale requirement-to-test links would reduce manual RTM effort and regression risk while preserving engineering review of whether each mapping is substantively correct.
