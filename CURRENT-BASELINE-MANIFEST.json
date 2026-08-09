@@ -1,0 +1,100 @@
+{
+  "baseline_date": "2026-08-09",
+  "baseline_name": "Current working baseline through Step 7 Workflow Design after DC-001 and DC-002",
+  "baseline_status": "CURRENT DRAFT ENGINEERING WORKING BASELINE",
+  "authority_order": [
+    "Governing documents",
+    "Detailed engineering source documents",
+    "Accepted design-change records",
+    "Derived reference/index files",
+    "Implementation/code"
+  ],
+  "accepted_changes": [
+    "DC-001 — Consistent Network Entity Modelling",
+    "DC-002 — Selectable Fault Location in Exploration Mode"
+  ],
+  "documents": [
+    {
+      "path": "00-governance/OT project vision.pdf",
+      "sha256": "f0b24f1eff0f7f8f4fae65722cf44a54f7738bc085adb9adf8c2a5319baaac8e",
+      "bytes": 106568
+    },
+    {
+      "path": "00-governance/OT demo project definition.pdf",
+      "sha256": "b4ac9c24f1cb3692241aabdc958a895d9b06566ea5b9853ce4717910e395e572",
+      "bytes": 134370
+    },
+    {
+      "path": "00-governance/OT project decisions.md",
+      "sha256": "dc2a1e7c2c1e8bd1321c718070b6afbc2cd10dd077699f88daccba4ee0a3d21d",
+      "bytes": 730
+    },
+    {
+      "path": "01-engineering-source-documents/Engineering Investigation and Research.docx",
+      "sha256": "ae97d001da5829eae3d8c6608838c7968982ba345da1c5df8879e55ee0be3ece",
+      "bytes": 283286,
+      "paragraphs": 1887,
+      "tables": 6,
+      "inline_shapes": 0
+    },
+    {
+      "path": "01-engineering-source-documents/OT Engineering Design Brief.docx",
+      "sha256": "e05b1d001bfb31ef1dee9cad0a608ffd3fdf0560b50cb8113041467439195e20",
+      "bytes": 72024,
+      "paragraphs": 1244,
+      "tables": 1,
+      "inline_shapes": 1,
+      "version": "0.3"
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Requirements Specification.docx",
+      "sha256": "7d5522e53dd99e505b9853d6b0b0255c8b4585964909f5659e1ab13d7d1eaeea",
+      "bytes": 38838,
+      "paragraphs": 1261,
+      "tables": 1,
+      "inline_shapes": 0,
+      "version": "0.3",
+      "verified_unique_requirements": 124
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Network Model.docx",
+      "sha256": "0c10255ecd05007ced1b5beb9f56f4e9d0ba31cb91f977f65473fa72c2f8adba",
+      "bytes": 423442,
+      "paragraphs": 518,
+      "tables": 32,
+      "inline_shapes": 2,
+      "version": "0.3",
+      "completed_through_section": "17.13"
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project System Architecture.docx",
+      "sha256": "677a14b9c1f5c53dd56679f2bbe108f50431acc4ab4020e37d9e30596d946cb7",
+      "bytes": 543849,
+      "paragraphs": 298,
+      "tables": 10,
+      "inline_shapes": 2,
+      "version": "0.1",
+      "completed_through_section": "25"
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Workflow Design.docx",
+      "sha256": "27e96b38ea44cadbe260d799812ef53a259446c37b18f5a97bd0e75406f60341",
+      "bytes": 617705,
+      "paragraphs": 241,
+      "tables": 29,
+      "inline_shapes": 2,
+      "version": "0.1",
+      "completed_through_section": "26",
+      "verified_requirements_allocated": 124
+    }
+  ],
+  "historical_manifest": "BASELINE-MANIFEST.json",
+  "notes": [
+    "BASELINE-MANIFEST.json preserves the original pre-DC-001/DC-002 integrity record.",
+    "Detailed engineering documents remain working Drafts pending further controlled development and final client-facing packaging.",
+    "Network Model Sections 16 and 17 continue the planned detailed engineering development without changing the accepted DC-001 or DC-002 principles.",
+    "System Architecture v0.1 establishes the Step 6 logical components, information ownership, interfaces, scenario boundaries and architecture decisions without changing the accepted DC-001 or DC-002 principles.",
+    "Workflow Design v0.1 establishes the Step 7 controlled operational and engineering workflows, resolves the 60-second project telemetry-age parameter and final event catalogue, and allocates all 124 formal requirements without introducing V2 automation into V1.",
+    "Future accepted design changes or further planned document development require this current manifest to be regenerated."
+  ]
+}

@@ -3,7 +3,7 @@
 **Project:** Operational Technology Graduate Demonstration Project  
 **Change ID:** DC-001  
 **Title:** Consistent Network Entity Modelling  
-**Status:** Applied — draft for acceptance  
+**Status:** Applied / accepted baseline
 **Date:** 2026-08-08
 
 ## 1. Change trigger
@@ -120,6 +120,6 @@ Equivalent switch instances may have different IDs, endpoints, states and scenar
 
 ## 10. Acceptance statement
 
-DC-001 is considered implemented in the engineering baseline when the revised Engineering Design Brief, Requirements Specification and Network Model are accepted together.
+DC-001 was implemented and accepted in the engineering baseline through the revised Engineering Design Brief, Requirements Specification and Network Model committed together.
 
 DC-002 — Selectable Fault Location in Exploration Mode — remains a separate design change and is not included in DC-001.

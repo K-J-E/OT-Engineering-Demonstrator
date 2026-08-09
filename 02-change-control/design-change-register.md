@@ -3,7 +3,7 @@
 | ID | Title | Status | Date |
 |---|---|---|---|
 | DC-001 | Consistent Network Entity Modelling | Applied / accepted baseline | 2026-08-08 |
-| DC-002 | Selectable Fault Location in Exploration Mode | Applied — verified draft for acceptance | 2026-08-08 |
+| DC-002 | Selectable Fault Location in Exploration Mode | Applied / verified / accepted baseline | 2026-08-08 |
 
 ## Change-control rule
 

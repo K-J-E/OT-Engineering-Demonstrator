@@ -3,7 +3,7 @@
 **Project:** Operational Technology Graduate Demonstration Project  
 **Change ID:** DC-002  
 **Title:** Selectable Fault Location in Exploration Mode  
-**Status:** Applied — draft for acceptance  
+**Status:** Applied / verified / accepted baseline
 **Date:** 2026-08-08
 
 ## 1. Change trigger
@@ -109,4 +109,4 @@ The current detailed engineering documents remain revision 0.3. DC-001 should co
 
 ## 11. Acceptance statement
 
-DC-002 is considered implemented in the engineering baseline when the revised Engineering Design Brief, Requirements Specification and Network Model are accepted together and committed as one controlled change.
+DC-002 was implemented, verified and accepted in the engineering baseline through the revised Engineering Design Brief, Requirements Specification and Network Model committed together as one controlled change.
