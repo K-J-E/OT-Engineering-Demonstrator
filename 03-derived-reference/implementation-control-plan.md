@@ -42,7 +42,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I8 | Exploration and export | **Not authorised** |
 | I9 | Packaging/review | **Not authorised** |
 
-No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the user reviews the result and separately authorises the next increment.
+No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 
 ## 3. Controls that apply to every increment
 
@@ -63,13 +63,17 @@ The source references in Sections 4–12 are minimum reading, not permission to 
 Each increment shall be:
 
 1. explicitly authorised and bounded;
-2. implemented only within that boundary;
-3. tested against its named implementation tests and Validation Plan gates;
-4. reviewed for requirement, design-decision and source-section traceability;
-5. committed as a separate intentional Git commit; and
-6. pushed separately before the increment is reported complete.
+2. developed on its own branch created from the reviewed `main` baseline;
+3. implemented only within that boundary;
+4. tested against its named implementation tests and Validation Plan gates;
+5. reviewed for requirement, design-decision and source-section traceability;
+6. committed as a separate intentional Git commit;
+7. pushed for independent review; and
+8. merged to `main` only after that increment is independently accepted.
 
-The commit shall identify the increment and shall not include unrelated work or work from a later increment. Test and evidence results shall identify the source commit/build where applicable.
+Each increment is therefore implemented, tested, committed and pushed separately on its own branch before review and merge.
+
+The branch and commit shall identify the increment and shall not include unrelated work or work from a later increment. Test and evidence results shall identify the source commit/build where applicable. Acceptance and merge close only the current increment; the next branch is not created and the next increment does not begin until the user provides separate authorisation.
 
 ### 3.3 Progression and stop rules
 
@@ -225,7 +229,7 @@ Primary coverage is `REQ-TEL-001–010`, `REQ-ALM-001–005` and `REQ-EVT-001–
 
 ### Expected files/modules
 
-- `app/backend/ot_demo/modules/telemetry/`, `events/` and `scenario_control/`.
+- `app/backend/ot_demo/modules/telemetry/`, `events/` and `scenario/`.
 - `app/backend/ot_demo/application/` transaction coordinator, command handlers and allowed-action assembly foundations.
 - SQLite repositories/migrations for runs, observations, alarms and operational events.
 - `/api/v1` command/query contracts needed to exercise N0→N3 without a full UI.
@@ -392,7 +396,8 @@ This increment provides the approved presentation and interaction path for the o
 - The complete N0–N5 browser workflow succeeds using only backend-returned projections/actions.
 - Configured, observed and derived information, fault state, operational events and validation evidence are visibly distinct.
 - The one-line is fixed for review; no drag/edit action changes engineering topology.
-- The context ribbon continuously identifies run, mode, configuration, build, controlled time and evidence class as designed.
+- The context ribbon continuously shows the approved Step 8 fields: mode, evidence class, short/full run identity, configuration version, active fault section, workflow stage, formal N-state where applicable, state revision and current assessment status.
+- Controlled scenario time remains visible where the approved telemetry and workflow design requires it; it is not introduced as a new mandatory context-ribbon field.
 - Warnings, reason codes, stale/quality states and rejected/blocked/permitted meanings remain reviewable and accessible.
 - Simulated/local/conceptual boundaries are explicit and no real-control implication is introduced.
 - All I6 tests pass and the increment is separately committed and pushed.
