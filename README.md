@@ -59,17 +59,17 @@ Workflow Design and Demonstrator Design are revision 0.2. They
 remain working Draft engineering documents because subsequent controlled design development
 may require further revision before final client-facing packaging.
 
-The Simplified Network Model is complete through Section 17.13 and constitutes the Step 5
-engineering answer key. Step 6 — System Architecture is established through Section 25 and
+The Simplified Network Model v0.4 is complete through Section 18.7 and constitutes the Step 5
+engineering answer key. Step 6 — System Architecture v0.2 is established through Section 26.5 and
 defines the logical component, information-ownership, interface, scenario, restoration,
-configuration and evidence boundaries for downstream design. Step 7 — Workflow Design is
-established through Section 26 and defines the controlled actor, command, processing, formal,
+configuration and evidence boundaries for downstream design. Step 7 — Workflow Design v0.2 is
+established through Section 27.4 and defines the controlled actor, command, processing, formal,
 exploratory, restoration, defect-investigation, repeat-validation and evidence workflows.
-Step 8 — Demonstrator Design is established through Section 34 and defines the practical local
+Step 8 — Demonstrator Design v0.2 is established through Section 35.6 and defines the practical local
 application, module and data-ownership boundaries, storage and identifier decisions, API and
 transaction model, screen/navigation structure, exploration/evidence/investigation presentation,
-technology stack, implementation increments and coding gate. The next planned engineering
-Step 9 — Validation Plan v1.0 is accepted through Section 18. It defines the 24-test
+technology stack, implementation increments and coding gate. Step 9 — Validation Plan v1.0 is the
+accepted current validation baseline through Section 18. It defines the 24-test
 catalogue, deterministic scenario-time and telemetry-boundary rules, formal and exploratory
 verification approach, evidence strategy and requirements-to-verification mapping for all 124
 formal requirements. DC-003 was applied and cross-document verified before final Step 9
