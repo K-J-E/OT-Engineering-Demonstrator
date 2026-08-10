@@ -1,5 +1,5 @@
 ---
-Status: I3 branch complete — pending independent review
+Status: I3 assurance corrections complete — pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -20,6 +20,12 @@ controlled scenario time, observed switching telemetry, quality/freshness
 classification, feeder-trip alarm and acknowledgement, command/revision/idempotency
 gates, atomic SQLite transactions, the approved operational-event catalogue,
 reset/new-run history semantics and the formal N0→N3 state-changing workflow.
+
+The targeted QA-027/QA-028 assurance correction commit is
+`531e2899d95541c20e336fe801231af99c448231`. It removes caller control of
+run build provenance, injects the trusted I1 build manifest at coordinator
+construction and makes the returned current topology/isolation projection coherent
+with current controlled scenario time without rewriting persisted revision evidence.
 
 Topology, source attribution, energisation, fault isolation, radiality and outage
 calculation remain owned by the accepted I2 services. I3 coordinates their use but
@@ -111,6 +117,25 @@ snapshots, alarms, events or command results, and creates a new run ID at the sa
 controlled initial epoch with normal observed state and fresh derivations. It is not
 an undo or in-place history rewrite.
 
+### 4.5 Controlled build provenance and current projection coherence
+
+The public initialisation request does not contain `application_build_id`. The
+scenario coordinator requires an I1 `ApplicationBuildManifest` from trusted backend
+construction and records that controlled identity on each new run. Reset preserves
+the original run build identity when the executing application build has not
+changed. A negative public-contract test proves a caller-supplied build-ID field is
+rejected; positive initialisation and reset tests prove the controlled identity is
+retained.
+
+Persisted topology/outage snapshots remain immutable evidence for their electrical
+`state_revision`. When controlled scenario time advances without an electrical
+revision, the returned current snapshot recomputes the time-sensitive topology and
+isolation projection from current configuration, telemetry and controlled time.
+The stored revision snapshot remains unchanged. Alarm acknowledgement therefore
+does not increment `state_revision` or emit false topology/outage events, while the
+current telemetry validity, isolation proof and allowed actions use one coherent
+freshness interpretation.
+
 ## 5. Requirements and conformance-gate traceability
 
 | Requirement / gate | I3 implementation evidence | I3 status |
@@ -137,10 +162,11 @@ or evidence verdict is created or claimed.
 
 | Verification | Result |
 |---|---|
-| I3 marked backend suite | PASS — 18 tests |
-| Complete backend unit/integration suite | PASS — 63 tests |
+| I3 marked backend suite | PASS — 20 tests |
+| Complete backend unit/integration suite | PASS — 65 tests |
 | I2 marked regression | PASS — 31 tests |
 | I1 marked regression | PASS — 11 tests |
+| Focused provenance/acknowledgement/rollback/idempotency/determinism regression | PASS — 5 tests |
 | Frontend scaffold regression | PASS — 1 test |
 | Pinned TypeScript/Vite production build | PASS |
 | Python dependency consistency | PASS — no broken requirements |
@@ -152,14 +178,14 @@ or evidence verdict is created or claimed.
 | Dependency/lock files | PASS — unchanged |
 | Authoritative engineering artefacts | PASS — unchanged |
 
-The clean application build identity captured at implementation commit
-`359f594decb376d568785741afafd11870adc484` is:
+The clean application build identity captured at the QA-027/QA-028 code-correction
+commit `531e2899d95541c20e336fe801231af99c448231` is:
 
-`a409ce7aeb0512cd2528d654b6f7a3a56ac2bb780754a2d3c2846c10a39b04d8`
+`f9f0cef33d4317512d67a650c714c9ad117e41860eb5efe3087a8c57efe82d9f`
 
 Its identity records `git_dirty = false`, Python 3.13.15, Node.js 24.19.0,
 npm 11.17.0, the accepted dependency-lock hashes, backend source hash
-`c8717bdee9ac0d426602d07ebb1eb531a5b01a17927e4cf38a73d9bb4cd0287b`
+`7132df45823b2b0c4079ff3b02205881b82bfd3b3e1d6c670106627cafacb532`
 and the unchanged frontend bundle hash.
 
 The accepted canonical configuration identities remain:
@@ -182,9 +208,22 @@ The accepted canonical configuration identities remain:
   sequence directly. The final implementation takes the actual boundary set only
   from I2 isolation proof and uses the procedure definition solely to order derived
   formal actions.
+- QA-027 records that the first I3 public initialisation request accepted a
+  caller-declared `application_build_id`. The field is removed from that contract;
+  the coordinator now requires the controlled I1 application build manifest and
+  records its identity. False caller override, positive provenance and reset
+  preservation tests pass.
+- QA-028 records that an acknowledgement could advance scenario time while a
+  returned snapshot combined current telemetry validity and actions with the older
+  persisted time-sensitive isolation proof. The current projection is now
+  recomputed coherently at current scenario time while the revision snapshot remains
+  unchanged. A focused 61-second regression proves STALE telemetry, UNPROVEN
+  boundaries, blocked isolation actions, unchanged revision/evidence and only the
+  acknowledgement event.
 
-All three findings are corrected and verified on the I3 branch but remain pending
-independent review before closure under an accepted I3 baseline.
+Independent review accepts QA-024, QA-025 and QA-026 in substance. QA-027 and QA-028
+are corrected and verified on the I3 branch but remain pending independent re-review
+before closure under an accepted I3 baseline.
 
 ## 8. Stop conditions, dependencies and regression implications
 
@@ -207,7 +246,8 @@ transaction behaviour and judgement unchanged.
 
 ## 9. Review and progression gate
 
-The completed branch `agent/i3-scenario-transactions` is pushed for independent
-review with its implementation and administrative closeout history preserved. I3
-shall not be merged until accepted. I4 has not begun and requires separate user
-authorisation from reviewed `main` after I3 acceptance and merge.
+The corrected branch `agent/i3-scenario-transactions` is pushed for independent
+re-review with its implementation and administrative closeout history preserved.
+PR #3 remains unmerged. I3 shall not be merged until accepted. I4 has not begun and
+requires separate user authorisation from reviewed `main` after I3 acceptance and
+merge.
