@@ -1,5 +1,5 @@
 ---
-Status: Assurance corrections complete — pending independent re-review
+Status: Accepted I4 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -24,6 +24,12 @@ Independent review accepted I4 in substance and requested two bounded assurance
 corrections. Commit `f30c55daccb6262cb5d885cb6c94ec7dff4a7d5e` implements
 QA-029 and QA-030 without changing the accepted formal outcome, configuration,
 dependencies or engineering behaviour.
+
+Independent engineering/implementation re-review accepted the complete I4 branch
+at tip `702d198fffed6bf9b330f3c349090a47b5b2d4db`. QA-029 and QA-030
+are independently verified closed under the accepted I4 baseline. The subsequent
+acceptance-status update is administrative only and does not alter the reviewed
+implementation.
 
 I2 remains authoritative for topology, energisation, source attribution,
 radiality, isolation proof and outage/customer calculations. I3 remains
@@ -154,13 +160,13 @@ or invalidation.
 
 | Requirement / gate | I4 implementation evidence | I4 status |
 |---|---|---|
-| `REQ-RST-001–003` | Generic structural candidate discovery and typed source/tie/section/path/load record; candidate remains distinct from permission. | Implemented; pending re-review. |
-| `REQ-RST-004–011` | I2 isolation proof, source/breaker/path, I2 radiality and all required quality/freshness states feed explicit permissives. | Implemented; pending re-review. |
-| `REQ-RST-012–017` | Section-load sum, I2 current receiving load, exact resulting load/percentage and 6,000/6,001 kW fixtures. | Implemented; pending re-review. |
-| `REQ-RST-018–022` | Explicit precedence, outcome/reason codes, evidence points and immutable assessment contents. | Implemented; pending re-review. |
-| `REQ-RST-023–029` | Current permitted binding only; simulated tie close; I2 topology/outage recalculation; A3/A4 restored; A2 remains out; customers recalculate to 220. | Implemented; pending re-review. |
-| Applicable topology/telemetry/outage/event requirements | Earlier services remain authoritative; exact approved 15-event catalogue is unchanged and restoration events link to assessment/command/run/revision. | I4 integration implemented; pending re-review. |
-| `REQ-NFR-006` | Commands alter simulation state only; no external interface or control output exists. | Implemented; pending re-review. |
+| `REQ-RST-001–003` | Generic structural candidate discovery and typed source/tie/section/path/load record; candidate remains distinct from permission. | Accepted I4 baseline. |
+| `REQ-RST-004–011` | I2 isolation proof, source/breaker/path, I2 radiality and all required quality/freshness states feed explicit permissives. | Accepted I4 baseline. |
+| `REQ-RST-012–017` | Section-load sum, I2 current receiving load, exact resulting load/percentage and 6,000/6,001 kW fixtures. | Accepted I4 baseline. |
+| `REQ-RST-018–022` | Explicit precedence, outcome/reason codes, evidence points and immutable assessment contents. | Accepted I4 baseline. |
+| `REQ-RST-023–029` | Current permitted binding only; simulated tie close; I2 topology/outage recalculation; A3/A4 restored; A2 remains out; customers recalculate to 220. | Accepted I4 baseline. |
+| Applicable topology/telemetry/outage/event requirements | Earlier services remain authoritative; exact approved 15-event catalogue is unchanged and restoration events link to assessment/command/run/revision. | Accepted I4 integration baseline. |
+| `REQ-NFR-006` | Commands alter simulation state only; no external interface or control output exists. | Accepted I4 baseline. |
 | `VT-FML-N0-N5-001` | Complete N0→N5 backend fixture proves the approved N4/N5 answer key. | Implementation conformance PASS only. |
 | Five telemetry catalogue cases | Exact 60,000 ms permits; 60,001 ms, UNCERTAIN, BAD and future timestamp block. | Implementation conformance PASS only. |
 | Six restoration catalogue cases | Isolation/source/radial negatives, exact capacity boundaries and stale binding are covered. | Implementation conformance PASS only. |
@@ -226,9 +232,9 @@ dependency or engineering change.
   into the returned and stored immutable result; replay proves I3 idempotency and
   creates no duplicate event/invalidation.
 
-Both corrections are complete and pending independent re-review. Existing QA-007,
-QA-014 and QA-017 implementation watches retain their I4 evidence. No previously
-closed item was reopened.
+Independent re-review accepted both corrections and verified QA-029 and QA-030
+closed under the accepted I4 baseline. Existing QA-007, QA-014 and QA-017 retain
+their recorded I4 evidence. No previously closed item was reopened.
 
 The configuration packages, dependency locks, governing documents, detailed
 engineering DOCX/PDF artefacts, accepted design-change records, current baseline
@@ -253,7 +259,8 @@ engineer review without changing V1 decisions or switching authority.
 
 ## 9. Review and progression gate
 
-I4 assurance corrections are complete on `agent/i4-restoration` and are pending
-independent re-review. The branch must be pushed and reviewed; it must not be merged
-until accepted. I5 has not started and requires separate user authorisation after
-the reviewed I4 baseline is incorporated into `main`.
+Independent review accepted `agent/i4-restoration` at
+`702d198fffed6bf9b330f3c349090a47b5b2d4db`. The reviewed implementation
+history and this administrative acceptance record are incorporated into `main` as
+the accepted I4 implementation baseline. I5 has not started and requires separate
+user authorisation from reviewed `main`.
