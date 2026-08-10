@@ -34,14 +34,14 @@ the operational-event catalogue and finalised records are immutable.
 
 ## I7 verification state
 
-I7 is implemented on its dedicated review branch and remains pending independent
-review. Verification covers the real v1.0 400-customer failure, the ordered
+I7 is the accepted implementation baseline. Verification covers the real v1.0
+400-customer failure, the ordered
 seven-step investigation, the exact immutable package difference, separate
 DEF-001/COR-001 records, the same-build v1.1 850-customer PASS and all six
 corrected N0–N5 regression checkpoints. Backend, React/Cytoscape and Chromium
 workflows, the clean exact-toolchain install and pinned TypeScript/Vite production
-build pass. The latest assurance-correction commit and clean build identity are
-recorded in the I7 increment closeout pending final independent acceptance.
+build pass. The reviewed assurance-correction commits, clean identities and final
+acceptance are recorded in the I7 increment closeout.
 
 The canonical network packages, validation catalogue, dependency versions and
 lockfiles are unchanged. I8 has not begun.

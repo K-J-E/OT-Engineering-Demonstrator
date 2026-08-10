@@ -1,5 +1,5 @@
 ---
-Status: I7 implementation complete — pending independent review
+Status: Accepted I7 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -26,12 +26,16 @@ fault investigation, configuration editing, external OT integration, AI,
 autonomous correction, real switching/control, new operational-event type,
 engineering rule or authoritative-document change was added.
 
-Independent review accepted I7 in substance and accepted QA-036's bounded
-cross-configuration replacement-run concept. Correction commit
+Final independent engineering/implementation review accepted the complete I7
+branch at reviewed tip `d6c2edd1cd90941d8263fcdab94d8b363372fbcc`.
+QA-036's bounded cross-configuration replacement-run treatment is accepted for
+the I7 baseline. Correction commit
 `ae645053af1cf6b464bf411166b328f0b6abc1d3` addressed QA-037 and QA-038;
 independent re-review verified both closed. Final bounded presentation commit
 `f32ab569b22624b325b0029fae6daa8e92fa23aa` addresses QA-039 without
-changing backend provenance semantics or redesigning the increment.
+changing backend provenance semantics or redesigning the increment; final review
+independently verified QA-039 closed. This acceptance update is administrative
+only and changes no implementation behaviour or controlled engineering content.
 
 ## 2. Mandatory sources and requirements
 
@@ -148,8 +152,8 @@ unchanged. The frontend now uses only that backend result and backend-provided
 record presence: the two-record statement names the v1.0 failure and v1.1 direct
 repeat, while the three-record statement adds corrected regression only after its
 record exists. Focused component tests prove both states and the Chromium workflow
-proves the wording transition through the real I7 sequence. QA-039 is closed in
-implementation pending final independent acceptance.
+proves the wording transition through the real I7 sequence. Final independent
+review verified QA-039 closed.
 
 ## 7. Verification evidence
 
@@ -231,10 +235,10 @@ bundle hash is
 
 ## 9. Review gate
 
-I7 is complete on its dedicated branch and pending final independent acceptance.
-Draft PR #7 remains open and must not be merged until accepted. I8 has not begun
-and requires separate user authorisation after the reviewed I7 baseline is
-incorporated into `main`.
+I7 is the accepted implementation baseline. Its reviewed history and this
+administrative acceptance record are authorised for fast-forward incorporation
+into `main`. I8 has not begun and requires separate user authorisation after the
+merged reviewed I7 baseline is confirmed.
 
 ## V2 Automation Candidate
 

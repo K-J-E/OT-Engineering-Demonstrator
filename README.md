@@ -73,10 +73,10 @@ accepted current validation baseline through Section 18. It defines the 24-test
 catalogue, deterministic scenario-time and telemetry-boundary rules, formal and exploratory
 verification approach, evidence strategy and requirements-to-verification mapping for all 124
 formal requirements. DC-003 was applied and cross-document verified before final Step 9
-acceptance. Implementation proceeds only through separately authorised increments. I1–I6 are
-accepted implementation baselines. I7 — Investigation/Correction has been implemented and
-verified on its dedicated review branch and is pending independent review; it remains unmerged.
-I8 has not begun and is not authorised.
+acceptance. Implementation proceeds only through separately authorised increments. I1–I7 are
+accepted implementation baselines. I7 — Investigation/Correction passed final independent
+engineering/implementation review and its reviewed history is incorporated into `main` through
+the administrative acceptance baseline. I8 has not begun and is not authorised.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

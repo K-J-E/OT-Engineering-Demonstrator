@@ -72,6 +72,6 @@ For the controlled DEF-001 consequence-to-source investigation and correction ch
 5. Demonstrator Design Sections 19, 21–22, 27–28 and 35.4–35.5 for records, persistence, read models, screens and increment boundary; and
 6. Validation Plan definitions/procedures `VT-TOP-DEF-001`, `VT-CFG-INV-001`, `VT-DET-REPEAT-001`, `VT-FML-N0-N5-001` and Sections 11, 13–15.
 
-Current gate: I6 is the accepted implementation baseline. I7 is implemented and verified on `agent/i7-investigation-correction`, pending independent review. **I7 is not merged or accepted; I8 has not begun and requires separate authorisation after I7 acceptance.**
+Current gate: I7 is the accepted implementation baseline after final independent review of tip `d6c2edd1cd90941d8263fcdab94d8b363372fbcc` and administrative incorporation of the reviewed history into `main`. **I8 has not begun and requires separate user authorisation.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.
