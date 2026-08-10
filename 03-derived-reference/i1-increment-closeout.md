@@ -1,5 +1,5 @@
 ---
-Status: I1 implementation complete on branch — pending independent review
+Status: I1 implementation and assurance corrections complete — pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -58,10 +58,13 @@ before implementation:
   neither is generated from the other at runtime.
 - `.python-version`, `.nvmrc`, `pyproject.toml`, `requirements.lock`, frontend
   package/lock files and the build-manifest generator.
+- repository `.gitattributes` enforcing deterministic LF text checkout bytes and
+  explicit binary treatment for authoritative documents and common binary formats.
 - initial SQLite schema for migration history, configuration catalogue records and
   application-build records.
 - unit/integration tests for schema parity, immutability, unknown-field rejection,
-  package identity/hashes, tamper rejection, exact configuration difference,
+  manifest ID/version consistency, package identity/hashes, tamper rejection,
+  exact configuration difference, build-manifest assembly and input participation,
   approved values/IDs, packaged migration availability and empty-database migration.
 
 Connectivity-edge IDs are deterministic implementation record identifiers required
@@ -107,11 +110,11 @@ Setuptools 84.0.0 and every runtime/test dependency are exact-pinned in the
 controlled project and lock files. The frontend clean lock installation reports
 zero vulnerabilities.
 
-The working-tree assurance build generated during completion has application build
-ID `578a06a9e3247820270a84252d4b44dfba1e8187b891418e187d8bd3f1ef64cf`.
-It correctly records `git_dirty: true` against the reviewed base while I1 files are
-uncommitted. A clean branch-tip build identity is generated after the I1 commit and
-reported in the independent-review handoff without modifying tracked files.
+The initial clean I1 branch-tip build was
+`6170691daf62e986acec83a6841cce768cdc75f57368e04e88669040f2b6d1d6` at commit
+`6a70663294bb722a0a3d4b415d9846bb7f84fd02`. The assurance-corrected clean
+branch-tip identity is generated after its commit and reported in the independent
+re-review handoff without modifying tracked files.
 
 ## 7. Verification results
 
@@ -120,7 +123,7 @@ reported in the independent-review handoff without modifying tracked files.
 | Fresh Python 3.13.15 environment installed from `requirements.lock` | PASS |
 | Normal wheel build/install, backend import and packaged migration access | PASS |
 | Python dependency consistency check | PASS |
-| Backend unit/integration suite | PASS — 12 tests |
+| Backend unit/integration suite | PASS — 14 tests |
 | Empty SQLite migration and repeat application | PASS |
 | Fresh `npm ci` using Node 24.19.0/npm 11.17.0 | PASS |
 | Frontend Vitest scaffold suite | PASS — 1 test |
@@ -128,6 +131,9 @@ reported in the independent-review handoff without modifying tracked files.
 | npm high-severity audit | PASS — 0 vulnerabilities |
 | Independent package load/hash/tamper checks | PASS |
 | Raw and typed v1.0/v1.1 single-difference checks | PASS |
+| Git renormalization and controlled LF/binary-attribute inspection | PASS — only `.gitattributes` changed; controlled hashes unchanged |
+| Mismatched manifest configuration ID/version negative test | PASS |
+| Build-manifest assembly and controlled-input participation test | PASS |
 | I2/later-module and behavioural-logic scope scan | PASS — absent |
 
 ## 8. Findings, stop conditions and regression implications
@@ -136,6 +142,13 @@ IMP-001 dependency evaluation exposed two tooling compatibility issues, recorded
 QA-018. Both were resolved within the permitted I1 dependency/setup scope and all
 affected tests were repeated. No engineering rule, requirement, network value,
 workflow or expected result changed.
+
+Independent review identified deterministic-checkout and manifest-internal-
+identity assurance gaps, recorded as QA-019 and QA-020. Both are closed by the
+targeted I1 corrections and complete repeated verification above. The recommended
+build-identity assurance improvement was also applied: the test now verifies Git
+commit/dirty state, Python/Node/npm identity, both dependency-lock hashes, backend
+source hash and frontend-bundle hash in the assembled controlled identity.
 
 No I1 stop condition remains open. Future increments must treat the two canonical
 configuration packages and lock files as controlled inputs. Any dependency,
@@ -150,9 +163,10 @@ for engineer acceptance without changing V1 behaviour.
 
 ## 9. Review handoff and progression gate
 
-The I1 commit hash and pushed branch are recorded in the final task handoff and Git
-history because a commit cannot contain its own final hash. This closeout is not an
-acceptance or merge decision.
+The assurance-correction commit hash and pushed branch are recorded in the final
+task handoff and Git history because a commit cannot contain its own final hash.
+This closeout is not an acceptance or merge decision.
 
-I1 must now be independently reviewed and accepted before merge to `main`. I2 has
-not started and requires separate user authorisation after accepted I1 is merged.
+I1 must now be independently re-reviewed and accepted before merge to `main`. I2
+has not started and requires separate user authorisation after accepted I1 is
+merged.

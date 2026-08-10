@@ -35,7 +35,13 @@ class ConfigurationManifest(FrozenModel):
     source_references: Annotated[tuple[str, ...], Field(min_length=1)]
 
     @model_validator(mode="after")
-    def validate_controlled_paths(self) -> Self:
+    def validate_controlled_identity_and_paths(self) -> Self:
+        expected_configuration_id = f"network-configuration-v{self.version}"
+        if self.configuration_id != expected_configuration_id:
+            raise ValueError(
+                "configuration_id must correspond to the declared version: "
+                f"expected {expected_configuration_id}"
+            )
         if self.data_file.path != "network.json":
             raise ValueError("configuration data file must be network.json")
         if self.schema_file.path != "schema/v1/network-configuration.schema.json":
