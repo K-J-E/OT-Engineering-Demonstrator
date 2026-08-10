@@ -38,8 +38,8 @@ historical hashes are preserved in `BASELINE-MANIFEST.json` and remain recoverab
 history.
 
 The canonical files in `01-engineering-source-documents/` now contain the accepted working
-baseline after DC-001, DC-002 and DC-003. Their current hashes and structural metadata are recorded in
-`CURRENT-BASELINE-MANIFEST.json`.
+baseline after DC-001, DC-002, DC-003 and authoritative design baselining of DC-004. Their current
+hashes and structural metadata are recorded in `CURRENT-BASELINE-MANIFEST.json`.
 
 ## Change status
 
@@ -53,9 +53,15 @@ trustworthy OPEN / trustworthy CLOSED / UNPROVEN evidence conditions, one-action
 and the all-open plus zero-active-source-path isolation proof without adding requirements or new
 restoration behaviour.
 
+DC-004 — Multi-Run Exploratory Validation Determination — is accepted as the authoritative
+validation/design treatment. It defines constituent cases, immutable composite determination,
+historical catalogue/test-definition resolution and provenance boundaries without changing the
+24-test catalogue, 124 requirements, 286 RTM relationships, 15 event types or electrical behaviour.
+Its separate machine/application phase remains pending and I9 remains stopped.
+
 The current detailed Design Brief and Network Model are revision 0.4; the Requirements
-Specification remains revision 0.3 with 124 unique requirements. The System Architecture,
-Workflow Design and Demonstrator Design are revision 0.2. They
+Specification remains revision 0.3 with 124 unique requirements. System Architecture and
+Workflow Design remain revision 0.2; Demonstrator Design is revision 0.3. They
 remain working Draft engineering documents because subsequent controlled design development
 may require further revision before final client-facing packaging.
 
@@ -65,19 +71,22 @@ defines the logical component, information-ownership, interface, scenario, resto
 configuration and evidence boundaries for downstream design. Step 7 — Workflow Design v0.2 is
 established through Section 27.4 and defines the controlled actor, command, processing, formal,
 exploratory, restoration, defect-investigation, repeat-validation and evidence workflows.
-Step 8 — Demonstrator Design v0.2 is established through Section 35.6 and defines the practical local
+Step 8 — Demonstrator Design v0.3 is established through Section 36.8 and defines the practical local
 application, module and data-ownership boundaries, storage and identifier decisions, API and
 transaction model, screen/navigation structure, exploration/evidence/investigation presentation,
-technology stack, implementation increments and coding gate. Step 9 — Validation Plan v1.0 is the
-accepted current validation baseline through Section 18. It defines the 24-test
+technology stack, implementation increments, coding gate and accepted DC-004 multi-run
+validation-assurance design. Step 9 — Validation Plan v1.1 is the
+accepted current validation-design baseline through Section 19.9. It defines the 24-test
 catalogue, deterministic scenario-time and telemetry-boundary rules, formal and exploratory
 verification approach, evidence strategy and requirements-to-verification mapping for all 124
 formal requirements. DC-003 was applied and cross-document verified before final Step 9
 acceptance. Implementation proceeds only through separately authorised increments. I1–I8 are
 accepted implementation baselines. I8 — Exploration and Export passed final independent
 engineering/implementation review, including accepted QA-008 evidence export and independently
-verified closure of QA-040. Its reviewed history is incorporated into `main`. I9 has not begun and
-requires separate user authorisation.
+verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 is accepted as
+the authoritative design change, but its machine/application phase has not begun. I9 was authorised
+and then stopped before implementation; it cannot resume until the separate DC-004 application has
+passed independent review and been incorporated into `main`.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

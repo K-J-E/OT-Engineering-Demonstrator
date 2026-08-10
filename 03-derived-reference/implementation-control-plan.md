@@ -1,5 +1,5 @@
 ---
-Status: Active implementation control plan — I8 accepted; I9 stopped pending final review of corrected DC-004 proposal
+Status: Active implementation control plan — DC-004 design accepted; I8 implementation accepted; I9 stopped pending separate DC-004 application
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
 Updated: 2026-08-11
@@ -19,12 +19,12 @@ The current baseline is:
 - Network Model v0.4 through Section 18.7;
 - System Architecture v0.2 through Section 26.5;
 - Workflow Design v0.2 through Section 27.4;
-- Demonstrator Design v0.2 through Section 35.6;
-- Validation Plan v1.0 through Section 18, accepted as the current Step 9 validation baseline;
+- Demonstrator Design v0.3 through Section 36.8, including accepted DC-004;
+- Validation Plan v1.1 through Section 19.9, accepted as the current validation-design baseline;
 - 124 unchanged formal requirements; and
-- DC-001, DC-002 and DC-003 applied and accepted.
+- DC-001, DC-002, DC-003 and DC-004 accepted and applied to their authoritative design artefacts.
 
-Proposed DC-004 adds review-only draft amendments to Demonstrator Design Section 36 and Validation Plan Section 19. Independent review accepts the core architecture in substance, but final acceptance remains pending the bounded historical-catalogue/provenance/time correction. The proposals do not replace the accepted versions above unless DC-004 is independently accepted and applied.
+Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section 19 authoritative. Its machine-readable catalogue, contract, persistence and application treatment remains a separate controlled application phase requiring its own branch (planned as `agent/dc-004-application` from the accepted design `main` baseline), tests, build identity, independent review and incorporation into `main`. The stopped `agent/i9-packaging-review` branch is not reused. I9 remains stopped until that application baseline is accepted.
 
 The detailed source documents remain authoritative. Requirement ranges and catalogue-test references below are navigation and delivery controls, not substitutes for reading the exact rows and test definitions.
 
@@ -42,7 +42,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I6 | Operational UI | **Accepted implementation baseline** |
 | I7 | Investigation/correction | **Accepted implementation baseline** |
 | I8 | Exploration and export | **Accepted implementation baseline** |
-| I9 | Packaging/review | **Authorised, then stopped before implementation — corrected DC-004 proposal pending final independent review** |
+| I9 | Packaging/review | **Authorised, then stopped before implementation — accepted DC-004 application not yet authorised or implemented** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 
@@ -526,8 +526,8 @@ Complete the one-command local build/start path, engineering-basis view, accessi
 - Network Model v0.4 Sections 1–18.7.
 - System Architecture v0.2 Sections 1–26.5.
 - Workflow Design v0.2 Sections 1–27.4.
-- Demonstrator Design v0.2 Sections 1–35.6, especially Sections 24, 26–30 and 34–35.
-- Validation Plan v1.0 Sections 1–18, including all 24 procedures, the exact RTM and entry/exit/suspension/regression criteria.
+- Demonstrator Design v0.3 Sections 1–36.8, especially Sections 24, 26–30 and accepted DC-004 Section 36.
+- Validation Plan v1.1 Sections 1–19.9, including all 24 procedures, the exact RTM, entry/exit/suspension/regression criteria and accepted DC-004 Section 19.
 - All accepted design changes, current manifests, QA register and implementation source map.
 
 ### Requirements addressed

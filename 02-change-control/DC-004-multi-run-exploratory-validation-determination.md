@@ -1,10 +1,14 @@
 # DC-004 — Multi-Run Exploratory Validation Determination
 
-Status: Proposed / core architecture accepted in substance; bounded correction pending final independent review
+Status: Accepted / authoritative design baseline; machine/application phase pending
 
 Date raised: 2026-08-10
 
 Proposal date: 2026-08-10
+
+Acceptance date: 2026-08-11
+
+Accepted reviewed tip: `69f615a0ddfa2d78847c48a6c305682e2f2a94a2`
 
 Change class: Validation-assurance design clarification
 
@@ -26,7 +30,7 @@ constituent executions become one catalogue-level determination. I9 therefore
 stopped before implementation or campaign execution rather than weakening
 single-run provenance or inventing an aggregate verdict.
 
-This proposed change defines stable constituent cases and a separate immutable
+This accepted change defines stable constituent cases and a separate immutable
 composite result. It does not create a multi-run `ValidationExecution` and does
 not change any electrical, topology, outage, restoration or workflow outcome.
 
@@ -287,8 +291,8 @@ convenience shall not determine or weaken the identity invariant.
 - Network Model, topology/outage/restoration behaviour, DC-003 and the
   immutable v1.0/v1.1 packages do not change.
 - `VT-EXP-ALL-001` and `VT-EXP-ROLE-001` definition versions, the catalogue
-  version/hash and manifest hash will change only after independent acceptance
-  and controlled machine-readable application.
+  version/hash and manifest hash will change only during the separately
+  authorised controlled machine-readable application.
 - Old and new definition/catalogue identities must be recorded explicitly;
   historical executions remain bound to their original identities.
 - The accepted machine-readable catalogue v1.0 plus its manifest/hash remains
@@ -298,19 +302,19 @@ convenience shall not determine or weaken the identity invariant.
 
 ## 11. Authoritative artefact impact assessment
 
-| Artefact | Proposed treatment | Behaviour impact |
+| Artefact | Accepted treatment | Behaviour impact |
 |---|---|---|
 | Validation Plan | Add stable case definitions, case comparisons, composite completeness/verdict rules, evidence/exit treatment and verification cases. | Validation-assurance clarification only. |
 | Demonstrator Design | Add constituent/composite records, catalogue-revision resolver, ownership, persistence/immutability, review projection and optional composite export boundary. | Application/evidence design clarification only. |
 | Requirements Specification | No change. Existing requirements remain allocated through unchanged RTM relationships. | None. |
 | Network Model | No change. All case expectations already exist in Sections 12 and 18 or the accepted Validation Plan answer key. | None. |
-| System Architecture / Workflow Design | No proposed wording change after impact review; existing validation/evidence ownership and deterministic workflow boundaries remain sufficient when read with the Demonstrator Design amendment. | None. |
-| Machine catalogue/contracts/schema | Deferred until DC-004 is independently accepted. Controlled application must preserve accepted catalogue v1.0 and add identity-based historical definition resolution before promoting the new revision. | Future bounded implementation work. |
-| Manifests/source map/baseline aids | Record proposed status now; update controlled identities only after acceptance/application. | Administrative only. |
+| System Architecture / Workflow Design | No wording change after impact review; existing validation/evidence ownership and deterministic workflow boundaries remain sufficient when read with the Demonstrator Design amendment. | None. |
+| Machine catalogue/contracts/schema | Deferred to the separately authorised DC-004 application phase. Controlled application must preserve accepted catalogue v1.0 and add identity-based historical definition resolution before promoting the new revision. | Future bounded implementation work. |
+| Manifests/source map/baseline aids | Record the accepted design and authoritative document identities now; update machine identities only after separately reviewed application. | Administrative only. |
 
 ## 12. Future implementation areas
 
-After independent acceptance and separate implementation authorisation, the
+After separate DC-004 application authorisation, the
 bounded impact is expected in:
 
 - validation catalogue schema/loader for case definitions and hashes;
@@ -335,7 +339,7 @@ bounded impact is expected in:
 No topology, outage, restoration, event or scenario electrical algorithm is in
 scope.
 
-## 13. Proposed verification cases
+## 13. Application verification cases
 
 Future implementation verification shall prove:
 
@@ -372,25 +376,28 @@ Future implementation verification shall prove:
     test-definition/case-definition identities, while the separate provenance
     gates and composite agreement checks still enforce them.
 
-## 14. Proposal and lifecycle gate
+## 14. Acceptance and lifecycle gate
 
-Current disposition: **Proposed / core architecture accepted in substance;
-bounded correction pending final independent review.**
+Current disposition: **Accepted / authoritative design baseline.**
 
-This branch contains design/change-control material only. It does not alter the
-machine-readable catalogue, database contracts, implementation behaviour,
-controlled configurations or accepted I8 runtime baseline. I9 remains stopped.
+This acceptance baselines the DC-004 design and the authoritative Validation
+Plan Section 19 and Demonstrator Design Section 36 treatments only. It does not
+alter the machine-readable catalogue, database contracts, implementation
+behaviour, controlled configurations or accepted I8 runtime baseline. I9
+remains stopped.
 
-If independently accepted, DC-004 must then be applied to the machine-readable
-validation definition/contracts and cross-document/identity impacts verified
-before I9 resumes. Acceptance of this proposal does not itself authorise I9
-implementation.
+DC-004 requires a separate controlled application phase on its own branch from
+the accepted design baseline. That phase must apply the accepted treatment to
+the machine-readable validation definitions/contracts, preserve catalogue v1.0
+as historical input, verify all identity and cross-document impacts, and pass
+independent review before incorporation into `main`. This design acceptance
+does not authorise I9 implementation.
 
-## 15. Proposal verification record
+## 15. Review and acceptance verification record
 
 Initial proposal verification completed on 2026-08-10. The bounded review
-correction was applied and verified on 2026-08-11. The corrected proposal
-identities are:
+correction was applied and verified on 2026-08-11. The final independently
+reviewed proposal identities were:
 
 - Validation Plan proposed v1.1: 842,561 bytes; SHA-256
   `9c9d248685c33bb08b14478acd4e46d8d15ba0793e0e5543fc60be6e353f6953`;
@@ -398,7 +405,17 @@ identities are:
 - Demonstrator Design proposed v0.3: 849,335 bytes; SHA-256
   `ebb9af6011be756491cea884712c40cc7f12121f31dcd79e0504e7202adb29ef`;
   44 rendered pages.
-- Both DOCX packages passed ZIP/OOXML structural checks and all proposed pages
+
+Administrative acceptance wording produced the following authoritative
+document identities without changing the reviewed engineering treatment:
+
+- Validation Plan accepted v1.1: 842,611 bytes; SHA-256
+  `c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c`;
+  44 rendered pages.
+- Demonstrator Design accepted v0.3: 849,329 bytes; SHA-256
+  `f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5`;
+  44 rendered pages.
+- Both DOCX packages passed ZIP/OOXML structural checks and all affected pages
   were rendered and visually inspected, including repeated table headers and
   final-page layout.
 - The unchanged machine catalogue still contains 24 definitions and exactly
@@ -409,14 +426,14 @@ identities are:
 - Git scope inspection confirms no Requirements Specification, Network Model,
   System Architecture, Workflow Design, implementation, schema, catalogue,
   configuration, migration, dependency or test file changed.
-- The current-baseline manifest intentionally remains the accepted I8 manifest;
-  proposed document identities are not promoted into it before independent
-  acceptance/application.
+- The current-baseline manifest is regenerated to record the accepted DC-004
+  design identities while retaining I8 as the accepted implementation baseline
+  and the stopped I9/application gate.
 
 ## V2 Automation Candidate
 
 **V2 Automation Candidate — composite validation evidence assembly.** Checking
 that every required constituent exists once, shares controlled provenance and
 has complete evidence is repetitive and evidence-heavy. A future assurance
-tool could assemble and cross-check the proposed composite while preserving the
+tool could assemble and cross-check the accepted composite design while preserving the
 deterministic V1 rules and engineer-controlled final determination.
