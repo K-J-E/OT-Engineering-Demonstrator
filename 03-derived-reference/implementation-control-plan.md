@@ -1,8 +1,8 @@
 ---
-Status: Active implementation control plan — I8 accepted; I9 stopped pending proposed DC-004 review
+Status: Active implementation control plan — I8 accepted; I9 stopped pending final review of corrected DC-004 proposal
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
-Updated: 2026-08-10
+Updated: 2026-08-11
 Applies to: Approved Step 8 implementation increments I1–I9
 ---
 
@@ -24,7 +24,7 @@ The current baseline is:
 - 124 unchanged formal requirements; and
 - DC-001, DC-002 and DC-003 applied and accepted.
 
-Proposed DC-004 adds review-only draft amendments to Demonstrator Design Section 36 and Validation Plan Section 19. Those proposals do not replace the accepted versions above unless DC-004 is independently accepted and applied.
+Proposed DC-004 adds review-only draft amendments to Demonstrator Design Section 36 and Validation Plan Section 19. Independent review accepts the core architecture in substance, but final acceptance remains pending the bounded historical-catalogue/provenance/time correction. The proposals do not replace the accepted versions above unless DC-004 is independently accepted and applied.
 
 The detailed source documents remain authoritative. Requirement ranges and catalogue-test references below are navigation and delivery controls, not substitutes for reading the exact rows and test definitions.
 
@@ -42,7 +42,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I6 | Operational UI | **Accepted implementation baseline** |
 | I7 | Investigation/correction | **Accepted implementation baseline** |
 | I8 | Exploration and export | **Accepted implementation baseline** |
-| I9 | Packaging/review | **Authorised, then stopped before implementation — proposed DC-004 pending independent review** |
+| I9 | Packaging/review | **Authorised, then stopped before implementation — corrected DC-004 proposal pending final independent review** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 

@@ -1,6 +1,6 @@
 # DC-004 — Multi-Run Exploratory Validation Determination
 
-Status: Proposed / pending independent engineering review
+Status: Proposed / core architecture accepted in substance; bounded correction pending final independent review
 
 Date raised: 2026-08-10
 
@@ -49,6 +49,9 @@ not change any electrical, topology, outage, restoration or workflow outcome.
   determinations and composite results are validation-assurance records, not
   operational events.
 - I8 per-execution evidence ZIP behaviour remains unchanged.
+- Every accepted validation catalogue revision is an immutable historical
+  engineering input. A later accepted revision does not replace the package or
+  identity needed to resolve an earlier execution.
 
 ## 3. Constituent-case definition and execution binding
 
@@ -74,6 +77,24 @@ evidence capture. Its execution and evidence records identify `case_id`.
 The same `(test_id, case_id)` may be executed again only as a new run and a new
 execution. A repeat does not replace the earlier execution.
 
+### 3.1 Engineering expectations versus provenance invariants
+
+`comparison_expected_values` contains only predetermined engineering/case
+expectations from the accepted oracle. Applicable fields include selected fault
+section, affected/alternate feeder, protection breaker, canonical incident
+boundary set, telemetry value/quality/freshness/proof/action state,
+isolation result, restoration candidate/transfer sections, load, capacity,
+loading percentage and operational outcome.
+
+Dynamic identities are not ordinary expected-versus-observed engineering
+fields. `application_build_id`, catalogue identity/hash, test-definition
+identity/hash and case-definition identity/hash are separately validated
+provenance/binding invariants. Scenario mode, evidence class and corrected v1.1
+configuration identity/version are also execution preconditions/provenance
+gates. The composite finalisation rule may require these identities to agree
+across constituents, but their agreement is not an engineering comparison
+result.
+
 ## 4. Exact `VT-EXP-ALL-001` constituent cases
 
 The required case set contains exactly nine case IDs. Boundary ID sets are
@@ -91,11 +112,11 @@ compared canonically without relying on presentation or iteration order.
 | `EXP-ALL-B4` | Fault `SEC-B4` | affected `FDR-B`; protection breaker `BRK-B`; incident boundaries `{SW-B34, TS-01}`. |
 | `EXP-ALL-A4-STALE-OPEN` | Separate `SEC-A4` run; `TS-01` last value `OPEN`, quality `GOOD`, age 60,001 ms | affected `FDR-A`; protection breaker `BRK-A`; incident boundaries `{SW-A34, TS-01}`; observed value `OPEN`; freshness `STALE`; proof `UNPROVEN`; `open_action_eligible = false`; overall isolation `false`; evidence-deficiency reason identifies stale telemetry. |
 
-Every case also compares the common provenance/classification fields:
-`selected_fault_section_id`, `scenario_mode = EXPLORATION`,
-`evidence_class = EXPLORATORY`, `configuration_id`,
-`configuration_version = 1.1`, application build identity, test-definition
-identity and case-definition identity.
+Every case also compares its predetermined `selected_fault_section_id`.
+`scenario_mode = EXPLORATION`, `evidence_class = EXPLORATORY`, corrected
+configuration identity/version 1.1, application build identity,
+test-definition identity and case-definition identity are validated separately
+as provenance/binding invariants under Section 3.1.
 
 The stale case is deliberately one deterministic stale boundary: `GOOD` value
 quality with age 60,001 ms. Other DC-003 untrustworthy states remain covered by
@@ -115,9 +136,11 @@ review presentation/comparison.
 | `EXP-ROLE-A1` | selected fault `SEC-A1`; affected `FDR-A`; alternate `FDR-B`; proposed sections `{SEC-A2, SEC-A3, SEC-A4}`; transferable load 2,450 kW; resulting load 6,650 kW; capacity 6,000 kW; loading 110.8%; outcome `REJECTED`. |
 | `EXP-ROLE-A4` | selected fault `SEC-A4`; affected `FDR-A`; no restoration candidate; no transferable group/calculation; outcome `NO_CANDIDATE`. |
 
-Every case additionally compares `scenario_mode = EXPLORATION`,
+Every case additionally compares its selected fault and the case-specific
+engineering fields in the table. `scenario_mode = EXPLORATION`,
 `evidence_class = EXPLORATORY`, corrected v1.1 configuration identity, the
-backend-controlled build identity and the bound test/case-definition identities.
+backend-controlled build identity and the bound test/case-definition identities
+are separate provenance/binding invariants under Section 3.1.
 `REJECTED` and `NO_CANDIDATE` are expected operational results and therefore
 produce a case-level validation `PASS` when all expected fields and mandatory
 evidence agree.
@@ -130,7 +153,7 @@ constituent record.
 
 | Field | Minimum controlled content |
 |---|---|
-| Identity | `composite_result_id`; creation/finalisation scenario time where applicable. |
+| Identity | `composite_result_id`; optional administrative `created_at`/`finalised_at` audit timestamps, explicitly not engineering scenario time. |
 | Definition | `test_id`, test-definition version/hash and catalogue hash. |
 | Classification | `evidence_class = EXPLORATORY`. |
 | Provenance | One backend-controlled `application_build_id`; corrected configuration ID/version. |
@@ -142,6 +165,11 @@ constituent record.
 
 An incomplete draft/assembly record may be queried for review, but it has no
 validation verdict and does not count as an accepted catalogue execution.
+The composite owns no authoritative scenario time. Each constituent retains
+its own controlled scenario/run/checkpoint time through its execution and
+evidence links. Any composite creation/finalisation timestamp is administrative
+audit metadata only and shall not participate in the engineering comparison or
+aggregate determination.
 
 ## 7. Aggregate determination rule
 
@@ -213,11 +241,42 @@ The validation/evidence review model shall show, without collapsing provenance:
 - FORMAL/EXPLORATORY classification; and
 - completeness/finalisation reasons.
 
-I8 per-execution ZIP export remains unchanged. If a catalogue-level package is
-requested, it is generated only from a finalised immutable composite and its
-preserved constituent records/evidence. The package contains the composite
-record and every linked constituent identity; it does not reconstruct live
-state. It is labelled `EXPLORATORY` and cannot satisfy FORMAL progress.
+I8 per-execution ZIP content/immutability semantics remain unchanged. Historical
+catalogue resolution is extended as specified in Section 9.1 so an execution is
+exported with its own original source catalogue/test definition rather than the
+currently active definition. If a catalogue-level package is requested, it is
+generated only from a finalised immutable composite and its preserved
+constituent records/evidence. The package contains the composite record and
+every linked constituent identity; it does not reconstruct live state. It is
+labelled `EXPLORATORY` and cannot satisfy FORMAL progress.
+
+### 9.1 Historical catalogue and test-definition resolution
+
+Accepted validation catalogue revisions are immutable historical engineering
+inputs. Before promoting the DC-004 catalogue revision, controlled application
+shall preserve the exact accepted machine-readable catalogue v1.0 package and
+its manifest/hash as independently resolvable historical input. The exact
+filesystem or repository layout is deferred to bounded implementation design;
+convenience shall not determine or weaken the identity invariant.
+
+- New executions resolve and bind to the current accepted catalogue revision.
+- Historical review/export resolves an execution-bound source catalogue and
+  test definition using the identities stored on the execution, principally
+  catalogue version/hash plus test-definition version/hash. It does not require
+  equality with the currently active catalogue.
+- A finalised historical execution remains readable, reviewable and exportable
+  after catalogue promotion, including when its individual test definition did
+  not change between catalogue revisions.
+- An unfinished execution bound to an older catalogue/definition becomes
+  historical read-only after promotion. It shall not capture further evidence
+  or be continued/finalised against the newer definition; a new execution is
+  required under the active accepted catalogue.
+- An evidence package generated after promotion records the original source
+  catalogue/test-definition identity separately from the generation
+  application-build identity. It never relabels old evidence as originating
+  from the new catalogue.
+- Existing already-generated evidence ZIPs and immutable package records remain
+  valid and unchanged.
 
 ## 10. Traceability and controlled identity impact
 
@@ -232,17 +291,21 @@ state. It is labelled `EXPLORATORY` and cannot satisfy FORMAL progress.
   and controlled machine-readable application.
 - Old and new definition/catalogue identities must be recorded explicitly;
   historical executions remain bound to their original identities.
+- The accepted machine-readable catalogue v1.0 plus its manifest/hash remains
+  preserved and independently resolvable after the DC-004 revision is promoted.
+- Historical export records the execution-bound source catalogue/test
+  definition separately from the later generation application build.
 
 ## 11. Authoritative artefact impact assessment
 
 | Artefact | Proposed treatment | Behaviour impact |
 |---|---|---|
 | Validation Plan | Add stable case definitions, case comparisons, composite completeness/verdict rules, evidence/exit treatment and verification cases. | Validation-assurance clarification only. |
-| Demonstrator Design | Add constituent/composite records, ownership, persistence/immutability, review projection and optional composite export boundary. | Application/evidence design clarification only. |
+| Demonstrator Design | Add constituent/composite records, catalogue-revision resolver, ownership, persistence/immutability, review projection and optional composite export boundary. | Application/evidence design clarification only. |
 | Requirements Specification | No change. Existing requirements remain allocated through unchanged RTM relationships. | None. |
 | Network Model | No change. All case expectations already exist in Sections 12 and 18 or the accepted Validation Plan answer key. | None. |
 | System Architecture / Workflow Design | No proposed wording change after impact review; existing validation/evidence ownership and deterministic workflow boundaries remain sufficient when read with the Demonstrator Design amendment. | None. |
-| Machine catalogue/contracts/schema | Deferred until DC-004 is independently accepted. | Future bounded implementation work. |
+| Machine catalogue/contracts/schema | Deferred until DC-004 is independently accepted. Controlled application must preserve accepted catalogue v1.0 and add identity-based historical definition resolution before promoting the new revision. | Future bounded implementation work. |
 | Manifests/source map/baseline aids | Record proposed status now; update controlled identities only after acceptance/application. | Administrative only. |
 
 ## 12. Future implementation areas
@@ -251,6 +314,8 @@ After independent acceptance and separate implementation authorisation, the
 bounded impact is expected in:
 
 - validation catalogue schema/loader for case definitions and hashes;
+- immutable accepted-catalogue revision preservation and an identity-based
+  historical catalogue/test-definition resolver;
 - validation execution start/finalise contracts for `case_id` and case-bound
   expected values;
 - observed-value projection for the approved topology/isolation/restoration
@@ -259,7 +324,12 @@ bounded impact is expected in:
   links;
 - validation service for generic case comparison and composite completeness;
 - workspace/evidence read models and review presentation;
-- optional composite evidence-package assembly from preserved records; and
+- optional composite evidence-package assembly from preserved records;
+- evidence export resolution that separates the execution-bound source
+  catalogue/test-definition identity from the generation application build;
+- historical read-only enforcement for unfinished old-catalogue executions;
+- separate validation of engineering comparison fields and dynamic provenance
+  identities; and
 - focused unit, persistence, API, component and browser/campaign tests.
 
 No topology, outage, restoration, event or scenario electrical algorithm is in
@@ -287,10 +357,25 @@ Future implementation verification shall prove:
     comparison and aggregate results; and
 13. the catalogue remains 24 tests, the RTM remains 124 requirements and 286
     exact relationships, and the operational-event catalogue remains 15 types.
+14. an execution created/finalised under catalogue v1.0 remains reviewable after
+    promotion of the controlled DC-004 catalogue revision;
+15. the historical resolver returns the exact original v1.0 catalogue and test
+    definition by the identities stored on that execution;
+16. a newly generated historical evidence package contains the original source
+    catalogue/test-definition identity, preserves a separate generation build
+    identity and does not relabel the evidence as v1.1;
+17. a new execution after promotion binds to the new active catalogue identity;
+18. an unfinished old-catalogue execution rejects further evidence capture and
+    continuation/finalisation against the promoted definition and remains
+    historical/read-only; and
+19. engineering expected-value comparison excludes dynamic build/catalogue/
+    test-definition/case-definition identities, while the separate provenance
+    gates and composite agreement checks still enforce them.
 
 ## 14. Proposal and lifecycle gate
 
-Current disposition: **Proposed / pending independent engineering review.**
+Current disposition: **Proposed / core architecture accepted in substance;
+bounded correction pending final independent review.**
 
 This branch contains design/change-control material only. It does not alter the
 machine-readable catalogue, database contracts, implementation behaviour,
@@ -303,14 +388,16 @@ implementation.
 
 ## 15. Proposal verification record
 
-Proposal verification completed on 2026-08-10:
+Initial proposal verification completed on 2026-08-10. The bounded review
+correction was applied and verified on 2026-08-11. The corrected proposal
+identities are:
 
-- Validation Plan proposed v1.1: 841,682 bytes; SHA-256
-  `65a3cd37702d9e82050fa851c761c4029853ffdc6bd8e42cd26ecc2e684059a9`;
-  43 rendered pages.
-- Demonstrator Design proposed v0.3: 848,408 bytes; SHA-256
-  `c7016d557b6af9b4a01d91a10d6f7c0b437b180ea43c214289ee29c9a9bfd54c`;
-  43 rendered pages.
+- Validation Plan proposed v1.1: 842,561 bytes; SHA-256
+  `9c9d248685c33bb08b14478acd4e46d8d15ba0793e0e5543fc60be6e353f6953`;
+  44 rendered pages.
+- Demonstrator Design proposed v0.3: 849,335 bytes; SHA-256
+  `ebb9af6011be756491cea884712c40cc7f12121f31dcd79e0504e7202adb29ef`;
+  44 rendered pages.
 - Both DOCX packages passed ZIP/OOXML structural checks and all proposed pages
   were rendered and visually inspected, including repeated table headers and
   final-page layout.
