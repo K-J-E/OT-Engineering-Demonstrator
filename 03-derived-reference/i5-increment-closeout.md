@@ -1,5 +1,5 @@
 ---
-Status: I5 assurance corrections complete — pending independent re-review
+Status: Accepted I5 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -25,6 +25,11 @@ Independent review accepted I5 in substance and requested two bounded assurance
 corrections. Commit `c8ac8db63ba275d24cdf8b92dcaa487bd2ee3170`
 implements QA-031 and QA-032 without changing catalogue content, mappings,
 expected results, engineering behaviour, configuration packages or dependencies.
+
+Independent engineering/implementation re-review accepted the complete I5 branch
+at tip `ae4d39102755c733def73746331c4e602845e2d0`. QA-031 and QA-032 are
+independently verified closed under the accepted I5 baseline. This acceptance
+update is administrative only and does not change I5 implementation behaviour.
 
 I2 remains authoritative for topology, energisation, source attribution,
 radiality, isolation and outage/customer results. I3 remains authoritative for
@@ -195,10 +200,10 @@ calculations under the same build/definition/configuration.
 
 | Requirement / gate | I5 implementation evidence | I5 status |
 |---|---|---|
-| `REQ-VAL-001–009` | Stable test/definition/execution identities; initial conditions from bound run; configuration/build/time; fixed expected; captured observed; generic comparison; evidence references. | Implementation complete — pending review. |
-| `REQ-VAL-010–012` | Immutable v1.0 FAIL, linked same-build v1.1 PASS and separately preserved corrected result. | Implementation complete — pending review. |
+| `REQ-VAL-001–009` | Stable test/definition/execution identities; initial conditions from bound run; configuration/build/time; fixed expected; captured observed; generic comparison; evidence references. | Accepted I5 baseline. |
+| `REQ-VAL-010–012` | Immutable v1.0 FAIL, linked same-build v1.1 PASS and separately preserved corrected result. | Accepted I5 baseline. |
 | `REQ-VAL-013` | Definition/verdict model explicitly treats an expected operational BLOCKED/REJECTED outcome as validation PASS; no operational result is changed. | Definition and generic-engine gate complete. |
-| `REQ-VAL-014` | Reset creates a new scenario run while old execution/evidence remains queryable and byte/hash stable. | Implementation complete — pending review. |
+| `REQ-VAL-014` | Reset creates a new scenario run while old execution/evidence remains queryable and byte/hash stable. | Accepted I5 baseline. |
 | `REQ-CFG-009–012` | Both immutable package identities are retained; defect/correction/repeat linkage foundations bind separate records. | I5 record/linkage portion complete. |
 | `REQ-EVT-001–011` separation | Existing 15 operational event types are unchanged and separate from validation records/verdicts. | Regression PASS. |
 | `REQ-NFR-003` | Separate repeats have equal canonical observed engineering output/calculations under identical controlled inputs. | Regression PASS. |
@@ -208,8 +213,8 @@ calculations under the same build/definition/configuration.
 | `VT-CFG-INV-001` | DEF-001/COR-001 failure/correction/repeat linkage fields exist without I7 workflow. | Authorised I5 record/linkage portion PASS. |
 | `VT-DET-REPEAT-001` | New execution/run/evidence IDs, explicit repeat link and equal canonical observed/calculation content. | Authorised I5 portion PASS. |
 | All 24 definitions / 124 RTM rows | Exact count/IDs, accepted row content, 124 unique mapped requirements, exact 286-pair Section 15 relationship and evidence/checkpoint obligations. | Machine-definition and exact-RTM gate PASS; not a claim of full campaign execution. |
-| QA-031 evidence-set closure | Database insert guard rejects post-finalisation evidence; final evidence IDs exactly match returned rows. | Correction PASS — pending independent re-review. |
-| QA-032 exact RTM oracle | Independent Section 15 fingerprint matches; wrong-test mutation fails despite unchanged 124-ID coverage. | Correction PASS — pending independent re-review. |
+| QA-031 evidence-set closure | Database insert guard rejects post-finalisation evidence; final evidence IDs exactly match returned rows. | Independently verified closed — accepted I5 baseline. |
+| QA-032 exact RTM oracle | Independent Section 15 fingerprint matches; wrong-test mutation fails despite unchanged 124-ID coverage. | Independently verified closed — accepted I5 baseline. |
 
 ## 8. Verification results and controlled identities
 
@@ -233,10 +238,10 @@ calculations under the same build/definition/configuration.
 | Dependencies/locks | PASS — unchanged |
 | Authoritative engineering/change-control artefacts | PASS — unchanged |
 
-The clean application build identity captured at QA-031/QA-032 correction commit
-`c8ac8db63ba275d24cdf8b92dcaa487bd2ee3170` is:
+The clean application build identity captured at the independently accepted I5
+branch tip `ae4d39102755c733def73746331c4e602845e2d0` is:
 
-`a22d49f926180e1a5d4ae6bc08e5001c0f43c1f21268b3a2082d6687a913ad3a`
+`e5ba9c533148fd53abd6bf17c85167ec01346b8e6bcf43770a6958fcf73c5003`
 
 Its identity records `git_dirty = false`, Python 3.13.15, Node.js 24.19.0,
 npm 11.17.0, accepted dependency-lock hashes, backend source hash
@@ -257,14 +262,15 @@ The accepted canonical configuration identities remain:
 
 Independent review raised QA-031 because the existing database controls did not
 close the evidence set against a new insert after execution finalisation. The new
-insert trigger and regression close the implementation gap pending independent
-re-review.
+insert trigger and regression closed the implementation gap and were independently
+verified under the accepted I5 baseline.
 
 Independent review raised QA-032 because the initial assurance test proved the
 124-ID union and group totals but not every exact Section 15 relationship. The
 independent 286-pair fingerprint and mapping-mutation negative close that assurance
-gap pending independent re-review. The independent comparison found no actual
-catalogue mismatch. No previously closed item was reopened.
+gap and were independently verified under the accepted I5 baseline. The independent
+comparison found no actual catalogue mismatch. No previously closed item was
+reopened.
 
 **V2 Automation Candidate — validation evidence completeness and RTM impact.**
 Capturing/checking checkpoint content, recomputing definition and evidence hashes,
@@ -286,9 +292,10 @@ I9 may execute/package the full accepted campaign. None has begun.
 
 ## 11. Review and progression gate
 
-The QA-031/QA-032 corrections are complete on
-`agent/i5-validation-evidence` and are being pushed for independent re-review. I5
-is not merged and is not yet the accepted implementation baseline. The accepted
-baseline remains reviewed `main` through I4.
+Independent review accepted the complete I5 branch at
+`ae4d39102755c733def73746331c4e602845e2d0`, including independently verified
+closure of QA-031 and QA-032. I5 is the accepted implementation baseline for
+incorporation into reviewed `main`; this status update changes no implementation
+behaviour or controlled engineering content.
 
 **I6 has not started. No later increment may begin automatically.**
