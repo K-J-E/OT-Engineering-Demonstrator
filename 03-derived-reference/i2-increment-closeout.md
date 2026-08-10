@@ -1,5 +1,5 @@
 ---
-Status: Complete I2 branch — pending independent review
+Status: Revised I2 branch — pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -20,6 +20,8 @@ pure configuration-driven network graph/active-edge processing, feeder-source
 tracing and attribution, section energisation, radiality, fault-state separation,
 active-fault boundary incidence, DC-003 boundary evidence/proof, outage/customer
 mapping, configured-versus-derived feeder load and their typed read models/tests.
+The targeted independent-review assurance corrections are implemented at
+`adf86fcfcf981fab62b20f8faed63f183c15b333` without redesigning I2.
 
 No scenario command orchestration, mutable workflow transaction, controlled-clock
 or alarm/event lifecycle, restoration assessment, formal validation execution or
@@ -69,12 +71,21 @@ traversal cannot cross through the common source entity. This implements Network
 Model Sections 5, 6 and 13: with `TS-01` open there is no active feeder-to-feeder
 path and each normal section has exactly one feeder attribution.
 
-Radiality requires an acyclic active distribution component with no more than one
-active feeder-source injection. A component with multiple injections or a graph
-cycle is reported as `UNINTENDED_LOOP`. Because the approved baseline defines no
-load-sharing calculation for an invalid multiple-source component, I2 records its
-per-feeder currently supplied load as unattributed rather than inventing an
-allocation; the source paths and affected component remain reviewable.
+For an energised component, radiality requires an acyclic active distribution
+component with no more than one active feeder-source injection. An energised graph
+cycle or component with multiple active injections is reported as
+`UNINTENDED_LOOP`. A physically closed cyclic component with zero active source
+injections is de-energised and is not reported as an unintended energised loop.
+Because the approved baseline defines no load-sharing calculation for an invalid
+multiple-source component, I2 records its per-feeder currently supplied load as
+unattributed rather than inventing an allocation; the source paths and affected
+component remain reviewable.
+
+Outage derivation consumes the same identity-bearing `LoadedConfiguration` contract
+as topology processing and rejects a topology or previous outage state carrying a
+different configuration identity. Restored-customer delta is the sum of customers
+in previously affected section/customer-zone identities that are absent from the
+new affected set; it is not a subtraction of aggregate outage totals.
 
 Boundary evidence is accepted by I2 only as a preclassified pure-domain input.
 I2 does not calculate timestamps or authorise commands. `OPEN_REQUIRED` records
@@ -88,8 +99,8 @@ and command gates before any action can be available.
 | `REQ-TOP-001–005` | Configuration edges plus complete device/source inputs produce deterministic active edges, source paths and recalculated section states. | Complete at I2 domain boundary. |
 | `REQ-TOP-006` | `faulted` and `energised` are independent fields; an energised active-fault test proves no conflation. | Complete at I2 domain boundary. |
 | `REQ-TOP-007` / DC-003 | Incident boundaries come from configuration; A/B/C evidence and all-open plus zero-source-path conjunction are tested. | Complete at I2 domain boundary; I3 action gates remain later. |
-| `REQ-TOP-008–009` | Generic alternate source attribution and multiple-source/cycle radiality detection use the common engine. | Complete at I2 domain boundary; restoration assessment remains I4. |
-| `REQ-OUT-001–007` | OMS service consumes de-energised section states, maps zones, sums customers and derives restored delta without reading fault labels. | Complete at I2 domain boundary. |
+| `REQ-TOP-008–009` | Generic alternate source attribution and energised multiple-source/cycle detection use the common engine; a de-energised cyclic component is not misclassified as an energised loop. | Complete at I2 domain boundary; restoration assessment remains I4. |
+| `REQ-OUT-001–007` | OMS consumes a matching identity-bearing configuration and de-energised section states, maps zones, sums customers and derives restored identities without reading fault labels. | Complete at I2 domain boundary. |
 | `REQ-CFG-002–005` | The same service processes both packages; v1.0 propagates the configured endpoint defect to A3/A4 source attribution and 400 customers. | Complete at I2 topology/outage boundary. |
 | `REQ-NET-001–011` | Accepted I1 typed configuration is consumed without modification; all configured entities/edges/mappings are handled consistently. | I2 consumption confirmed. |
 | `REQ-NFR-003`, `REQ-NFR-009` | Stable sorting, immutable models, repeat tests and identifier-free production algorithms provide deterministic, consistent processing. | I2 portion complete. |
@@ -103,9 +114,12 @@ and command gates before any action can be available.
 
 | Verification | Result |
 |---|---|
-| I2 marked backend suite | PASS — 26 tests |
-| Complete backend unit/integration regression | PASS — 40 tests |
+| I2 marked backend suite | PASS — 31 tests |
+| Complete backend unit/integration regression | PASS — 45 tests |
 | Relevant I1 marked regression | PASS — 11 tests |
+| Energised versus de-energised cyclic-component distinction | PASS — energised cycle invalid; zero-injection cycle not reported as an energised loop |
+| OMS current/previous configuration mismatch negatives | PASS — both rejected before customer derivation |
+| Identity-based restored-customer composition change | PASS — 180 restored while affected total changes 400 → 480 |
 | Frontend I1 scaffold regression | PASS — 1 test |
 | Frontend TypeScript/Vite production build | PASS |
 | Python module import/compile through the executed suite | PASS |
@@ -128,9 +142,22 @@ The canonical SHA-256 identities remain:
 
 QA-021 records the implementation-assurance risk that a naive graph could traverse
 through the shared zone-substation source and manufacture a feeder-to-feeder path.
-The I2 representation and tests close that risk on this branch, pending independent
-review. No authoritative engineering artefact, requirement, controlled package,
-dependency or expected answer was changed.
+The I2 representation and tests close that risk and were accepted in substance by
+independent review.
+
+QA-022 records the initial over-broad radiality classification of a cyclic active-
+device component with no active source injection. The revised generic predicate
+evaluates cyclicity only for energised components while retaining multiple-active-
+source rejection and the established both-source/tie-closed negative.
+
+QA-023 records the initial OMS provenance gap and aggregate subtraction for restored
+customers. Outage calculation now rejects mismatched current/previous configuration
+identities and calculates restored customers from previously affected section/zone
+identities. A composition-change test proves that 180 customers are restored even
+when the aggregate affected total increases from 400 to 480.
+
+No authoritative engineering artefact, requirement, controlled package, dependency
+or expected answer was changed by these assurance corrections.
 
 No I2 stop condition remains open. I3 must consume these services without moving
 workflow authority into topology models. I4 must reject/block through its approved
@@ -147,6 +174,6 @@ leaving V1 algorithms and engineering judgement unchanged.
 
 ## 8. Review and progression gate
 
-I2 is complete on its dedicated branch and is pending independent review. The
-branch shall not be merged until accepted. I3 has not begun and requires separate
-user authorisation from reviewed `main` after I2 acceptance/merge.
+I2 is revised on its dedicated branch and is pending independent re-review. The
+branch and PR #2 shall remain unmerged until accepted. I3 has not begun and requires
+separate user authorisation from reviewed `main` after I2 acceptance/merge.
