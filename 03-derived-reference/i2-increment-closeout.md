@@ -1,5 +1,5 @@
 ---
-Status: Revised I2 branch — pending independent re-review
+Status: Accepted I2 implementation baseline — independently verified
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -174,6 +174,10 @@ leaving V1 algorithms and engineering judgement unchanged.
 
 ## 8. Review and progression gate
 
-I2 is revised on its dedicated branch and is pending independent re-review. The
-branch and PR #2 shall remain unmerged until accepted. I3 has not begun and requires
-separate user authorisation from reviewed `main` after I2 acceptance/merge.
+Independent engineering/implementation review accepted the revised I2 branch at
+`e2aa7c0742a4df0867fc7624a59a4d104dd8dba0`. QA-003's I2 treatment is accepted,
+and QA-021, QA-022 and QA-023 are independently verified closed under the accepted
+I2 baseline. The reviewed I2 history and this administrative acceptance record are
+incorporated into `main` as the accepted implementation baseline.
+
+I3 has not begun and requires separate user authorisation from reviewed `main`.
