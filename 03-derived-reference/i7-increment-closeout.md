@@ -26,6 +26,11 @@ fault investigation, configuration editing, external OT integration, AI,
 autonomous correction, real switching/control, new operational-event type,
 engineering rule or authoritative-document change was added.
 
+Independent review accepted I7 in substance and accepted QA-036's bounded
+cross-configuration replacement-run concept in principle. Correction commit
+`ae645053af1cf6b464bf411166b328f0b6abc1d3` addresses the two targeted
+assurance findings QA-037 and QA-038 without redesigning the increment.
+
 ## 2. Mandatory sources and requirements
 
 Before implementation, the complete Implementation Control Plan Section 10
@@ -52,8 +57,9 @@ inspected. Authoritative engineering artefacts remained read-only and unchanged.
 - `InvestigationRepository` plus SQLite migration 005 persist separate defect,
   correction and repeat-link records with database-level update/delete guards.
 - The scenario coordinator adds a bounded replacement-run operation that closes
-  and preserves the prior run and loads a separately identified existing package
-  under the same backend-controlled application build.
+  and preserves the prior run, applies the accepted restoration-assessment
+  invalidation treatment when required, and loads a separately identified
+  existing package under the same backend-controlled application build.
 - Typed local HTTP endpoints expose backend-owned investigation projections and
   commands; React renders them without calculating source attribution, outage
   arithmetic, package differences, root cause, correction acceptability or
@@ -110,16 +116,37 @@ QA-036 records a genuine integration boundary: accepted I3 RESET intentionally
 retains the current configuration, whereas the I7 correction workflow must start
 a new run using a different already-approved package. The bounded replacement-run
 operation preserves history, closes the previous mutable run, emits only the
-existing `SCENARIO_RESET` event and loads v1.1 through the accepted configuration
-authority under the same build. It changes neither reset semantics nor package
-contents. QA-036 is closed in implementation pending independent review.
+existing operational-event types and loads v1.1 through the accepted
+configuration authority under the same build. It changes neither reset semantics
+nor package contents. Independent I7 review accepted this concept in principle;
+final I7 acceptance remains pending.
+
+QA-037 records that the first historical workspace read reused the current-build
+mutation guard, which made a completed chain unreadable after the executable
+advanced. Historical reads now validate the preserved execution on its own
+identity, and same-build proof is calculated solely from linked stored execution
+build IDs. All mutation boundaries separately require the current build to equal
+the failure build; historical actions are explicitly
+`HISTORICAL_BUILD_READ_ONLY`. Regression reopens a complete build-A chain under
+build B and proves it remains reviewable, then proves an incomplete build-A chain
+cannot be extended at any defect/correction/repeat/regression boundary under
+build B. QA-037 is closed in implementation pending independent re-review.
+
+QA-038 records that the first replacement-run path closed a prior run without the
+accepted I4 reset invalidation treatment. Reset and replacement now share one
+history-preserving close operation. A focused N4 regression proves a current
+PERMITTED assessment and its original evidence remain preserved, an immutable
+invalidation record is created, `RESTORATION_ASSESSMENT_INVALIDATED` precedes
+`SCENARIO_RESET`, the prior run becomes CLOSED and the separately identified new
+run starts at N0. The 15-type event catalogue is unchanged. QA-038 is closed in
+implementation pending independent re-review.
 
 ## 7. Verification evidence
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 103 tests |
-| I7 backend chain/integrity tests | PASS |
+| Complete backend unit/integration suite | PASS — 106 tests |
+| I7 backend chain/integrity tests | PASS — 6 tests |
 | React/Cytoscape component suite | PASS — 10 tests |
 | Chromium formal I6 and I7 investigation workflows | PASS — 2 tests |
 | Exact-toolchain clean frontend install | PASS |
@@ -131,6 +158,9 @@ contents. QA-036 is closed in implementation pending independent review.
 | Separate immutable DEF-001/COR-001/link records | PASS |
 | Same-build v1.1 850/PASS direct repeat | PASS |
 | Corrected six-checkpoint N0–N5 regression | PASS |
+| Complete chain review under later build | PASS — stored build identities retain same-build proof |
+| Incomplete old-build mutation boundary | PASS — historical read-only at every continuation step |
+| N4 replacement assessment invalidation | PASS — assessment/event/invalidation preserved; new run N0 |
 | Exact 15 operational-event types | PASS — unchanged |
 | Exact 24 validation definitions and 286 RTM relationships | PASS — unchanged |
 | Configuration/catalogue/hash integrity | PASS — unchanged |
@@ -167,12 +197,23 @@ npm 11.17.0, backend-source hash
 and frontend-bundle hash
 `e92d6d2281c9a4417a3402086c19cb67d35cc2df4c7a9e7df01555fa1955c0c9`.
 
+The clean QA-037/QA-038 correction commit is
+`ae645053af1cf6b464bf411166b328f0b6abc1d3`. Its application build ID is:
+
+`e90a18b6d3124e1cf169943b79d74343ecee35bf8fefdf2f8fa7b43dfda260ff`
+
+The corrected identity records `git_dirty = false`, the same pinned toolchain and
+lock hashes, backend-source hash
+`480393276e42ceb2263722dbe7b5d52d34415ce017f1417fc3fd698471689194`
+and unchanged frontend-bundle hash
+`e92d6d2281c9a4417a3402086c19cb67d35cc2df4c7a9e7df01555fa1955c0c9`.
+
 ## 9. Review gate
 
-I7 is complete on its dedicated branch and pending independent review. The branch
-will be pushed and a draft review PR opened. It must not be merged until accepted.
-I8 has not begun and requires separate user authorisation after the reviewed I7
-baseline is incorporated into `main`.
+I7 is complete on its dedicated branch and pending independent re-review. Draft
+PR #7 remains open and must not be merged until accepted. I8 has not begun and
+requires separate user authorisation after the reviewed I7 baseline is
+incorporated into `main`.
 
 ## V2 Automation Candidate
 
