@@ -14,7 +14,9 @@ export function ContextRibbon({ projection }: { projection: WorkspaceProjection 
       <div><span className="eyebrow">Configuration</span><strong>v{run.configuration_version}</strong></div>
       <div><span className="eyebrow">Active fault section</span><strong>{run.fault_section_id}</strong></div>
       <div><span className="eyebrow">Workflow stage</span><strong>{humanise(run.workflow_stage)}</strong></div>
-      <div><span className="eyebrow">Formal state</span><strong data-testid="formal-state">{run.network_state_label}</strong></div>
+      {run.mode === 'FORMAL'
+        ? <div><span className="eyebrow">Formal state</span><strong data-testid="formal-state">{run.network_state_label}</strong></div>
+        : <div><span className="eyebrow">Derived stage</span><strong data-testid="exploration-stage">{humanise(run.workflow_stage)}</strong></div>}
       <div><span className="eyebrow">State revision</span><strong>{run.state_revision}</strong></div>
       <div><span className="eyebrow">Assessment</span><strong>{humanise(summary.current_assessment_status)}</strong></div>
     </section>

@@ -27,7 +27,10 @@ TEST_BUILD_MANIFEST = ApplicationBuildManifest(
     ),
 )
 
+TEST_DATA_DIRECTORY = Path(mkdtemp(prefix="ot-demo-i8-e2e-"))
+
 app = create_local_app(
-    data_directory=Path(mkdtemp(prefix="ot-demo-i6-e2e-")),
+    data_directory=TEST_DATA_DIRECTORY,
+    evidence_output_directory=TEST_DATA_DIRECTORY / "evidence/exports",
     application_build_manifest=TEST_BUILD_MANIFEST,
 )

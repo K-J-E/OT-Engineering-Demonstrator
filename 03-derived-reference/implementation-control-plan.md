@@ -1,5 +1,5 @@
 ---
-Status: Active implementation control plan — no increment currently authorised
+Status: Active implementation control plan — I8 complete pending independent review
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
 Updated: 2026-08-10
@@ -32,14 +32,14 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 
 | Increment | Approved Step 8 name | Current authority state |
 |---|---|---|
-| I1 | Contracts and inputs | **Not authorised** |
-| I2 | Topology and outage core | **Not authorised** |
-| I3 | Scenario transactions | **Not authorised** |
-| I4 | Restoration | **Not authorised** |
-| I5 | Validation/evidence | **Not authorised** |
-| I6 | Operational UI | **Not authorised** |
-| I7 | Investigation/correction | **Not authorised** |
-| I8 | Exploration and export | **Not authorised** |
+| I1 | Contracts and inputs | **Accepted implementation baseline** |
+| I2 | Topology and outage core | **Accepted implementation baseline** |
+| I3 | Scenario transactions | **Accepted implementation baseline** |
+| I4 | Restoration | **Accepted implementation baseline** |
+| I5 | Validation/evidence | **Accepted implementation baseline** |
+| I6 | Operational UI | **Accepted implementation baseline** |
+| I7 | Investigation/correction | **Accepted implementation baseline** |
+| I8 | Exploration and export | **Implemented — pending independent review** |
 | I9 | Packaging/review | **Not authorised** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.

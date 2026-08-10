@@ -109,10 +109,6 @@ class ScenarioCoordinator:
             duplicate = self._return_duplicate(unit, request.command_id, request_sha)
             if duplicate is not None:
                 return duplicate
-            if request.mode is not ScenarioMode.FORMAL:
-                raise ScenarioBoundaryError(
-                    "Exploration Mode orchestration is reserved for I8"
-                )
             if unit.has_mutable_run():
                 raise ScenarioBoundaryError(
                     "a mutable run already exists; use RESET_RUN to preserve history"
@@ -121,13 +117,15 @@ class ScenarioCoordinator:
             loaded = self._configuration_loader.load(
                 f"v{request.configuration_version}"
             )
-            self._validate_definition(loaded)
+            fault_section_id = self._validate_initialisation(request, loaded)
             run = self._new_run(
                 loaded=loaded,
                 scenario_time=request.scenario_time,
                 application_build_id=(
                     self._application_build_manifest.application_build_id
                 ),
+                mode=request.mode,
+                fault_section_id=fault_section_id,
             )
             unit.insert_run(run)
             telemetry = self._normal_telemetry(loaded, run)
@@ -159,7 +157,11 @@ class ScenarioCoordinator:
                 command_id=request.command_id,
                 accepted=True,
                 reason_code="RUN_INITIALISED",
-                reason="Controlled formal run initialised at N0.",
+                reason=(
+                    "Controlled formal run initialised at N0."
+                    if run.mode is ScenarioMode.FORMAL
+                    else "Controlled exploratory run initialised from corrected v1.1."
+                ),
                 prior_revision=0,
                 current_revision=0,
                 run_status=run.status,
@@ -194,14 +196,10 @@ class ScenarioCoordinator:
                 raise ScenarioBoundaryError(
                     "replacement initialisation requires a current mutable run"
                 )
-            if request.mode is not ScenarioMode.FORMAL:
-                raise ScenarioBoundaryError(
-                    "Exploration Mode orchestration is reserved for I8"
-                )
             loaded = self._configuration_loader.load(
                 f"v{request.configuration_version}"
             )
-            self._validate_definition(loaded)
+            fault_section_id = self._validate_initialisation(request, loaded)
             if (
                 prior_run.application_build_id
                 != self._application_build_manifest.application_build_id
@@ -218,9 +216,13 @@ class ScenarioCoordinator:
                 close_scenario_time=prior_run.scenario_time,
                 invalidation_description=(
                     "Current restoration assessment invalidated by controlled linked-test replacement."
+                    if request.mode is ScenarioMode.FORMAL
+                    else "Current restoration assessment invalidated by controlled new-run replacement."
                 ),
                 reset_description=(
                     "Run closed for a controlled linked test; prior history is preserved."
+                    if request.mode is ScenarioMode.FORMAL
+                    else "Run closed for a separately identified exploration run; prior history is preserved."
                 ),
             )
 
@@ -230,6 +232,8 @@ class ScenarioCoordinator:
                 application_build_id=(
                     self._application_build_manifest.application_build_id
                 ),
+                mode=request.mode,
+                fault_section_id=fault_section_id,
             )
             unit.insert_run(new_run)
             telemetry = self._normal_telemetry(loaded, new_run)
@@ -270,6 +274,13 @@ class ScenarioCoordinator:
                 result=result,
             )
             return result
+
+    def initialise_next_run(self, request: InitialiseRunRequest) -> CommandResult:
+        """Create a separately identified run, preserving any current run first."""
+
+        if self.has_mutable_run():
+            return self.initialise_replacement_run(request)
+        return self.initialise(request)
 
     def has_mutable_run(self) -> bool:
         with self._repository.transaction() as unit:
@@ -368,6 +379,12 @@ class ScenarioCoordinator:
         with self._repository.transaction() as unit:
             unit.get_run(scenario_run_id)
             return unit.list_events(scenario_run_id)
+
+    def run_context(self, scenario_run_id: UUID) -> RunContext:
+        """Read the preserved run identity without reconstructing engineering state."""
+
+        with self._repository.transaction() as unit:
+            return unit.get_run(scenario_run_id)
 
     def _initiate_fault(
         self,
@@ -678,6 +695,7 @@ class ScenarioCoordinator:
     ) -> CommandResult:
         gate_topology = self._gate_topology(unit, loaded, run, request.scenario_time)
         _, breaker_id = self._affected_feeder_and_breaker(loaded, run)
+        telemetry = unit.list_telemetry(run.scenario_run_id)
         proof = gate_topology.isolation_proof
         available = (
             run.network_state_label is NetworkStateLabel.N2
@@ -685,6 +703,12 @@ class ScenarioCoordinator:
             and proof.isolated
             and request.target_entity_id == breaker_id
             and request.requested_state is SwitchState.CLOSED
+            and (
+                run.mode is ScenarioMode.FORMAL
+                or self._normal_source_reclose_available(
+                    loaded, run, telemetry, request.scenario_time
+                )
+            )
         )
         if not available:
             return self._reject(
@@ -808,6 +832,8 @@ class ScenarioCoordinator:
             loaded=loaded,
             scenario_time=run.initial_scenario_time,
             application_build_id=run.application_build_id,
+            mode=run.mode,
+            fault_section_id=run.fault_section_id,
         )
         unit.insert_run(new_run)
         telemetry = self._normal_telemetry(loaded, new_run)
@@ -944,8 +970,22 @@ class ScenarioCoordinator:
         reassessment_allowed = bool(
             assessments and assessments[-1].assessment_id in invalidated_ids
         )
+        topology = self._gate_topology(unit, loaded, run, request.scenario_time)
+        exploration_isolated_without_reclose = (
+            run.mode is ScenarioMode.EXPLORATION
+            and run.network_state_label is NetworkStateLabel.N2
+            and topology.isolation_proof is not None
+            and topology.isolation_proof.isolated
+            and not self._normal_source_reclose_available(
+                loaded,
+                run,
+                unit.list_telemetry(run.scenario_run_id),
+                request.scenario_time,
+            )
+        )
         if not (
             run.network_state_label is NetworkStateLabel.N3
+            or exploration_isolated_without_reclose
             or (
                 run.network_state_label is NetworkStateLabel.N4
                 and reassessment_allowed
@@ -958,7 +998,7 @@ class ScenarioCoordinator:
                 request,
                 request_sha,
                 "RESTORATION_ASSESSMENT_UNAVAILABLE",
-                "Assessment requires N3 or an invalidated assessment at N4.",
+                "Assessment requires restored healthy upstream supply, or an isolated exploratory fault with no safe normal-source reclose.",
             )
 
         updated_run = run.model_copy(
@@ -1339,6 +1379,7 @@ class ScenarioCoordinator:
                 run,
                 loaded,
                 current_topology,
+                telemetry,
                 alarms,
                 current_assessment,
                 current_executable,
@@ -1415,6 +1456,7 @@ class ScenarioCoordinator:
         run: RunContext,
         loaded: LoadedConfiguration,
         gate_topology: TopologyResult,
+        telemetry: tuple[TelemetryPoint, ...],
         alarms: tuple[AlarmRecord, ...],
         current_assessment: RestorationAssessment | None,
         current_assessment_executable: bool,
@@ -1470,9 +1512,15 @@ class ScenarioCoordinator:
         next_target, next_reason = self._next_isolation_target(run, gate_topology)
         proof = gate_topology.isolation_proof
         actual_boundaries = (
-            self._ordered_isolation_boundaries(proof.incident_boundary_device_ids)
+            self._ordered_isolation_boundaries(
+                run, proof.incident_boundary_device_ids
+            )
             if proof is not None
-            else self._definition.isolation_device_sequence
+            else (
+                self._definition.isolation_device_sequence
+                if run.mode is ScenarioMode.FORMAL
+                else ()
+            )
         )
         for device_id in actual_boundaries:
             actions.append(
@@ -1487,7 +1535,7 @@ class ScenarioCoordinator:
                         else "ISOLATION_ACTION_UNAVAILABLE"
                     ),
                     reason=(
-                        "Approved formal isolation action is available."
+                        "Backend-authorised isolation action is available."
                         if mutable and device_id == next_target
                         else next_reason
                     ),
@@ -1500,6 +1548,12 @@ class ScenarioCoordinator:
             and run.network_state_label is NetworkStateLabel.N2
             and proof is not None
             and proof.isolated
+            and (
+                run.mode is ScenarioMode.FORMAL
+                or self._normal_source_reclose_available(
+                    loaded, run, telemetry, run.scenario_time
+                )
+            )
         )
         actions.append(
             AllowedAction(
@@ -1513,8 +1567,18 @@ class ScenarioCoordinator:
                 reason="Requires current derived isolation proof at N2.",
             )
         )
+        exploration_isolated_without_reclose = (
+            run.mode is ScenarioMode.EXPLORATION
+            and run.network_state_label is NetworkStateLabel.N2
+            and proof is not None
+            and proof.isolated
+            and not self._normal_source_reclose_available(
+                loaded, run, telemetry, run.scenario_time
+            )
+        )
         assess_available = mutable and (
             run.network_state_label is NetworkStateLabel.N3
+            or exploration_isolated_without_reclose
             or (
                 run.network_state_label is NetworkStateLabel.N4
                 and current_assessment_invalidated
@@ -1527,9 +1591,13 @@ class ScenarioCoordinator:
                 reason_code=(
                     "AVAILABLE"
                     if assess_available
-                    else "REQUIRES_N3_OR_INVALIDATED_N4_ASSESSMENT"
+                    else "REQUIRES_POST_ISOLATION_ASSESSMENT_GATE"
                 ),
-                reason="Assessment is available at N3 or after N4 invalidation.",
+                reason=(
+                    "Assessment is available from the current isolated exploration topology."
+                    if exploration_isolated_without_reclose
+                    else "Assessment is available after healthy upstream restoration or after assessment invalidation."
+                ),
             )
         )
         execute_available = (
@@ -1578,25 +1646,29 @@ class ScenarioCoordinator:
             item.boundary_device_id: item for item in proof.boundary_evaluations
         }
         for device_id in self._ordered_isolation_boundaries(
-            proof.incident_boundary_device_ids
+            run, proof.incident_boundary_device_ids
         ):
             evaluation = evaluation_by_id.get(device_id)
             if evaluation is None:
-                return None, "The formal isolation boundary is absent from configuration incidence."
+                return None, "The derived isolation boundary is absent from configuration incidence."
             if evaluation.proof_status is BoundaryProofStatus.PROVEN_OPEN:
                 continue
             if evaluation.proof_status is BoundaryProofStatus.PROVEN_CLOSED:
-                return device_id, "Approved formal isolation action is available."
+                return device_id, "Backend-authorised isolation action is available."
             return None, (
                 f"Boundary {device_id} is UNPROVEN; trustworthy fresh evidence is required."
             )
-        return None, "All formal isolation boundaries are already proven OPEN."
+        return None, "All active-fault isolation boundaries are already proven OPEN."
 
     def _ordered_isolation_boundaries(
         self,
+        run: RunContext,
         boundary_ids: tuple[str, ...],
     ) -> tuple[str, ...]:
-        """Apply the formal procedure order only to boundaries derived by I2."""
+        """Apply formal procedure order only to FORMAL; exploration stays generic."""
+
+        if run.mode is ScenarioMode.EXPLORATION:
+            return tuple(sorted(boundary_ids))
 
         procedure_index = {
             device_id: index
@@ -1720,21 +1792,27 @@ class ScenarioCoordinator:
         loaded: LoadedConfiguration,
         scenario_time: datetime,
         application_build_id: str,
+        mode: ScenarioMode,
+        fault_section_id: str,
     ) -> RunContext:
         normal_inputs = self._topology.normal_inputs(loaded.data)
         return RunContext(
             scenario_run_id=uuid4(),
-            mode=ScenarioMode.FORMAL,
+            mode=mode,
             configuration_id=loaded.catalog_entry.configuration_id,
             configuration_version=loaded.catalog_entry.version,
-            fault_section_id=self._definition.fault_section_id,
+            fault_section_id=fault_section_id,
             fault_type=FaultType.DISTRIBUTION_SECTION_FAULT,
             initial_scenario_time=scenario_time,
             scenario_time=scenario_time,
             state_revision=0,
             workflow_stage=WorkflowStage.NORMAL,
             network_state_label=NetworkStateLabel.N0,
-            evidence_class=EvidenceClass.FORMAL,
+            evidence_class=(
+                EvidenceClass.FORMAL
+                if mode is ScenarioMode.FORMAL
+                else EvidenceClass.EXPLORATORY
+            ),
             application_build_id=application_build_id,
             status=ScenarioRunStatus.INITIALISED,
             fault_active=False,
@@ -1820,6 +1898,56 @@ class ScenarioCoordinator:
             ),
         )
 
+    def _normal_source_reclose_available(
+        self,
+        loaded: LoadedConfiguration,
+        run: RunContext,
+        telemetry: tuple[TelemetryPoint, ...],
+        scenario_time: datetime,
+    ) -> bool:
+        """Prove a generic exploration reclose preserves isolation and restores healthy load."""
+
+        _, breaker_id = self._affected_feeder_and_breaker(loaded, run)
+        points = {point.entity_id: point for point in telemetry}
+        breaker = points.get(breaker_id)
+        if breaker is None or breaker.value is not SwitchState.OPEN:
+            return False
+        current_run = run.model_copy(update={"scenario_time": scenario_time})
+        current_topology, _, _ = self._derive(
+            loaded,
+            current_run,
+            tuple(points.values()),
+            previous_outage=None,
+        )
+        points[breaker_id] = breaker.model_copy(
+            update={
+                "value": SwitchState.CLOSED,
+                "quality": TelemetryQuality.GOOD,
+                "last_update_scenario_time": scenario_time,
+                "revision": run.state_revision + 1,
+            }
+        )
+        proposed_topology, _, _ = self._derive(
+            loaded,
+            current_run,
+            tuple(points.values()),
+            previous_outage=None,
+        )
+        proof = proposed_topology.isolation_proof
+        if proof is None or not proof.isolated:
+            return False
+        currently_energised = {
+            section.section_id
+            for section in current_topology.sections
+            if section.energised and not section.faulted
+        }
+        proposed_energised = {
+            section.section_id
+            for section in proposed_topology.sections
+            if section.energised and not section.faulted
+        }
+        return bool(proposed_energised - currently_energised)
+
     @staticmethod
     def _assessment_binding_matches(
         assessment: RestorationAssessment,
@@ -1854,6 +1982,37 @@ class ScenarioCoordinator:
             raise ScenarioBoundaryError(
                 f"formal isolation devices are absent: {unknown_devices}"
             )
+
+    def _validate_initialisation(
+        self,
+        request: InitialiseRunRequest,
+        loaded: LoadedConfiguration,
+    ) -> str:
+        if request.mode is ScenarioMode.FORMAL:
+            if (
+                request.fault_section_id is not None
+                and request.fault_section_id != self._definition.fault_section_id
+            ):
+                raise ScenarioBoundaryError(
+                    "formal mode remains fixed to the controlled SEC-A2 fault input"
+                )
+            self._validate_definition(loaded)
+            return self._definition.fault_section_id
+
+        if request.configuration_version != "1.1":
+            raise ScenarioBoundaryError(
+                "exploration mode is fixed to corrected Network Configuration v1.1"
+            )
+        if request.fault_section_id is None:
+            raise ScenarioBoundaryError(
+                "exploration mode requires one configured distribution-section selection"
+            )
+        section_ids = {section.entity_id for section in loaded.data.sections}
+        if request.fault_section_id not in section_ids:
+            raise ScenarioBoundaryError(
+                "exploration fault selection is not a section in the loaded v1.1 configuration"
+            )
+        return request.fault_section_id
 
     def _return_duplicate(
         self,

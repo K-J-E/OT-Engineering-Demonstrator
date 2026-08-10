@@ -72,6 +72,19 @@ For the controlled DEF-001 consequence-to-source investigation and correction ch
 5. Demonstrator Design Sections 19, 21–22, 27–28 and 35.4–35.5 for records, persistence, read models, screens and increment boundary; and
 6. Validation Plan definitions/procedures `VT-TOP-DEF-001`, `VT-CFG-INV-001`, `VT-DET-REPEAT-001`, `VT-FML-N0-N5-001` and Sections 11, 13–15.
 
-Current gate: I7 is the accepted implementation baseline after final independent review of tip `d6c2edd1cd90941d8263fcdab94d8b363372fbcc` and administrative incorporation of the reviewed history into `main`. **I8 has not begun and requires separate user authorisation.**
+## I8 exploration/export implementation reading path
+
+For corrected-v1.1 Exploration Mode and immutable evidence-package export, read all of the following before changing I8 behaviour:
+
+1. Requirements Specification `REQ-EXP-001–007`, applicable `REQ-RST-*`, `REQ-VAL-009` and `REQ-NFR-008`;
+2. Network Model Sections 15.1, 17.12 and 18 for transient selection, representative outcomes and generic DC-003 incidence;
+3. System Architecture Sections 17.2–17.3, 20 and 26 for mode, evidence, configuration and ownership boundaries;
+4. Workflow Design Sections 13–14, 19 and 27.1–27.3 for exploration actions, separation, export and evidence handling;
+5. Demonstrator Design Sections 20–21, 27–29 and 35 for approved screen, run, module and evidence-package design; and
+6. Validation Plan `VT-EXP-ALL-001`, `VT-EXP-ROLE-001`, `VT-EXP-SEPARATION-001`, `VT-PKG-EVIDENCE-001`, `VT-NFR-REVIEW-001` and Sections 12–15.
+
+I8 consumes the accepted I2 topology/outage, I3 transaction/event, I4 restoration, I5 validation/evidence, I6 projection and I7 investigation authorities. Runtime engineering results must remain configuration-driven; answer-key section/boundary/outcome values belong only in tests. Evidence ZIPs are assembled from immutable preserved execution/evidence records and remain explicitly FORMAL or EXPLORATORY.
+
+Current gate: I7 remains the accepted implementation baseline on `main`. I8 has been implemented and verified on dedicated branch `agent/i8-exploration-export` and is **pending independent review; it is not accepted or authorised for merge**. **I9 has not begun and is not authorised.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.

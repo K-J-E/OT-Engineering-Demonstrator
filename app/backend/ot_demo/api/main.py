@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from ..application.scenario_coordinator import (
@@ -18,6 +18,7 @@ from ..application.investigation_service import (
     InvestigationService,
 )
 from ..application.workspace_service import WorkspaceProjectionError, WorkspaceService
+from ..infrastructure.evidence_package_repository import EvidencePackageNotFound
 from ..modules.events.models import OperationalEvent
 from ..modules.scenario.models import (
     CommandResult,
@@ -29,6 +30,11 @@ from ..domain.enums import EvidenceClass, ScenarioCommandType, ScenarioMode, Swi
 from ..infrastructure.validation_repository import ValidationRecordNotFound
 from ..infrastructure.investigation_repository import InvestigationRecordNotFound
 from ..modules.investigation.models import InvestigationWorkspace
+from ..modules.evidence_export.models import EvidenceExportCandidate, EvidencePackage
+from ..modules.evidence_export.service import (
+    EvidenceExportBoundaryError,
+    EvidenceExportService,
+)
 from ..modules.validation.models import (
     CaptureValidationCheckpointRequest,
     EvidenceSnapshot,
@@ -54,6 +60,7 @@ class InitialiseRunPayload(_ApiRequest):
     expected_revision: int = Field(default=0, ge=0, le=0)
     mode: ScenarioMode
     configuration_version: str
+    fault_section_id: str | None = None
     scenario_time: datetime
 
     def to_domain(self) -> InitialiseRunRequest:
@@ -112,17 +119,22 @@ class RunLinkedValidationPayload(_ApiRequest):
     actor: str = Field(min_length=1, max_length=120)
 
 
+class GenerateEvidencePackagePayload(_ApiRequest):
+    validation_execution_id: UUID
+
+
 def create_app(
     coordinator: ScenarioCoordinator | None = None,
     validation_service: ValidationService | None = None,
     workspace_service: WorkspaceService | None = None,
     investigation_service: InvestigationService | None = None,
+    evidence_export_service: EvidenceExportService | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="OT Graduate Demonstrator",
-        version="0.7.0",
+        version="0.8.0",
         description=(
-            "Fictional local engineering demonstrator — scenario, evidence and I7 investigation API"
+            "Fictional local engineering demonstrator — scenario, validation, investigation, exploration and evidence-export API"
         ),
     )
 
@@ -157,6 +169,53 @@ def create_app(
                 detail="Investigation service is not configured for this process.",
             )
         return investigation_service
+
+    def evidence_export() -> EvidenceExportService:
+        if evidence_export_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Evidence export service is not configured for this process.",
+            )
+        return evidence_export_service
+
+    @app.post("/api/v1/evidence-packages", response_model=EvidencePackage)
+    def generate_evidence_package(
+        request: GenerateEvidencePackagePayload,
+    ) -> EvidencePackage:
+        try:
+            return evidence_export().generate(request.validation_execution_id)
+        except (ValidationRecordNotFound, EvidencePackageNotFound) as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceExportBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get("/api/v1/evidence-packages", response_model=tuple[EvidencePackage, ...])
+    def list_evidence_packages() -> tuple[EvidencePackage, ...]:
+        return evidence_export().list()
+
+    @app.get(
+        "/api/v1/evidence-packages/candidates",
+        response_model=tuple[EvidenceExportCandidate, ...],
+    )
+    def list_evidence_export_candidates() -> tuple[EvidenceExportCandidate, ...]:
+        return evidence_export().candidates()
+
+    @app.get(
+        "/api/v1/evidence-packages/{package_id}/download",
+        response_class=FileResponse,
+    )
+    def download_evidence_package(package_id: str) -> FileResponse:
+        try:
+            path = evidence_export().archive_file(package_id)
+        except EvidencePackageNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceExportBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return FileResponse(
+            path,
+            media_type="application/zip",
+            filename=path.name,
+        )
 
     @app.post(
         "/api/v1/investigations/start",
@@ -261,6 +320,13 @@ def create_app(
     def initialise_run(request: InitialiseRunPayload) -> CommandResult:
         try:
             return service().initialise(request.to_domain())
+        except (ScenarioBoundaryError, ScenarioCommandConflict) as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post("/api/v1/runs/start", response_model=CommandResult)
+    def initialise_next_run(request: InitialiseRunPayload) -> CommandResult:
+        try:
+            return service().initialise_next_run(request.to_domain())
         except (ScenarioBoundaryError, ScenarioCommandConflict) as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
 

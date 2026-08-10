@@ -18,7 +18,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: linear-gradient(180deg, #edf3f7 0, #e7eef4 100%); }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 h1, h2, h3, p { margin-top: 0; }
@@ -41,6 +41,7 @@ small { color: var(--muted); }
 .status-badge.danger, .outcome-rejected { background: #ffe4e8; color: #971b37; }
 .status-badge.neutral { background: #e8eef4; color: #43566d; }
 .status-badge.formal { background: #dcecff; color: #174e7a; }
+.status-badge.exploratory { background: #d9f4ee; color: #075e58; }
 .quality-good, .freshness-fresh { background: #d9f4ee; color: #075e58; }
 .quality-uncertain, .freshness-stale { background: #fff0d7; color: #874b05; }
 .quality-bad, .freshness-invalid_timestamp { background: #ffe4e8; color: #971b37; }
@@ -73,7 +74,8 @@ dd { margin: 0; overflow-wrap: anywhere; font-size: 0.82rem; }
 .lifecycle-card ol { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.8rem; margin: 0; padding: 0; counter-reset: lifecycle; list-style: none; }
 .lifecycle-card li { padding: 0.8rem; background: var(--soft); border-radius: 8px; color: #4a5f74; font-size: 0.82rem; }
 .setup-card label { display: grid; gap: 0.4rem; margin: 1.2rem 0; color: #52667b; font-size: 0.78rem; font-weight: 700; }
-.setup-card input { padding: 0.75rem; border: 1px solid #aebdca; border-radius: 7px; color: var(--ink); }
+.setup-card input, .setup-card select { padding: 0.75rem; border: 1px solid #aebdca; border-radius: 7px; color: var(--ink); background: white; }
+.exploration-setup { border-top: 4px solid var(--teal); }
 .primary-action, .action-row button, .validation-actions button, .empty-assessment button, .execution-panel button { padding: 0.7rem 0.9rem; border: 0; border-radius: 7px; background: var(--blue); color: white; font-weight: 750; }
 .primary-action:disabled, .action-row button:disabled, .validation-actions button:disabled, .empty-assessment button:disabled, .execution-panel button:disabled { background: #aab7c4; }
 
@@ -125,6 +127,10 @@ footer p { margin: 0; color: inherit; }
 .record-list { display: grid; gap: 0.8rem; }
 .record-list > article { padding: 0.9rem; border: 1px solid var(--line); border-radius: 9px; background: #fbfcfd; }
 .record-list h3 { margin: 0.6rem 0 0.3rem; }
+.export-action { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 1rem; margin-top: 0.9rem; padding-top: 0.9rem; border-top: 1px solid var(--line); }
+.export-action button, .download-link { width: fit-content; padding: 0.65rem 0.85rem; border: 0; border-radius: 7px; background: var(--blue); color: white; font-weight: 750; text-decoration: none; }
+.export-action button:disabled { background: #aab7c4; }
+.export-action p { margin: 0.2rem 0 0; font-size: 0.8rem; }
 .empty-state { padding: 1rem; text-align: center; background: var(--soft); border-radius: 8px; }
 .event-timeline { position: relative; margin: 0; padding: 0; list-style: none; }
 .event-timeline::before { content: ""; position: absolute; left: 1.05rem; top: 0; bottom: 0; width: 2px; background: #d4dee8; }

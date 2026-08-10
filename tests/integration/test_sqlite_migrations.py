@@ -17,7 +17,7 @@ MIGRATIONS = REPOSITORY_ROOT / "app/backend/ot_demo/infrastructure/migrations"
 def test_initial_migration_applies_once_and_is_repeatable(tmp_path: Path) -> None:
     database_path = tmp_path / "i1.sqlite3"
     with sqlite3.connect(database_path) as connection:
-        assert apply_migrations(connection, MIGRATIONS) == (1, 2, 3, 4, 5)
+        assert apply_migrations(connection, MIGRATIONS) == (1, 2, 3, 4, 5, 6)
         assert apply_migrations(connection, MIGRATIONS) == ()
         tables = {
             row[0]
@@ -43,6 +43,7 @@ def test_initial_migration_applies_once_and_is_repeatable(tmp_path: Path) -> Non
             "investigation_defect_records",
             "investigation_correction_records",
             "investigation_repeat_links",
+            "evidence_packages",
         } <= tables
 
 
@@ -80,5 +81,13 @@ def test_i5_migration_is_included_in_the_python_package() -> None:
 def test_i7_migration_is_included_in_the_python_package() -> None:
     migration = files("ot_demo.infrastructure").joinpath(
         "migrations/005_investigation_correction.sql"
+    )
+    assert migration.is_file()
+
+
+@pytest.mark.i8
+def test_i8_migration_is_included_in_the_python_package() -> None:
+    migration = files("ot_demo.infrastructure").joinpath(
+        "migrations/006_evidence_packages.sql"
     )
     assert migration.is_file()

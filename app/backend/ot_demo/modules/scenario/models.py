@@ -56,6 +56,7 @@ class InitialiseRunRequest(FrozenModel):
     expected_revision: int = Field(default=0, ge=0, le=0)
     mode: ScenarioMode
     configuration_version: SemanticVersion
+    fault_section_id: EngineeringId | None = None
     scenario_time: UtcMillisecondInstant
 
 

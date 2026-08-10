@@ -75,8 +75,10 @@ verification approach, evidence strategy and requirements-to-verification mappin
 formal requirements. DC-003 was applied and cross-document verified before final Step 9
 acceptance. Implementation proceeds only through separately authorised increments. I1–I7 are
 accepted implementation baselines. I7 — Investigation/Correction passed final independent
-engineering/implementation review and its reviewed history is incorporated into `main` through
-the administrative acceptance baseline. I8 has not begun and is not authorised.
+engineering/implementation review and its reviewed history is incorporated into `main`. I8 —
+Exploration and Export has been implemented and verified on its dedicated branch and is pending
+independent review; it is not yet an accepted baseline or authorised for merge. I9 has not begun
+and is not authorised.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

@@ -164,6 +164,7 @@ class ValidationWorkspaceAction(FrozenModel):
 class ValidationWorkspaceView(FrozenModel):
     definitions: tuple[LoadedValidationDefinition, ...]
     run_executions: tuple[ValidationExecutionSummary, ...]
+    library_executions: tuple[ValidationExecutionSummary, ...]
     progress: ValidationProgress
     actions: tuple[ValidationWorkspaceAction, ...]
 
@@ -178,6 +179,7 @@ class WorkspaceBootstrap(FrozenModel):
     default_scenario_time: UtcMillisecondInstant
     formal_test_id: str
     formal_definition: LoadedValidationDefinition
+    exploration_section_ids: tuple[EngineeringId, ...]
     definition_count: int = Field(ge=1)
     conceptual_boundary_notice: str
 

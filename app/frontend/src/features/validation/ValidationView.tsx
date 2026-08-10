@@ -8,6 +8,35 @@ const validationLabels: Record<ValidationWorkspaceAction['action_type'], string>
 }
 
 export function ValidationView({ projection, busy, onAction }: { projection: WorkspaceProjection; busy: boolean; onAction: (action: ValidationWorkspaceAction) => void }) {
+  if (projection.run.mode === 'EXPLORATION') {
+    const definitions = projection.validation.definitions.filter((item) => item.definition.evidence_class === 'EXPLORATORY')
+    return <div className="view-stack">
+      <section className="panel" aria-labelledby="exploration-evidence-title">
+        <div className="panel-heading"><div><span className="eyebrow">Separate non-formal evidence path</span><h2 id="exploration-evidence-title">Exploration evidence controls</h2></div><span className="status-badge exploratory">EXPLORATORY</span></div>
+        <div className="callout warning"><strong>Not formal validation evidence.</strong> The selected fault remains run input on corrected v1.1. Captured records cannot change the FORMAL progress totals or be relabelled FORMAL.</div>
+        <dl className="identity-grid"><div><dt>Selected section</dt><dd>{projection.run.fault_section_id}</dd></div><div><dt>Configuration</dt><dd>{projection.run.configuration_id}</dd></div><div><dt>Scenario run</dt><dd>{projection.run.scenario_run_id}</dd></div><div><dt>Evidence class</dt><dd>{projection.run.evidence_class}</dd></div></dl>
+      </section>
+      <section className="panel" aria-labelledby="exploration-definitions-title">
+        <div className="panel-heading"><div><span className="eyebrow">Accepted Step 9 verification definitions</span><h2 id="exploration-definitions-title">Exploratory definitions and preserved records</h2></div><span className="status-badge neutral">{definitions.length} definitions</span></div>
+        <div className="record-list">{definitions.map((definition) => {
+          const summary = projection.validation.run_executions.find((item) => item.execution.test_id === definition.definition.test_id)
+          return <article key={definition.definition.test_id}><span className="status-badge exploratory">EXPLORATORY</span><h3>{definition.definition.test_id} · {definition.definition.title}</h3><p>{definition.definition.expected_result_statement}</p><small>{summary === undefined ? 'No execution for this run.' : `${summary.execution.status} · ${summary.evidence_snapshots.length} immutable checkpoint(s) · ${summary.execution.verdict ?? 'NOT DETERMINED'}`}</small></article>
+        })}</div>
+        <div className="validation-actions">{projection.validation.actions.map((action) => {
+          const label = action.action_type === 'START_EXECUTION'
+            ? `Start exploratory execution ${action.test_id}`
+            : action.action_type === 'CAPTURE_CHECKPOINT'
+              ? `Capture exploratory checkpoint ${action.test_id}`
+              : `Finalise exploratory execution ${action.test_id}`
+          return <article key={`${action.test_id}:${action.action_type}`}><button type="button" disabled={!action.available || busy} onClick={() => onAction(action)}>{label}</button><p>{action.reason}</p><span className="reason-code">{humanise(action.reason_code)}</span></article>
+        })}</div>
+      </section>
+      <section className="panel validation-progress" aria-labelledby="formal-progress-watch-title">
+        <div className="panel-heading"><div><span className="eyebrow">QA-034 separation watch</span><h2 id="formal-progress-watch-title">Formal progress remains separate</h2></div><span className="status-badge formal">FORMAL</span></div>
+        <p>{projection.validation.progress.definition_count} FORMAL definitions; {projection.validation.progress.execution_count} FORMAL executions; {projection.validation.progress.pass_count} FORMAL PASS. Exploratory records are excluded from every value.</p>
+      </section>
+    </div>
+  }
   const definition = projection.validation.definitions.find((item) => item.definition.test_id === 'VT-FML-N0-N5-001')
   const summary = projection.validation.run_executions.find((item) => item.execution.test_id === 'VT-FML-N0-N5-001')
   const progress = projection.validation.progress

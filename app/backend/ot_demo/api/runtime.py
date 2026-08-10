@@ -14,16 +14,19 @@ from ..infrastructure.build_identity import (
 )
 from ..infrastructure.configuration_loader import JsonConfigurationLoader
 from ..infrastructure.investigation_repository import InvestigationRepository
+from ..infrastructure.evidence_package_repository import EvidencePackageRepository
 from ..infrastructure.scenario_repository import ScenarioRepository
 from ..infrastructure.validation_repository import ValidationRepository
 from ..modules.validation.catalogue import ValidationCatalogueLoader
 from ..modules.validation.service import ValidationService
+from ..modules.evidence_export.service import EvidenceExportService
 from .main import create_app
 
 
 def create_local_app(
     *,
     data_directory: Path | None = None,
+    evidence_output_directory: Path | None = None,
     application_build_manifest: ApplicationBuildManifest | None = None,
 ):
     """Assemble one local process with no external OT or utility interfaces."""
@@ -61,6 +64,19 @@ def create_local_app(
         validation_service,
         application_build_manifest=build_manifest,
     )
+    evidence_export_service = EvidenceExportService(
+        EvidencePackageRepository(runtime_data / "validation.sqlite3", migrations),
+        ValidationRepository(runtime_data / "validation.sqlite3", migrations),
+        InvestigationRepository(runtime_data / "validation.sqlite3", migrations),
+        coordinator,
+        configuration_loader,
+        catalogue,
+        application_build_manifest=build_manifest,
+        output_directory=(
+            evidence_output_directory
+            or repository_root / "evidence/exports"
+        ),
+    )
     workspace_service = WorkspaceService(
         configuration_loader,
         coordinator,
@@ -76,4 +92,5 @@ def create_local_app(
         validation_service,
         workspace_service,
         investigation_service,
+        evidence_export_service,
     )

@@ -1,5 +1,7 @@
 import type {
   CommandResult,
+  EvidenceExportCandidate,
+  EvidencePackage,
   InvestigationWorkspace,
   ValidationWorkspaceAction,
   WorkspaceAction,
@@ -27,7 +29,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export interface WorkspaceApi {
   bootstrap(): Promise<WorkspaceBootstrap>
-  initialise(bootstrap: WorkspaceBootstrap, actor: string): Promise<CommandResult>
+  initialise(bootstrap: WorkspaceBootstrap, actor: string, mode?: 'FORMAL' | 'EXPLORATION', faultSectionId?: string): Promise<CommandResult>
   projection(runId: string): Promise<WorkspaceProjection>
   execute(runId: string, actor: string, action: WorkspaceAction): Promise<CommandResult>
   validationAction(action: ValidationWorkspaceAction, runId: string): Promise<void>
@@ -37,20 +39,24 @@ export interface WorkspaceApi {
   recordCorrection(failureExecutionId: string, reviewer: string): Promise<InvestigationWorkspace>
   runDirectRepeat(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
   runRegression(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
+  evidenceExportCandidates(): Promise<EvidenceExportCandidate[]>
+  evidencePackages(): Promise<EvidencePackage[]>
+  generateEvidencePackage(validationExecutionId: string): Promise<EvidencePackage>
 }
 
 export const workspaceApi: WorkspaceApi = {
   bootstrap: () => request<WorkspaceBootstrap>('/api/v1/workspace/bootstrap'),
 
-  initialise: (bootstrap, actor) =>
-    request<CommandResult>('/api/v1/runs', {
+  initialise: (bootstrap, actor, mode = 'FORMAL', faultSectionId) =>
+    request<CommandResult>('/api/v1/runs/start', {
       method: 'POST',
       body: JSON.stringify({
         command_id: crypto.randomUUID(),
         actor,
         expected_revision: 0,
-        mode: bootstrap.default_mode,
+        mode,
         configuration_version: bootstrap.default_configuration_version,
+        fault_section_id: mode === 'EXPLORATION' ? faultSectionId : null,
         scenario_time: bootstrap.default_scenario_time,
       }),
     }),
@@ -103,4 +109,7 @@ export const workspaceApi: WorkspaceApi = {
   recordCorrection: (failureExecutionId, reviewer) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/correction`, { method: 'POST', body: JSON.stringify({ reviewer }) }),
   runDirectRepeat: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/direct-repeat`, { method: 'POST', body: JSON.stringify({ actor }) }),
   runRegression: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/regression`, { method: 'POST', body: JSON.stringify({ actor }) }),
+  evidenceExportCandidates: () => request<EvidenceExportCandidate[]>('/api/v1/evidence-packages/candidates'),
+  evidencePackages: () => request<EvidencePackage[]>('/api/v1/evidence-packages'),
+  generateEvidencePackage: (validationExecutionId) => request<EvidencePackage>('/api/v1/evidence-packages', { method: 'POST', body: JSON.stringify({ validation_execution_id: validationExecutionId }) }),
 }

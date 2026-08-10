@@ -49,11 +49,11 @@ export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
     if (runId !== null) loadProjection(runId).catch((cause: unknown) => { setError(cause instanceof Error ? cause.message : 'Unable to reload the preserved run.'); localStorage.removeItem(RUN_STORAGE_KEY); setRunId(null) })
   }, [loadProjection, runId])
 
-  async function startRun(requestedActor: string) {
+  async function startRun(requestedActor: string, mode: 'FORMAL' | 'EXPLORATION' = 'FORMAL', faultSectionId?: string) {
     if (bootstrap === null) return
     setError(null); setBusyActionId('INITIALISE_RUN'); setActor(requestedActor)
     try {
-      const result = await api.initialise(bootstrap, requestedActor)
+      const result = await api.initialise(bootstrap, requestedActor, mode, faultSectionId)
       await loadProjection(result.snapshot.run.scenario_run_id)
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Run initialisation failed.') } finally { setBusyActionId(null) }
   }
@@ -114,7 +114,7 @@ export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
       {view === 'events' && <EventTimeline projection={projection} />}
       {view === 'restoration' && <RestorationView projection={projection} busyActionId={busyActionId} onExecute={executeAction} />}
       {view === 'validation' && <ValidationView projection={projection} busy={validationBusy} onAction={executeValidationAction} />}
-      {view === 'evidence' && <EvidenceLibrary projection={projection} />}
+      {view === 'evidence' && <EvidenceLibrary projection={projection} api={api} />}
       {view === 'investigation' && (failureExecutionId === null
         ? <section className="panel"><span className="eyebrow">Controlled defect workflow</span><h2>Begin DEF-001 investigation</h2><p>Run the actual immutable v1.0 post-trip test before reviewing the consequence-to-source evidence.</p><button type="button" className="primary-action" disabled={busyActionId !== null} onClick={() => startInvestigation(actor)}>Run v1.0 test and investigate</button></section>
         : <InvestigationWorkspace api={api} failureExecutionId={failureExecutionId} actor={actor} initial={initialInvestigation} onUpdate={investigationUpdated} />)}

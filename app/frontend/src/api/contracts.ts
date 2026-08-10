@@ -47,6 +47,7 @@ export interface WorkspaceBootstrap {
   default_scenario_time: string
   formal_test_id: string
   formal_definition: LoadedValidationDefinition
+  exploration_section_ids: string[]
   definition_count: number
   conceptual_boundary_notice: string
 }
@@ -297,6 +298,37 @@ export interface ValidationExecutionSummary {
   evidence_snapshots: EvidenceSnapshot[]
 }
 
+export interface EvidenceExportCandidate {
+  validation_execution_id: string
+  test_id: string
+  evidence_class: EvidenceClass
+  scenario_run_id: string
+  source_run_status: string
+  export_available: boolean
+  reason_code: string
+  reason: string
+}
+
+export interface EvidencePackage {
+  package_id: string
+  validation_execution_id: string
+  test_id: string
+  test_definition_version: string
+  test_definition_sha256: string
+  evidence_class: EvidenceClass
+  scenario_run_id: string
+  configuration_id: string
+  configuration_version: string
+  application_build_id: string
+  generation_application_build_id: string
+  evidence_snapshot_ids: string[]
+  manifest_sha256: string
+  archive_sha256: string
+  archive_path: string
+  verification_status: 'VERIFIED'
+  source_record_references: string[]
+}
+
 export interface ValidationWorkspaceAction {
   action_type: 'START_EXECUTION' | 'CAPTURE_CHECKPOINT' | 'FINALISE_EXECUTION'
   available: boolean
@@ -353,6 +385,7 @@ export interface WorkspaceProjection {
   validation: {
     definitions: LoadedValidationDefinition[]
     run_executions: ValidationExecutionSummary[]
+    library_executions: ValidationExecutionSummary[]
     progress: {
       definition_count: number
       definitions_without_execution_count: number

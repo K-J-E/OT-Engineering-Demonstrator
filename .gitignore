@@ -13,6 +13,7 @@ app/frontend/coverage/
 app/frontend/playwright-report/
 app/frontend/test-results/
 app/.runtime/
+evidence/exports/
 
 build/
 *.sqlite3

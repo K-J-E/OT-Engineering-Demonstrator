@@ -14,6 +14,7 @@ from ..domain.enums import (
     NetworkStateLabel,
     ScenarioCommandType,
     ScenarioMode,
+    ScenarioRunStatus,
     ValidationExecutionStatus,
     ValidationVerdict,
 )
@@ -94,6 +95,9 @@ class WorkspaceService:
             ),
             formal_test_id=self.FORMAL_TEST_ID,
             formal_definition=formal,
+            exploration_section_ids=tuple(
+                sorted(section.entity_id for section in loaded.data.sections)
+            ),
             definition_count=len(definitions),
             conceptual_boundary_notice=self.CONCEPTUAL_NOTICE,
         )
@@ -273,6 +277,7 @@ class WorkspaceService:
         validation_view = ValidationWorkspaceView(
             definitions=definitions,
             run_executions=run_executions,
+            library_executions=all_executions,
             progress=self._validation_progress(definitions, all_executions),
             actions=self._validation_actions(snapshot, definitions, run_executions),
         )
@@ -415,6 +420,10 @@ class WorkspaceService:
         definitions: tuple[LoadedValidationDefinition, ...],
         run_executions: tuple[ValidationExecutionSummary, ...],
     ) -> tuple[ValidationWorkspaceAction, ...]:
+        if snapshot.run.mode is ScenarioMode.EXPLORATION:
+            return self._exploration_validation_actions(
+                snapshot, definitions, run_executions
+            )
         definition = self._definition(definitions, self.FORMAL_TEST_ID)
         matching = tuple(
             item
@@ -514,15 +523,120 @@ class WorkspaceService:
             ),
         )
 
+    def _exploration_validation_actions(
+        self,
+        snapshot: ScenarioSnapshot,
+        definitions: tuple[LoadedValidationDefinition, ...],
+        run_executions: tuple[ValidationExecutionSummary, ...],
+    ) -> tuple[ValidationWorkspaceAction, ...]:
+        actions: list[ValidationWorkspaceAction] = []
+        for definition in definitions:
+            if definition.definition.evidence_class is not EvidenceClass.EXPLORATORY:
+                continue
+            test_id = definition.definition.test_id
+            matching = tuple(
+                item for item in run_executions if item.execution.test_id == test_id
+            )
+            if not matching:
+                available = (
+                    snapshot.run.network_state_label is NetworkStateLabel.N0
+                    and snapshot.run.status is not ScenarioRunStatus.CLOSED
+                )
+                actions.append(
+                    ValidationWorkspaceAction(
+                        action_type="START_EXECUTION",
+                        available=available,
+                        reason_code=(
+                            "AVAILABLE" if available else "REQUIRES_EXPLORATION_N0"
+                        ),
+                        reason=(
+                            "Start a separate EXPLORATORY execution before scenario actions."
+                            if available
+                            else "An exploratory execution may start only at the clean run boundary."
+                        ),
+                        test_id=test_id,
+                    )
+                )
+                continue
+
+            current = matching[-1]
+            execution = current.execution
+            checkpoint_id = "CONTROLLED_RESULT"
+            captured = {
+                item.checkpoint_id for item in current.evidence_snapshots
+            }
+            capture_available = (
+                execution.status is ValidationExecutionStatus.ACTIVE
+                and snapshot.run.fault_active
+                and checkpoint_id not in captured
+            )
+            actions.append(
+                ValidationWorkspaceAction(
+                    action_type="CAPTURE_CHECKPOINT",
+                    available=capture_available,
+                    reason_code=(
+                        "AVAILABLE"
+                        if capture_available
+                        else "CHECKPOINT_ALREADY_CAPTURED"
+                        if checkpoint_id in captured
+                        else "EXPLORATION_RESULT_NOT_READY"
+                    ),
+                    reason=(
+                        "Capture the current generic engineering result as EXPLORATORY evidence."
+                        if capture_available
+                        else "The controlled exploratory checkpoint is already preserved."
+                        if checkpoint_id in captured
+                        else "Initiate the selected fault before capturing exploratory evidence."
+                    ),
+                    test_id=test_id,
+                    validation_execution_id=execution.validation_execution_id,
+                    checkpoint_id=checkpoint_id,
+                )
+            )
+            actions.append(
+                ValidationWorkspaceAction(
+                    action_type="FINALISE_EXECUTION",
+                    available=False,
+                    reason_code="CONTROLLED_COMPARISON_UNAVAILABLE",
+                    reason=(
+                        "This accepted exploratory definition has no automated verdict; "
+                        "the application preserves evidence without inventing PASS."
+                    ),
+                    test_id=test_id,
+                    validation_execution_id=execution.validation_execution_id,
+                    checkpoint_id=(
+                        checkpoint_id if checkpoint_id in captured else None
+                    ),
+                )
+            )
+        return tuple(actions)
+
     @staticmethod
     def _workspace_action(
         snapshot: ScenarioSnapshot, action: AllowedAction
     ) -> WorkspaceAction:
-        offset_seconds = formal_action_offset_seconds(
-            action.command_type, action.target_entity_id
-        )
+        if snapshot.run.mode is ScenarioMode.EXPLORATION:
+            offset_seconds = {
+                ScenarioCommandType.INITIATE_FAULT: 10,
+                ScenarioCommandType.ACKNOWLEDGE_ALARM: 11,
+                ScenarioCommandType.RESTORE_NORMAL_SOURCE: 40,
+                ScenarioCommandType.ASSESS_RESTORATION: 50,
+                ScenarioCommandType.EXECUTE_RESTORATION: 55,
+            }.get(action.command_type)
+            if action.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE:
+                offset_seconds = 20 + 10 * max(
+                    0, snapshot.run.state_revision - 1
+                )
+        else:
+            offset_seconds = formal_action_offset_seconds(
+                action.command_type, action.target_entity_id
+            )
         proposed = (
-            snapshot.run.initial_scenario_time + timedelta(seconds=offset_seconds)
+            max(
+                snapshot.run.scenario_time,
+                snapshot.run.initial_scenario_time
+                + timedelta(seconds=offset_seconds),
+            )
             if offset_seconds is not None
             else snapshot.run.scenario_time
         )

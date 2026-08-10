@@ -1,7 +1,7 @@
 {
-  "baseline_date": "2026-08-09",
-  "baseline_name": "Accepted engineering and validation-definition working baseline through Step 9 after DC-001, DC-002 and DC-003",
-  "baseline_status": "ACCEPTED ENGINEERING AND VALIDATION-DEFINITION BASELINE — IMPLEMENTATION NOT AUTHORISED",
+  "baseline_date": "2026-08-10",
+  "baseline_name": "Accepted engineering and validation-definition working baseline through Step 9, with accepted implementation through I7",
+  "baseline_status": "ACCEPTED ENGINEERING, VALIDATION-DEFINITION AND I7 IMPLEMENTATION BASELINE — I8 PENDING INDEPENDENT REVIEW",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -116,6 +116,14 @@
       "validation_plan_decisions": 18
     }
   ],
+  "implementation_baseline": {
+    "accepted_through_increment": "I7",
+    "accepted_main_commit": "b5cf733e2ebc30f7fd38e05b6e11377bc2ce540c",
+    "pending_review_increment": "I8 — Exploration and Export",
+    "pending_review_branch": "agent/i8-exploration-export",
+    "next_increment": "I9 — Packaging/review",
+    "next_increment_authorised": false
+  },
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
     "BASELINE-MANIFEST.json preserves the original pre-DC-001/DC-002 integrity record.",
@@ -126,8 +134,8 @@
     "Workflow Design v0.2 establishes the Step 7 controlled operational and engineering workflows, resolves the 60-second project telemetry-age parameter and final event catalogue, and allocates all 124 formal requirements without introducing V2 automation into V1.",
     "Demonstrator Design v0.2 establishes the Step 8 practical local application and applies the DC-003 backend boundary/action/presentation contract without changing approved engineering behaviour.",
     "Validation Plan v1.0 is the accepted Step 9 baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, evidence strategy and an exact 124-row requirements-to-verification matrix.",
-    "No immutable implementation v1.0/v1.1 configuration packages exist yet. The Network Model supplies approved engineering definitions; the first authorised implementation baseline must instantiate, schema-validate and hash both packages before execution.",
-    "Substantive behavioural implementation remains prohibited until the user provides separate explicit implementation authorisation; Step 9 acceptance does not itself grant that authority.",
+    "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I7 consume them without modifying either package.",
+    "Implementation is authorised one increment at a time. I1-I7 are accepted on reviewed main; I8 is implemented on its dedicated branch and remains pending independent review. I9 is not authorised.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."
   ]
 }
