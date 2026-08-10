@@ -59,7 +59,13 @@ The scenario coordinator derives the selected section's feeder, source
 breaker, incident boundaries, source paths, outage consequence, alternate
 role, transfer group and restoration result through the existing I2–I4
 authorities. Formal procedure ordering remains formal-only; exploration
-orders only the configuration-derived boundary set. A generic prospective
+evaluates each configuration-derived incident boundary independently for OPEN
+eligibility. A `PROVEN_OPEN` boundary is satisfied without redundant action, a
+`PROVEN_CLOSED` boundary remains individually eligible even if another incident
+boundary is `UNPROVEN`, and the unproven boundary still prevents overall
+isolation. Backend command acceptance uses the same per-boundary gate as the
+allowed-action projection, followed by the existing full recalculation. A
+generic prospective
 topology check makes a normal-source reclose available only when it preserves
 fault isolation and restores healthy load. If no safe normal reclose exists,
 the isolated exploration topology may proceed to the existing restoration
@@ -161,10 +167,20 @@ the regression remains ACTIVE / NOT DETERMINED.
 
 ## 7. QA disposition
 
-QA-008 is now implemented and verified within I8, pending independent review.
+QA-008 is implemented and accepted in substance by independent I8 review.
+QA-040 records that the first Exploration action projection reused a single
+lexically ordered "next target" result, allowing an earlier `UNPROVEN` boundary
+to suppress another independently `PROVEN_CLOSED` incident boundary. The
+bounded correction leaves the FORMAL next-target procedure unchanged and gives
+EXPLORATION a per-actual-boundary evidence gate shared by projection and command
+acceptance. Both SEC-A2 asymmetric permutations prove order independence;
+post-operation evidence proves the operated boundary becomes `PROVEN_OPEN`, the
+other remains `UNPROVEN`, overall isolation remains false and full action/proof
+recalculation occurs. QA-040 is pending independent re-review.
+
 The accepted QA-003, QA-007, QA-009, QA-014, QA-027, QA-031, QA-032 and
-QA-034–QA-039 controls remain under passing regression. No genuine new defect
-or unresolved design question required a new QA identifier.
+QA-034–QA-039 controls remain under passing regression. No authoritative
+engineering change or new design decision was required.
 
 The current-baseline manifest, README, implementation control plan, source map
 and QA register were refreshed as derived navigation/control aids. Their update
@@ -174,8 +190,10 @@ does not accept I8 or alter authoritative engineering meaning.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 118 tests |
-| Focused I8 backend exploration/export suite | PASS — 12 tests |
+| Complete backend unit/integration suite | PASS — 120 tests |
+| Focused I8 backend exploration/export suite | PASS — 14 tests |
+| QA-040 asymmetric boundary eligibility | PASS — both lexical permutations; projection/command/recalculation agree |
+| FORMAL controlled isolation ordering | PASS — unchanged |
 | All-eight corrected-v1.1 section selection/incidence | PASS |
 | SEC-A4 fresh OPEN / stale last-OPEN DC-003 case | PASS |
 | Representative PERMITTED / REJECTED / NO_CANDIDATE results | PASS |
@@ -213,6 +231,17 @@ The identity records `git_dirty = false`, Python 3.13.15, Node.js 24.19.0,
 npm 11.17.0, backend-source hash
 `c1c4628d33afde45d091b88d1ea198e3c3308c65fb9a7e9c77ab6ef1c9b4cbc2`
 and frontend-bundle hash
+`c7a29657a65f831e41f70ac59950ebe4223c781cba6a916def2510d17bcec037`.
+
+The bounded QA-040 correction commit is
+`2f5701482e5e7d52ac098f0a89ab1ff939704ddd`. Its clean application build ID is:
+
+`960ce33dcb707a4d7054bc78b15a4b24f1594f819ae810ab4a61f75e800408bb`
+
+The corrected identity records `git_dirty = false`, the same pinned toolchain
+and lock hashes, backend-source hash
+`010ac950d435ef05c805acd11b23670988be78bf6c818de1e8be3d4c5fff12d5`
+and unchanged frontend-bundle hash
 `c7a29657a65f831e41f70ac59950ebe4223c781cba6a916def2510d17bcec037`.
 
 Accepted controlled hashes remain:
