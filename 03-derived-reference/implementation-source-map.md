@@ -50,6 +50,17 @@ For controlled definition, execution, checkpoint, comparison and evidence work, 
 5. Demonstrator Design Sections 8.7, 9, 10.5, 12, 19, 21–22 and 27–28 for module, persistence and interface decisions; and
 6. Validation Plan Sections 3–15 and 17–18 in full, including all 24 catalogue/procedure rows and the exact 124-row RTM.
 
-Current gate: I4 is the accepted implementation baseline. Independent review accepted I5 in substance; QA-031/QA-032 corrections are implemented at `c8ac8db63ba275d24cdf8b92dcaa487bd2ee3170` on `agent/i5-validation-evidence` and are pending independent re-review. I5 is not merged or accepted yet. **I6 has not begun and requires separate user authorisation after I5 acceptance.**
+## I6 operational UI implementation reading path
+
+For the local review workspace and projection-only frontend, read all of the following before changing I6 behaviour:
+
+1. Requirements Specification presentation paths for `REQ-NET-*`, `REQ-TOP-*`, `REQ-TEL-*`, `REQ-ALM-*`, `REQ-OUT-*`, `REQ-RST-*`, `REQ-EVT-*`, `REQ-VAL-*`, and `REQ-NFR-001`, `005–007`, `009`;
+2. Network Model Sections 13–16 for the one-line entities and approved formal N0–N5 answer key;
+3. System Architecture Sections 13, 17–18, 20–21 and 26.3 for information ownership and projection boundaries;
+4. Workflow Design Sections 9–14 and 18–21 for action, chronology, evidence and review handling;
+5. Demonstrator Design Sections 13–19, 23–25 and 27–29 for screens, interactions and implementation decisions; and
+6. Validation Plan Sections 6–10 and 13–15, especially `VT-FML-N0-N5-001`, `VT-ALM-EVT-001`, telemetry presentation cases, `VT-VAL-RECORD-001` and `VT-NFR-REVIEW-001`.
+
+Current gate: I5 is the accepted implementation baseline. I6 is implemented and verified at bounded implementation commit `b7993d9bc2ca224df8f5721e372c0d4e39d69366` on `agent/i6-operational-ui` and is pending independent review. **I6 is not merged or accepted; I7 has not begun and requires separate authorisation after I6 acceptance.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.

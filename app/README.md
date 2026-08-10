@@ -1,10 +1,11 @@
-# Application implementation through authorised I5
+# Application implementation through authorised I6
 
 This directory contains the reproducible local application foundations and the
-separately authorised I1–I5 backend increments: controlled inputs, generic
-topology/outage, scenario transactions, restoration, and immutable
-validation/evidence records. It does not contain the I6 operational UI, I7 defect
-investigation presentation, I8 Exploration/export workflow or I9 packaging.
+separately authorised I1–I5 backend increments plus the I6 operational review
+workspace. I6 presents backend-owned topology/outage, telemetry, event,
+restoration and validation records without moving engineering authority into the
+browser. It does not contain the I7 defect-investigation presentation, I8
+Exploration/export workflow or I9 packaging.
 
 ## Pinned local toolchain
 
@@ -29,3 +30,15 @@ hash-protected counterpart of Validation Plan v1.0. I5 binds each execution to t
 backend-controlled build, configuration, definition version/hash, run, mode,
 evidence class and controlled scenario time. Captured evidence is distinct from
 the operational-event catalogue and finalised records are immutable.
+
+## I6 verification state
+
+I6 is implemented at bounded commit
+`b7993d9bc2ca224df8f5721e372c0d4e39d69366` and remains pending independent
+review. Verification passed with 99 backend tests, 9 React/Cytoscape component
+tests, one real-browser formal N0–N5 workflow, a clean exact-toolchain install and
+the pinned TypeScript/Vite production build. The clean implementation build ID is
+`2c5123bfab1359865ff4a27285bd14a2911b38dd1dfcc56442c7384d37e79d28`.
+
+The canonical network packages, validation catalogue, dependency versions and
+lockfiles are unchanged. I7 has not begun.
