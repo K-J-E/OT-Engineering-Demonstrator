@@ -75,6 +75,20 @@ BEGIN
     SELECT RAISE(ABORT, 'validation evidence snapshots are immutable');
 END;
 
+CREATE TRIGGER validation_evidence_parent_must_be_active
+BEFORE INSERT ON validation_evidence_snapshots
+WHEN (
+    SELECT status
+    FROM validation_executions
+    WHERE validation_execution_id = NEW.validation_execution_id
+) = 'FINALISED'
+BEGIN
+    SELECT RAISE(
+        ABORT,
+        'finalised validation execution cannot acquire additional evidence'
+    );
+END;
+
 CREATE TRIGGER validation_evidence_no_delete
 BEFORE DELETE ON validation_evidence_snapshots
 BEGIN

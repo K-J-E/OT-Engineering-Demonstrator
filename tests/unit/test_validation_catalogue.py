@@ -43,6 +43,24 @@ ACCEPTED_TEST_IDS = {
     "VT-PKG-EVIDENCE-001",
 }
 
+# Independent test oracle calculated directly from the accepted Validation Plan
+# v1.0 Section 15 RTM table (286 sorted test↔requirement relationships). It is
+# deliberately not derived from validation/test-definitions/catalogue.json.
+ACCEPTED_SECTION_15_RTM_SHA256 = (
+    "53ecf30a7f59bb294410a1b5abbd0b9e014f02ea294f674d9a0ba22ddaf604c8"
+)
+
+
+def relationship_fingerprint(relationships: set[tuple[str, str]]) -> str:
+    return sha256_bytes(canonical_json_bytes(sorted(relationships)))
+
+
+def assert_exact_section_15_relationship(
+    relationships: set[tuple[str, str]],
+) -> None:
+    assert len(relationships) == 286
+    assert relationship_fingerprint(relationships) == ACCEPTED_SECTION_15_RTM_SHA256
+
 
 @pytest.mark.i5
 def test_catalogue_contains_exactly_the_24_accepted_definitions() -> None:
@@ -88,6 +106,36 @@ def test_catalogue_preserves_exact_124_requirement_coverage() -> None:
         and item.definition.evidence_requirements
         for item in definitions
     )
+
+
+@pytest.mark.i5
+def test_catalogue_matches_exact_accepted_section_15_rtm_relationship() -> None:
+    definitions = ValidationCatalogueLoader(CATALOGUE).load()
+    relationships = {
+        (item.definition.test_id, requirement_id)
+        for item in definitions
+        for requirement_id in item.definition.requirement_ids
+    }
+
+    assert_exact_section_15_relationship(relationships)
+
+
+@pytest.mark.i5
+def test_wrong_test_mapping_fails_even_when_all_124_requirements_remain() -> None:
+    definitions = ValidationCatalogueLoader(CATALOGUE).load()
+    relationships = {
+        (item.definition.test_id, requirement_id)
+        for item in definitions
+        for requirement_id in item.definition.requirement_ids
+    }
+    mutated = set(relationships)
+    mutated.remove(("VT-CFG-BASE-001", "REQ-NET-001"))
+    mutated.add(("VT-NFR-REVIEW-001", "REQ-NET-001"))
+
+    assert len({requirement_id for _test_id, requirement_id in mutated}) == 124
+    assert len(mutated) == len(relationships) == 286
+    with pytest.raises(AssertionError):
+        assert_exact_section_15_relationship(mutated)
 
 
 @pytest.mark.i5

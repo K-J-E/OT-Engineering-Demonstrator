@@ -3,7 +3,7 @@
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -25,6 +25,7 @@ from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ot_demo.infrastructure.scenario_repository import ScenarioRepository
 from ot_demo.infrastructure.validation_repository import ValidationRepository
 from ot_demo.modules.scenario.models import InitialiseRunRequest, ScenarioCommandRequest
+from ot_demo.modules.telemetry.service import instant_to_epoch_ms
 from ot_demo.modules.validation.catalogue import ValidationCatalogueLoader
 from ot_demo.modules.validation.models import (
     StartValidationExecutionRequest,
@@ -275,6 +276,43 @@ def test_finalised_execution_verdict_and_evidence_rewrite_delete_are_rejected(
     )
     database = tmp_path / "validation.sqlite3"
     with sqlite3.connect(database) as connection:
+        late_payload = {
+            **evidence.canonical_payload,
+            "checkpoint_id": "POST_FINALISATION",
+        }
+        late_evidence = evidence.model_copy(
+            update={
+                "evidence_snapshot_id": uuid4(),
+                "checkpoint_id": "POST_FINALISATION",
+                "canonical_payload": late_payload,
+                "canonical_payload_sha256": sha256_bytes(
+                    canonical_json_bytes(late_payload)
+                ),
+            }
+        )
+        with pytest.raises(
+            sqlite3.IntegrityError,
+            match="cannot acquire additional evidence",
+        ):
+            connection.execute(
+                """
+                INSERT INTO validation_evidence_snapshots (
+                    evidence_snapshot_id, validation_execution_id,
+                    checkpoint_id, scenario_run_id, scenario_time_ms,
+                    state_revision, canonical_payload_sha256, payload_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    str(late_evidence.evidence_snapshot_id),
+                    str(late_evidence.validation_execution_id),
+                    late_evidence.checkpoint_id,
+                    str(late_evidence.scenario_run_id),
+                    instant_to_epoch_ms(late_evidence.scenario_time),
+                    late_evidence.state_revision,
+                    late_evidence.canonical_payload_sha256,
+                    late_evidence.model_dump_json(),
+                ),
+            )
         with pytest.raises(sqlite3.IntegrityError, match="finalised"):
             connection.execute(
                 "UPDATE validation_executions SET verdict = 'FAIL' "
@@ -298,6 +336,14 @@ def test_finalised_execution_verdict_and_evidence_rewrite_delete_are_rejected(
                 "WHERE evidence_snapshot_id = ?",
                 (str(evidence.evidence_snapshot_id),),
             )
+
+    preserved = ValidationRepository(database, MIGRATIONS).summary(
+        execution.validation_execution_id
+    )
+    assert preserved.evidence_snapshots == (evidence,)
+    assert preserved.execution.evidence_snapshot_ids == tuple(
+        item.evidence_snapshot_id for item in preserved.evidence_snapshots
+    )
 
 
 @pytest.mark.i5
