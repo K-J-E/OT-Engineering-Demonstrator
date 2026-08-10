@@ -61,6 +61,6 @@ For the local review workspace and projection-only frontend, read all of the fol
 5. Demonstrator Design Sections 13–19, 23–25 and 27–29 for screens, interactions and implementation decisions; and
 6. Validation Plan Sections 6–10 and 13–15, especially `VT-FML-N0-N5-001`, `VT-ALM-EVT-001`, telemetry presentation cases, `VT-VAL-RECORD-001` and `VT-NFR-REVIEW-001`.
 
-Current gate: I5 is the accepted implementation baseline. I6 is implemented and verified at bounded implementation commit `b7993d9bc2ca224df8f5721e372c0d4e39d69366` on `agent/i6-operational-ui` and is pending independent review. **I6 is not merged or accepted; I7 has not begun and requires separate authorisation after I6 acceptance.**
+Current gate: I5 is the accepted implementation baseline. Independent review accepted I6 in substance and accepted QA-033. QA-034/QA-035 corrections are implemented and verified at `09622018d8bbd57adf8da818d3d0d5c253f49a0b` on `agent/i6-operational-ui`, pending independent re-review. **I6 is not merged or accepted; I7 has not begun and requires separate authorisation after I6 acceptance.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.

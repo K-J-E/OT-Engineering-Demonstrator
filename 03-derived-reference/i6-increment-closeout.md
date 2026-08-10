@@ -1,5 +1,5 @@
 ---
-Status: I6 implemented and verified — pending independent review
+Status: I6 assurance corrections implemented — pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -19,6 +19,12 @@ The bounded implementation commit is
 operational review workspace, backend projection assembly, fixed one-line,
 configured/observed/derived inspection, telemetry/events, restoration and formal
 validation presentation, plus component and browser assurance.
+
+Independent review accepted I6 in substance and independently accepted QA-033's
+JSON-transport correction. The targeted assurance-correction commit
+`09622018d8bbd57adf8da818d3d0d5c253f49a0b` implements QA-034 and QA-035:
+FORMAL-only validation progress and continuously visible full scenario-run
+identity. It does not change engineering behaviour or add later-increment scope.
 
 I1–I5 remain the engineering and transaction authorities. I6 composes and renders
 their controlled outputs; it does not calculate topology, energisation, outage,
@@ -145,17 +151,32 @@ converts their parsed typed values into the unchanged strict domain contracts
 before calling the I3/I5 services. It does not weaken domain validation or change
 engineering behaviour. The passing full browser flow exercises initialisation,
 scenario commands and validation checkpoint requests through the corrected
-boundary. QA-033 is closed in the implementation and awaits independent review.
+boundary. QA-033 is independently verified; final closure under the I6 baseline
+awaits acceptance of the complete increment.
 
 QA-003 was not reopened. Its I6 presentation treatment is implemented and awaits
 review with the increment.
+
+QA-034 records that the first progress aggregator counted all 24 definitions and
+all executions while its UI was explicitly labelled FORMAL. The corrected read
+model filters both definitions and executions by `evidence_class == FORMAL`.
+Regression proves active/finalised exploratory executions with PASS, FAIL and
+BLOCKED-TEST verdicts cannot affect any FORMAL total. The interface now states
+that FORMAL scope contains 21 of 24 controlled catalogue definitions, preserving
+the separate total-catalogue fact without presenting I8 exploratory records.
+
+QA-035 records that the first context ribbon exposed the complete run UUID only
+through hover and assistive text. The ribbon now visibly presents the short ID for
+scanning and the complete UUID for provenance. Component and browser coverage
+prove the full identity is visible without hover and remains unchanged from N0
+through N5 while the persistent ribbon crosses workspace views.
 
 ## 7. Verification evidence
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 99 tests |
-| I6 backend projection/integration tests | PASS — 2 tests |
+| Complete backend unit/integration suite | PASS — 100 tests |
+| I6 backend projection/integration tests | PASS — 3 tests |
 | React/Cytoscape component assurance | PASS — 9 tests |
 | Playwright formal v1.1 N0–N5 workflow | PASS — 1 test in Chromium |
 | Exact-toolchain clean `npm ci` | PASS — 120 packages, 0 vulnerabilities |
@@ -168,6 +189,8 @@ review with the increment.
 | Backend-only action availability and reasons | PASS |
 | NO_CANDIDATE/BLOCKED/REJECTED/PERMITTED presentation | PASS |
 | 24 definitions not treated as execution/PASS | PASS |
+| FORMAL progress isolation | PASS — 21 FORMAL of 24 total; exploratory ACTIVE/finalised/PASS/FAIL/BLOCKED-TEST records have zero effect |
+| Complete persistent run UUID | PASS — visibly unchanged from N0 through N5 without hover |
 | Exact 15 operational event types | PASS — unchanged |
 | Frontend engineering-calculation/hard-coding scan | PASS |
 | I7+ leakage scan | PASS |
@@ -187,15 +210,20 @@ The clean build identity at bounded implementation commit
 
 `2c5123bfab1359865ff4a27285bd14a2911b38dd1dfcc56442c7384d37e79d28`
 
-It records `git_dirty = false`, Python 3.13.15, Node 24.19.0, npm 11.17.0,
+The clean build identity after the QA-034/QA-035 implementation correction at
+`09622018d8bbd57adf8da818d3d0d5c253f49a0b` is:
+
+`c424327a404608c817ec34c749dbcbfce671044e99a195d6168a828d2c2c640c`
+
+The corrected identity records `git_dirty = false`, Python 3.13.15, Node 24.19.0, npm 11.17.0,
 requirements-lock hash
 `0c68ce8fad5cbc3b877ade42f7a6d0400b50f0f2a52cee262734c7df10b41a64`,
 frontend-lock hash
 `b628f98c999bcf66ae3bbdf067e961ced6b56f3db03a7339f4ca54e20ada3177`,
 backend-source hash
-`9e7d0b4705c356c17e39dcd0bb7bde0f21e5490ea11b4e3b96b3d73d427f4db4`
+`df0584950c10868de31a771938336508cbf72249643400eabfbd8a640e3fc895`
 and frontend-bundle hash
-`c7c11756f4ad0c7adca1de77ae9a0c90dc451a8f0ca436c5ccd4ac8954bfbee3`.
+`ff464dc251efdb33b5ae2c50ea6f75efda56c4d4446324a5022f08a2dfc705b2`.
 
 Accepted controlled input hashes remain:
 
@@ -229,7 +257,7 @@ review without changing V1 calculations or verdict authority.
 ## 10. Review and progression gate
 
 The I6 implementation commit and this derived closeout are to be pushed on
-`agent/i6-operational-ui` for independent review. I6 remains unmerged and is not
-the accepted implementation baseline until separately reviewed and accepted.
+`agent/i6-operational-ui` for independent re-review. I6 remains unmerged and is
+not the accepted implementation baseline until separately reviewed and accepted.
 
 **I7 has not started. No later increment may begin automatically.**

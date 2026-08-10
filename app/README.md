@@ -34,11 +34,13 @@ the operational-event catalogue and finalised records are immutable.
 ## I6 verification state
 
 I6 is implemented at bounded commit
-`b7993d9bc2ca224df8f5721e372c0d4e39d69366` and remains pending independent
-review. Verification passed with 99 backend tests, 9 React/Cytoscape component
+`b7993d9bc2ca224df8f5721e372c0d4e39d69366`; QA-034/QA-035 corrections are at
+`09622018d8bbd57adf8da818d3d0d5c253f49a0b` and remain pending independent
+re-review. Verification passed with 100 backend tests, 9 React/Cytoscape component
 tests, one real-browser formal N0–N5 workflow, a clean exact-toolchain install and
-the pinned TypeScript/Vite production build. The clean implementation build ID is
-`2c5123bfab1359865ff4a27285bd14a2911b38dd1dfcc56442c7384d37e79d28`.
+the pinned TypeScript/Vite production build. The clean corrected implementation
+build ID is
+`c424327a404608c817ec34c749dbcbfce671044e99a195d6168a828d2c2c640c`.
 
 The canonical network packages, validation catalogue, dependency versions and
 lockfiles are unchanged. I7 has not begun.
