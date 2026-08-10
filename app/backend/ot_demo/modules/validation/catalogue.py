@@ -1,4 +1,4 @@
-"""Hash-identified loader for the accepted 24-test machine catalogue."""
+"""Hash-identified active and historical validation-catalogue resolution."""
 
 import json
 from pathlib import Path
@@ -52,6 +52,8 @@ class ValidationCatalogueLoader:
                 definition_sha256=sha256_bytes(
                     canonical_json_bytes(definition.model_dump(mode="json"))
                 ),
+                catalogue_id=catalogue.catalogue_id,
+                catalogue_version=catalogue.catalogue_version,
                 catalogue_sha256=catalogue_sha256,
             )
             for definition in catalogue.definitions
@@ -66,3 +68,68 @@ class ValidationCatalogueLoader:
 
     def raw_catalogue_sha256(self) -> str:
         return sha256_file(self.catalogue_path)
+
+    def identity(self) -> tuple[str, str, str]:
+        definitions = self.load()
+        first = definitions[0]
+        return (
+            first.catalogue_id,
+            str(first.catalogue_version),
+            first.catalogue_sha256,
+        )
+
+
+class ValidationCatalogueResolver:
+    """Resolve a definition by stored controlled identities, never by name alone."""
+
+    def __init__(
+        self,
+        active_catalogue_path: Path,
+        historical_catalogue_paths: tuple[Path, ...] = (),
+    ) -> None:
+        self.active_loader = ValidationCatalogueLoader(active_catalogue_path)
+        self._loaders = (
+            self.active_loader,
+            *(ValidationCatalogueLoader(path) for path in historical_catalogue_paths),
+        )
+        identities = [loader.identity() for loader in self._loaders]
+        if len(identities) != len(set(identities)):
+            raise ValidationCatalogueError("catalogue revision identities must be unique")
+
+    def load(self) -> tuple[LoadedValidationDefinition, ...]:
+        return self.active_loader.load()
+
+    def get(self, test_id: str) -> LoadedValidationDefinition:
+        return self.active_loader.get(test_id)
+
+    def raw_catalogue_sha256(self) -> str:
+        return self.active_loader.raw_catalogue_sha256()
+
+    def resolve(
+        self,
+        *,
+        test_id: str,
+        catalogue_version: str,
+        catalogue_sha256: str,
+        test_definition_version: str,
+        test_definition_sha256: str,
+    ) -> LoadedValidationDefinition:
+        matches: list[LoadedValidationDefinition] = []
+        for loader in self._loaders:
+            for loaded in loader.load():
+                if (
+                    loaded.definition.test_id == test_id
+                    and str(loaded.catalogue_version) == str(catalogue_version)
+                    and loaded.catalogue_sha256 == catalogue_sha256
+                    and str(loaded.definition.version) == str(test_definition_version)
+                    and loaded.definition_sha256 == test_definition_sha256
+                ):
+                    matches.append(loaded)
+        if len(matches) != 1:
+            raise ValidationCatalogueError(
+                "execution-bound catalogue/test-definition identity did not resolve uniquely"
+            )
+        return matches[0]
+
+    def is_active(self, loaded: LoadedValidationDefinition) -> bool:
+        return loaded.catalogue_sha256 == self.raw_catalogue_sha256()

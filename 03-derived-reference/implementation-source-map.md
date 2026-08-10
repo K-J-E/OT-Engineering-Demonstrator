@@ -12,7 +12,7 @@ This file is a navigation aid only. It is not a replacement for the detailed doc
 - Practical application/module boundaries, data structures and ownership, persistence and IDs, API/transaction design, views/actions, evidence export, defect presentation, technology decisions and implementation increments: `OT Project Demonstrator Design.docx`
 - Controlled test catalogue, deterministic scenario time, expected outcomes, negative-test interpretation, Exploration verification, evidence strategy and 124-requirement verification mapping: `OT Project Validation Plan.docx`
 - Accepted generic active-fault isolation rule, A/B/C boundary evidence conditions, eight-section v1.1 incidence answer key, all-open plus zero-source-path proof and application verification: `DC-003-generic-active-fault-isolation-boundary-derivation.md` together with the applied sections in the six authoritative Word artefacts
-- Accepted multi-run exploratory validation determination: `DC-004-multi-run-exploratory-validation-determination.md` together with authoritative Validation Plan v1.1 Section 19 and Demonstrator Design v0.3 Section 36. These define the immutable historical-catalogue/test-definition resolver, engineering-expectation versus provenance separation and constituent-owned scenario-time rule. Machine application remains pending on a separate controlled branch.
+- Accepted multi-run exploratory validation determination: `DC-004-multi-run-exploratory-validation-determination.md` together with authoritative Validation Plan v1.1 Section 19 and Demonstrator Design v0.3 Section 36. These define the immutable historical-catalogue/test-definition resolver, engineering-expectation versus provenance separation and constituent-owned scenario-time rule. Machine application is applied and verified on the dedicated branch, pending independent review.
 
 ## Mandatory implementation discipline
 When coding begins:
@@ -96,7 +96,7 @@ Before the separately authorised DC-004 application phase on a fresh `agent/dc-0
 4. accepted I5 validation/evidence and I8 exploration/export closeouts; and
 5. the unchanged catalogue rows for `VT-EXP-ALL-001` and `VT-EXP-ROLE-001` as the pre-change identity, plus the accepted I8 export service's current-catalogue equality boundary that DC-004 must correct during later controlled application.
 
-Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263` and administrative incorporation of the reviewed history into `main`. **DC-004 is the accepted authoritative design baseline, but its separate machine/application phase has not begun. I9 was authorised and then stopped before implementation; it must not resume until the DC-004 application passes independent review and is incorporated into `main`.**
+Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263` and administrative incorporation of the reviewed history into `main`. **DC-004 machine/application treatment is applied and verification-passed on `agent/dc-004-application`, pending independent review. I9 remains stopped and must not resume until that application is accepted and incorporated into `main`.**
 
 Do not reuse the stopped `agent/i9-packaging-review` branch for DC-004 application work.
 

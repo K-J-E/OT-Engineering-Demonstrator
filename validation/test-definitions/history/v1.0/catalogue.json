@@ -1,7 +1,7 @@
 {
-  "catalogue_id": "VALIDATION-CATALOGUE-V1.1",
-  "catalogue_version": "1.1",
-  "authority": "Machine-readable counterpart of accepted OT Project Validation Plan v1.1 including DC-004",
+  "catalogue_id": "VALIDATION-CATALOGUE-V1.0",
+  "catalogue_version": "1.0",
+  "authority": "Machine-readable counterpart of accepted OT Project Validation Plan v1.0",
   "definition_count": 24,
   "definitions": [
     {
@@ -1283,7 +1283,7 @@
     {
       "test_id": "VT-EXP-ALL-001",
       "title": "All-section Exploration selection and isolation derivation",
-      "version": "1.1",
+      "version": "1.0",
       "status": "ACCEPTED",
       "evidence_class": "EXPLORATORY",
       "requirement_ids": [
@@ -1302,9 +1302,9 @@
         "REQ-EXP-007"
       ],
       "source_references": [
-        "OT Project Validation Plan v1.1 §19 exact VT-EXP-ALL-001 constituent cases",
-        "OT Project Validation Plan v1.1 §19 constituent execution and comparison rules",
-        "OT Project Validation Plan v1.1 §15 unchanged requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-EXP-ALL-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-EXP-ALL-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
         "OT Project Network Model v0.4 §18",
         "OT Project Validation Plan v1.0 §12",
         "OT Project System Architecture v0.2 §26"
@@ -1345,104 +1345,12 @@
         "RESTORATION_ASSESSMENT"
       ],
       "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
-      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage.",
-      "constituent_cases": [
-        {
-          "case_id": "EXP-ALL-A1",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-A1 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A1",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A1", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["BRK-A", "SW-A12"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-A2",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-A2 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A2",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A2", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["SW-A12", "SW-A23"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-A3",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-A3 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A3",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A3", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["SW-A23", "SW-A34"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-A4-FRESH",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-A4 trustworthy fresh TS-01 OPEN boundary",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A4",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION", "boundary_device_id": "TS-01", "observed_value": "OPEN", "quality": "GOOD", "maximum_age_ms": 60000},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A4", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["SW-A34", "TS-01"], "boundary_evidence": {"TS-01": {"observed_value": "OPEN", "quality": "GOOD", "freshness": "FRESH", "proof_status": "PROVEN_OPEN", "open_action_eligible": false}}, "isolated": false},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-B1",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-B1 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-B1",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-B1", "affected_feeder_id": "FDR-B", "protection_breaker_id": "BRK-B", "incident_boundary_device_ids": ["BRK-B", "SW-B12"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-B2",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-B2 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-B2",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-B2", "affected_feeder_id": "FDR-B", "protection_breaker_id": "BRK-B", "incident_boundary_device_ids": ["SW-B12", "SW-B23"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-B3",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-B3 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-B3",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-B3", "affected_feeder_id": "FDR-B", "protection_breaker_id": "BRK-B", "incident_boundary_device_ids": ["SW-B23", "SW-B34"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-B4",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-B4 selection and incident boundary derivation",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-B4",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-B4", "affected_feeder_id": "FDR-B", "protection_breaker_id": "BRK-B", "incident_boundary_device_ids": ["SW-B34", "TS-01"]},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        },
-        {
-          "case_id": "EXP-ALL-A4-STALE-OPEN",
-          "test_id": "VT-EXP-ALL-001",
-          "case_title": "SEC-A4 deterministic stale TS-01 last-reported OPEN boundary",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A4",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION", "boundary_device_id": "TS-01", "observed_value": "OPEN", "quality": "GOOD", "age_ms": 60001},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A4", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["SW-A34", "TS-01"], "boundary_evidence": {"TS-01": {"observed_value": "OPEN", "quality": "GOOD", "freshness": "STALE", "proof_status": "UNPROVEN", "open_action_eligible": false, "reason_codes": ["FRESHNESS_STALE"]}}, "isolated": false},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
-        }
-      ]
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
     },
     {
       "test_id": "VT-EXP-ROLE-001",
       "title": "Exploration role reversal and non-guaranteed outcomes",
-      "version": "1.1",
+      "version": "1.0",
       "status": "ACCEPTED",
       "evidence_class": "EXPLORATORY",
       "requirement_ids": [
@@ -1462,9 +1370,9 @@
         "REQ-EXP-006"
       ],
       "source_references": [
-        "OT Project Validation Plan v1.1 §19 exact VT-EXP-ROLE-001 constituent cases",
-        "OT Project Validation Plan v1.1 §19 constituent execution and comparison rules",
-        "OT Project Validation Plan v1.1 §15 unchanged requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-EXP-ROLE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-EXP-ROLE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
         "OT Project Network Model v0.4 §18",
         "OT Project Validation Plan v1.0 §12",
         "OT Project System Architecture v0.2 §26"
@@ -1505,49 +1413,7 @@
         "RESTORATION_ASSESSMENT"
       ],
       "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
-      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage.",
-      "constituent_cases": [
-        {
-          "case_id": "EXP-ROLE-A2",
-          "test_id": "VT-EXP-ROLE-001",
-          "case_title": "SEC-A2 affected Feeder A and alternate Feeder B permitted transfer",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A2",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A2", "affected_feeder_id": "FDR-A", "alternate_feeder_id": "FDR-B", "proposed_section_ids": ["SEC-A3", "SEC-A4"], "transferable_load_kw": 1500, "resulting_load_kw": 5700, "feeder_capacity_kw": 6000, "resulting_loading_percent": "95.0", "restoration_outcome": "PERMITTED"},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPECTED_OBSERVED_COMPARISON", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "RESTORATION_ASSESSMENT"]}]
-        },
-        {
-          "case_id": "EXP-ROLE-B2",
-          "test_id": "VT-EXP-ROLE-001",
-          "case_title": "SEC-B2 affected Feeder B and alternate Feeder A permitted transfer",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-B2",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-B2", "affected_feeder_id": "FDR-B", "alternate_feeder_id": "FDR-A", "proposed_section_ids": ["SEC-B3", "SEC-B4"], "transferable_load_kw": 1900, "resulting_load_kw": 5100, "feeder_capacity_kw": 5500, "resulting_loading_percent": "92.7", "restoration_outcome": "PERMITTED"},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPECTED_OBSERVED_COMPARISON", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "RESTORATION_ASSESSMENT"]}]
-        },
-        {
-          "case_id": "EXP-ROLE-A1",
-          "test_id": "VT-EXP-ROLE-001",
-          "case_title": "SEC-A1 alternate Feeder B capacity rejection",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A1",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A1", "affected_feeder_id": "FDR-A", "alternate_feeder_id": "FDR-B", "proposed_section_ids": ["SEC-A2", "SEC-A3", "SEC-A4"], "transferable_load_kw": 2450, "resulting_load_kw": 6650, "feeder_capacity_kw": 6000, "resulting_loading_percent": "110.8", "restoration_outcome": "REJECTED"},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPECTED_OBSERVED_COMPARISON", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "RESTORATION_ASSESSMENT"]}]
-        },
-        {
-          "case_id": "EXP-ROLE-A4",
-          "test_id": "VT-EXP-ROLE-001",
-          "case_title": "SEC-A4 no restoration candidate",
-          "version": "1.0",
-          "selected_fault_section_id": "SEC-A4",
-          "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION"},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A4", "affected_feeder_id": "FDR-A", "alternate_feeder_id": null, "proposed_section_ids": [], "transferable_load_kw": null, "resulting_load_kw": null, "feeder_capacity_kw": null, "resulting_loading_percent": null, "restoration_outcome": "NO_CANDIDATE"},
-          "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPECTED_OBSERVED_COMPARISON", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "RESTORATION_ASSESSMENT"]}]
-        }
-      ]
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
     },
     {
       "test_id": "VT-EXP-SEPARATION-001",
@@ -1774,3 +1640,5 @@
     }
   ]
 }
+
+

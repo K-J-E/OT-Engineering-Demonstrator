@@ -85,7 +85,7 @@ export const workspaceApi: WorkspaceApi = {
     if (action.action_type === 'START_EXECUTION') {
       await request('/api/v1/validation/executions', {
         method: 'POST',
-        body: JSON.stringify({ test_id: action.test_id, scenario_run_id: runId }),
+        body: JSON.stringify({ test_id: action.test_id, case_id: action.case_id, scenario_run_id: runId }),
       })
       return
     }

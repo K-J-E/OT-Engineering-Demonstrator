@@ -32,8 +32,20 @@ export interface LoadedValidationDefinition {
     evidence_requirements: string[]
     verdict_rule: string
     reset_repeat_rule: string
+    constituent_cases: Array<{
+      case_id: string
+      test_id: string
+      case_title: string
+      version: string
+      selected_fault_section_id: string
+      initial_conditions: Record<string, unknown>
+      comparison_expected_values: Record<string, unknown>
+      checkpoint_obligations: Array<{ checkpoint_id: string; required_content: string[] }>
+    }>
   }
   definition_sha256: string
+  catalogue_id: string
+  catalogue_version: string
   catalogue_sha256: string
 }
 
@@ -276,7 +288,11 @@ export interface ValidationExecutionSummary {
     test_id: string
     test_definition_version: string
     test_definition_sha256: string
+    catalogue_version?: string
     catalogue_sha256: string
+    case_id?: string | null
+    case_definition_version?: string | null
+    case_definition_sha256?: string | null
     scenario_run_id: string
     scenario_mode: ScenarioMode
     evidence_class: EvidenceClass
@@ -335,8 +351,46 @@ export interface ValidationWorkspaceAction {
   reason_code: string
   reason: string
   test_id: string
+  case_id: string | null
   validation_execution_id: string | null
   checkpoint_id: string | null
+}
+
+export interface CompositeValidationResult {
+  composite_result_id: string
+  test_id: string
+  test_definition_version: string
+  test_definition_sha256: string
+  catalogue_version: string
+  catalogue_sha256: string
+  evidence_class: 'EXPLORATORY'
+  application_build_id: string
+  configuration_id: string
+  configuration_version: string
+  required_case_ids: string[]
+  constituent_links: Array<{
+    case_id: string
+    validation_execution_id: string
+    scenario_run_id: string
+    case_definition_sha256: string
+    constituent_verdict: string | null
+    evidence_snapshot_ids: string[]
+  }>
+  completeness: {
+    status: 'INCOMPLETE' | 'COMPLETE'
+    required_case_ids: string[]
+    present_case_ids: string[]
+    missing_case_ids: string[]
+    duplicate_case_ids: string[]
+    mismatched_case_ids: string[]
+    reasons: string[]
+  }
+  status: 'DRAFT' | 'FINALISED'
+  determination: 'PASS' | 'FAIL' | 'BLOCKED-TEST' | null
+  determination_reason: string
+  source_record_references: string[]
+  created_at: string
+  finalised_at: string | null
 }
 
 export interface WorkspaceProjection {
@@ -386,6 +440,7 @@ export interface WorkspaceProjection {
     definitions: LoadedValidationDefinition[]
     run_executions: ValidationExecutionSummary[]
     library_executions: ValidationExecutionSummary[]
+    composites: CompositeValidationResult[]
     progress: {
       definition_count: number
       definitions_without_execution_count: number

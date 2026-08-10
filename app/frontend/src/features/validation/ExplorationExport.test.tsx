@@ -39,7 +39,7 @@ function exploratoryProjection() {
       ...base.validation,
       definitions: [...base.validation.definitions, ...definitions],
       library_executions: [],
-      actions: definitions.map((definition) => ({ action_type: 'START_EXECUTION' as const, available: true, reason_code: 'AVAILABLE', reason: 'Start a separate EXPLORATORY execution.', test_id: definition.definition.test_id, validation_execution_id: null, checkpoint_id: null })),
+      actions: definitions.map((definition) => ({ action_type: 'START_EXECUTION' as const, available: true, reason_code: 'AVAILABLE', reason: 'Start a separate EXPLORATORY execution.', test_id: definition.definition.test_id, case_id: null, validation_execution_id: null, checkpoint_id: null })),
     },
   })
 }
@@ -70,6 +70,26 @@ describe('I8 Exploration and export presentation', () => {
     expect(screen.getAllByText('EXPLORATORY').length).toBeGreaterThanOrEqual(4)
     expect(screen.getByText(/21 FORMAL definitions; 0 FORMAL executions/i)).toBeVisible()
     expect(screen.queryByRole('button', { name: 'Start formal execution' })).not.toBeInTheDocument()
+  })
+
+  it('shows composite completeness and constituent provenance without inventing one run', () => {
+    const projection = exploratoryProjection()
+    projection.validation.composites = [{
+      composite_result_id: '90000000-0000-0000-0000-000000000001', test_id: 'VT-EXP-ROLE-001',
+      test_definition_version: '1.1', test_definition_sha256: '2'.repeat(64), catalogue_version: '1.1', catalogue_sha256: '3'.repeat(64),
+      evidence_class: 'EXPLORATORY', application_build_id: '1'.repeat(64), configuration_id: 'network-configuration-v1.1', configuration_version: '1.1',
+      required_case_ids: ['EXP-ROLE-A2', 'EXP-ROLE-B2', 'EXP-ROLE-A1', 'EXP-ROLE-A4'],
+      constituent_links: [{ case_id: 'EXP-ROLE-B2', validation_execution_id: '91000000-0000-0000-0000-000000000001', scenario_run_id: '92000000-0000-0000-0000-000000000001', case_definition_sha256: '4'.repeat(64), constituent_verdict: 'PASS', evidence_snapshot_ids: ['93000000-0000-0000-0000-000000000001'] }],
+      completeness: { status: 'INCOMPLETE', required_case_ids: ['EXP-ROLE-A2', 'EXP-ROLE-B2', 'EXP-ROLE-A1', 'EXP-ROLE-A4'], present_case_ids: ['EXP-ROLE-B2'], missing_case_ids: ['EXP-ROLE-A2', 'EXP-ROLE-A1', 'EXP-ROLE-A4'], duplicate_case_ids: [], mismatched_case_ids: [], reasons: ['Missing required cases.'] },
+      status: 'DRAFT', determination: null, determination_reason: 'Missing required cases.', source_record_references: ['validation-execution:9100'], created_at: '2030-01-01T01:00:00.000Z', finalised_at: null,
+    }]
+    const { container } = render(<ValidationView projection={projection} busy={false} onAction={vi.fn()} />)
+    const view = within(container)
+    expect(view.getByRole('heading', { name: 'Composite validation results' })).toBeVisible()
+    expect(view.getByText(/Not one fictional run/i)).toBeVisible()
+    const composite = view.getByRole('heading', { name: /VT-EXP-ROLE-001.*NOT DETERMINED/i }).closest('article')!
+    expect(composite).toHaveTextContent(/EXP-ROLE-B2.*execution 91000000/i)
+    expect(composite).toHaveTextContent(/Missing: EXP-ROLE-A2, EXP-ROLE-A1, EXP-ROLE-A4/i)
   })
 
   it('uses backend export eligibility and displays a new verified package record', async () => {

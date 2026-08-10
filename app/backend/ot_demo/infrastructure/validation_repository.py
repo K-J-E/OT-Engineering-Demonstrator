@@ -8,6 +8,7 @@ from uuid import UUID
 
 from ..domain.enums import EvidenceClass
 from ..modules.validation.models import (
+    CompositeValidationResult,
     EvidenceSnapshot,
     ValidationExecution,
     ValidationExecutionSummary,
@@ -44,19 +45,24 @@ class ValidationRepository:
                 """
                 INSERT INTO validation_executions (
                     validation_execution_id, test_id, test_definition_version,
-                    test_definition_sha256, catalogue_sha256, scenario_run_id,
+                    test_definition_sha256, catalogue_version, catalogue_sha256,
+                    case_id, case_definition_version, case_definition_sha256, scenario_run_id,
                     scenario_mode, evidence_class, configuration_id,
                     configuration_version, application_build_id, status,
                     started_scenario_time_ms, finalised_scenario_time_ms,
                     verdict, payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(execution.validation_execution_id),
                     execution.test_id,
                     execution.test_definition_version,
                     execution.test_definition_sha256,
+                    execution.catalogue_version,
                     execution.catalogue_sha256,
+                    execution.case_id,
+                    execution.case_definition_version,
+                    execution.case_definition_sha256,
                     str(execution.scenario_run_id),
                     execution.scenario_mode.value,
                     execution.evidence_class.value,
@@ -70,6 +76,127 @@ class ValidationRepository:
                     execution.model_dump_json(),
                 ),
             )
+
+    def insert_composite(self, composite: CompositeValidationResult) -> None:
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    """
+                    INSERT INTO composite_validation_results (
+                        composite_result_id, test_id, test_definition_version,
+                        test_definition_sha256, catalogue_version, catalogue_sha256,
+                        evidence_class, application_build_id, configuration_id,
+                        configuration_version, completeness_status, status,
+                        determination, created_at_ms, finalised_at_ms, payload_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        str(composite.composite_result_id),
+                        composite.test_id,
+                        composite.test_definition_version,
+                        composite.test_definition_sha256,
+                        composite.catalogue_version,
+                        composite.catalogue_sha256,
+                        composite.evidence_class.value,
+                        composite.application_build_id,
+                        composite.configuration_id,
+                        composite.configuration_version,
+                        composite.completeness.status.value,
+                        composite.status.value,
+                        composite.determination.value if composite.determination else None,
+                        instant_to_epoch_ms(composite.created_at),
+                        (
+                            instant_to_epoch_ms(composite.finalised_at)
+                            if composite.finalised_at is not None
+                            else None
+                        ),
+                        composite.model_dump_json(),
+                    ),
+                )
+                for link in composite.constituent_links:
+                    connection.execute(
+                        """
+                        INSERT INTO composite_validation_constituents (
+                            composite_result_id, case_id, validation_execution_id,
+                            scenario_run_id, case_definition_sha256,
+                            constituent_verdict, payload_json
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            str(composite.composite_result_id),
+                            link.case_id,
+                            str(link.validation_execution_id),
+                            str(link.scenario_run_id),
+                            link.case_definition_sha256,
+                            (
+                                link.constituent_verdict.value
+                                if link.constituent_verdict is not None
+                                else None
+                            ),
+                            link.model_dump_json(),
+                        ),
+                    )
+        except sqlite3.IntegrityError as error:
+            raise ValidationRecordConflict(
+                "composite identity or constituent membership conflicts with immutable history"
+            ) from error
+
+    def finalise_composite(self, composite: CompositeValidationResult) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                """
+                UPDATE composite_validation_results SET
+                    completeness_status = ?, status = ?, determination = ?,
+                    finalised_at_ms = ?, payload_json = ?
+                WHERE composite_result_id = ? AND status = 'DRAFT'
+                """,
+                (
+                    composite.completeness.status.value,
+                    composite.status.value,
+                    composite.determination.value if composite.determination else None,
+                    instant_to_epoch_ms(composite.finalised_at),
+                    composite.model_dump_json(),
+                    str(composite.composite_result_id),
+                ),
+            )
+            if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ValidationRecordNotFound(
+                    "draft composite validation result not found for finalisation"
+                )
+
+    def get_composite(self, composite_id: UUID) -> CompositeValidationResult:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM composite_validation_results "
+                "WHERE composite_result_id = ?",
+                (str(composite_id),),
+            ).fetchone()
+        if row is None:
+            raise ValidationRecordNotFound(
+                f"composite validation result not found: {composite_id}"
+            )
+        return CompositeValidationResult.model_validate_json(
+            row["payload_json"], strict=True
+        )
+
+    def list_composites(
+        self, *, test_id: str | None = None
+    ) -> tuple[CompositeValidationResult, ...]:
+        where = " WHERE test_id = ?" if test_id is not None else ""
+        values = (test_id,) if test_id is not None else ()
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT payload_json FROM composite_validation_results"
+                + where
+                + " ORDER BY created_at_ms, composite_result_id",
+                values,
+            ).fetchall()
+        return tuple(
+            CompositeValidationResult.model_validate_json(
+                row["payload_json"], strict=True
+            )
+            for row in rows
+        )
 
     def finalise_execution(self, execution: ValidationExecution) -> None:
         with self._connect() as connection:

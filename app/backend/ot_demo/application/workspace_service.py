@@ -23,7 +23,7 @@ from ..infrastructure.configuration_loader import JsonConfigurationLoader
 from ..modules.configuration.models import LoadedConfiguration
 from ..modules.scenario.models import AllowedAction, ScenarioSnapshot
 from ..modules.scenario.definition import formal_action_offset_seconds
-from ..modules.validation.catalogue import ValidationCatalogueLoader
+from ..modules.validation.catalogue import ValidationCatalogueResolver
 from ..modules.validation.models import LoadedValidationDefinition, ValidationExecutionSummary
 from ..modules.validation.service import ValidationService
 from ..modules.workspace.models import (
@@ -65,7 +65,7 @@ class WorkspaceService:
         configuration_loader: JsonConfigurationLoader,
         scenarios: ScenarioCoordinator,
         validation: ValidationService,
-        catalogue: ValidationCatalogueLoader,
+        catalogue: ValidationCatalogueResolver,
         *,
         application_build_manifest: ApplicationBuildManifest,
         presentation_path: Path,
@@ -278,6 +278,7 @@ class WorkspaceService:
             definitions=definitions,
             run_executions=run_executions,
             library_executions=all_executions,
+            composites=self._validation.list_composites(),
             progress=self._validation_progress(definitions, all_executions),
             actions=self._validation_actions(snapshot, definitions, run_executions),
         )
@@ -534,81 +535,127 @@ class WorkspaceService:
             if definition.definition.evidence_class is not EvidenceClass.EXPLORATORY:
                 continue
             test_id = definition.definition.test_id
-            matching = tuple(
-                item for item in run_executions if item.execution.test_id == test_id
+            cases = tuple(
+                item
+                for item in definition.definition.constituent_cases
+                if item.selected_fault_section_id == snapshot.run.fault_section_id
             )
-            if not matching:
-                available = (
-                    snapshot.run.network_state_label is NetworkStateLabel.N0
-                    and snapshot.run.status is not ScenarioRunStatus.CLOSED
+            action_cases = cases if definition.definition.constituent_cases else (None,)
+            for case in action_cases:
+                case_id = case.case_id if case is not None else None
+                matching = tuple(
+                    item
+                    for item in run_executions
+                    if item.execution.test_id == test_id
+                    and item.execution.case_id == case_id
+                )
+                if not matching:
+                    run_already_bound = bool(run_executions) and case is not None
+                    available = (
+                        snapshot.run.network_state_label is NetworkStateLabel.N0
+                        and snapshot.run.status is not ScenarioRunStatus.CLOSED
+                        and not run_already_bound
+                    )
+                    actions.append(
+                        ValidationWorkspaceAction(
+                            action_type="START_EXECUTION",
+                            available=available,
+                            reason_code=(
+                                "AVAILABLE"
+                                if available
+                                else "RUN_ALREADY_BOUND"
+                                if run_already_bound
+                                else "REQUIRES_EXPLORATION_N0"
+                            ),
+                            reason=(
+                                "Start this controlled constituent before scenario actions."
+                                if available and case is not None
+                                else "Start a separate EXPLORATORY execution before scenario actions."
+                                if available
+                                else "A constituent requires its own clean scenario run."
+                                if run_already_bound
+                                else "An exploratory execution may start only at the clean run boundary."
+                            ),
+                            test_id=test_id,
+                            case_id=case_id,
+                        )
+                    )
+                    continue
+
+                current = matching[-1]
+                execution = current.execution
+                checkpoint_id = "CONTROLLED_RESULT"
+                captured = {
+                    item.checkpoint_id for item in current.evidence_snapshots
+                }
+                capture_available = (
+                    execution.status is ValidationExecutionStatus.ACTIVE
+                    and snapshot.run.fault_active
+                    and checkpoint_id not in captured
+                )
+                comparison_available = (
+                    case is not None
+                    or definition.definition.comparison_expected_values is not None
+                )
+                finalise_available = (
+                    execution.status is ValidationExecutionStatus.ACTIVE
+                    and checkpoint_id in captured
+                    and comparison_available
                 )
                 actions.append(
                     ValidationWorkspaceAction(
-                        action_type="START_EXECUTION",
-                        available=available,
+                        action_type="CAPTURE_CHECKPOINT",
+                        available=capture_available,
                         reason_code=(
-                            "AVAILABLE" if available else "REQUIRES_EXPLORATION_N0"
+                            "AVAILABLE"
+                            if capture_available
+                            else "CHECKPOINT_ALREADY_CAPTURED"
+                            if checkpoint_id in captured
+                            else "EXPLORATION_RESULT_NOT_READY"
                         ),
                         reason=(
-                            "Start a separate EXPLORATORY execution before scenario actions."
-                            if available
-                            else "An exploratory execution may start only at the clean run boundary."
+                            "Capture the current generic engineering result as EXPLORATORY evidence."
+                            if capture_available
+                            else "The controlled exploratory checkpoint is already preserved."
+                            if checkpoint_id in captured
+                            else "Initiate the selected fault before capturing exploratory evidence."
                         ),
                         test_id=test_id,
+                        case_id=case_id,
+                        validation_execution_id=execution.validation_execution_id,
+                        checkpoint_id=checkpoint_id,
                     )
                 )
-                continue
-
-            current = matching[-1]
-            execution = current.execution
-            checkpoint_id = "CONTROLLED_RESULT"
-            captured = {
-                item.checkpoint_id for item in current.evidence_snapshots
-            }
-            capture_available = (
-                execution.status is ValidationExecutionStatus.ACTIVE
-                and snapshot.run.fault_active
-                and checkpoint_id not in captured
-            )
-            actions.append(
-                ValidationWorkspaceAction(
-                    action_type="CAPTURE_CHECKPOINT",
-                    available=capture_available,
-                    reason_code=(
-                        "AVAILABLE"
-                        if capture_available
-                        else "CHECKPOINT_ALREADY_CAPTURED"
-                        if checkpoint_id in captured
-                        else "EXPLORATION_RESULT_NOT_READY"
-                    ),
-                    reason=(
-                        "Capture the current generic engineering result as EXPLORATORY evidence."
-                        if capture_available
-                        else "The controlled exploratory checkpoint is already preserved."
-                        if checkpoint_id in captured
-                        else "Initiate the selected fault before capturing exploratory evidence."
-                    ),
-                    test_id=test_id,
-                    validation_execution_id=execution.validation_execution_id,
-                    checkpoint_id=checkpoint_id,
+                actions.append(
+                    ValidationWorkspaceAction(
+                        action_type="FINALISE_EXECUTION",
+                        available=finalise_available,
+                        reason_code=(
+                            "AVAILABLE"
+                            if finalise_available
+                            else "REQUIRED_CHECKPOINTS_MISSING"
+                            if checkpoint_id not in captured
+                            else "CONTROLLED_COMPARISON_UNAVAILABLE"
+                            if not comparison_available
+                            else "EXECUTION_FINALISED"
+                        ),
+                        reason=(
+                            "Compare preserved evidence with the controlled case oracle."
+                            if finalise_available
+                            else "Capture the controlled result before finalisation."
+                            if checkpoint_id not in captured
+                            else "This exploratory definition has no authorised automated comparison."
+                            if not comparison_available
+                            else "The validation execution is already finalised."
+                        ),
+                        test_id=test_id,
+                        case_id=case_id,
+                        validation_execution_id=execution.validation_execution_id,
+                        checkpoint_id=(
+                            checkpoint_id if checkpoint_id in captured else None
+                        ),
+                    )
                 )
-            )
-            actions.append(
-                ValidationWorkspaceAction(
-                    action_type="FINALISE_EXECUTION",
-                    available=False,
-                    reason_code="CONTROLLED_COMPARISON_UNAVAILABLE",
-                    reason=(
-                        "This accepted exploratory definition has no automated verdict; "
-                        "the application preserves evidence without inventing PASS."
-                    ),
-                    test_id=test_id,
-                    validation_execution_id=execution.validation_execution_id,
-                    checkpoint_id=(
-                        checkpoint_id if checkpoint_id in captured else None
-                    ),
-                )
-            )
         return tuple(actions)
 
     @staticmethod

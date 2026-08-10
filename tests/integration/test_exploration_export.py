@@ -25,6 +25,7 @@ from ot_demo.domain.enums import (
     ScenarioRunStatus,
     SwitchState,
     TelemetryQuality,
+    ValidationVerdict,
 )
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
@@ -505,7 +506,9 @@ def test_formal_and_exploratory_execution_classes_cannot_cross(
         service,
         application_build_manifest=MANIFEST,
     )
-    exploratory = validation.start_execution("VT-EXP-ROLE-001", run.scenario_run_id)
+    exploratory = validation.start_execution(
+        "VT-EXP-ROLE-001", run.scenario_run_id, case_id="EXP-ROLE-B2"
+    )
     assert exploratory.evidence_class is EvidenceClass.EXPLORATORY
     with pytest.raises(ValidationBoundaryError, match="evidence class"):
         validation.start_execution("VT-FML-N0-N5-001", run.scenario_run_id)
@@ -609,7 +612,9 @@ def test_exploratory_export_is_new_self_contained_and_independently_hash_verifie
     validation, export = export_service(tmp_path, scenarios)
     initial = initialise_exploration(scenarios, "SEC-B2")
     source_run_id = initial.snapshot.run.scenario_run_id
-    execution = validation.start_execution("VT-EXP-ROLE-001", source_run_id)
+    execution = validation.start_execution(
+        "VT-EXP-ROLE-001", source_run_id, case_id="EXP-ROLE-B2"
+    )
     _, assessed = run_to_assessment_on_existing(scenarios, source_run_id)
     evidence = validation.capture_checkpoint(
         execution.validation_execution_id, "CONTROLLED_RESULT"
@@ -803,3 +808,431 @@ def test_formal_i7_chain_export_preserves_fail_correction_pass_and_active_regres
         assert chain_record["defect"]["defect_id"] == "DEF-001"
         assert chain_record["correction"]["correction_id"] == "COR-001"
         assert len(chain_record["repeat_links"]) == 2
+
+
+def execute_dc004_case(
+    scenarios: ScenarioCoordinator,
+    validation: ValidationService,
+    *,
+    test_id: str,
+    case_id: str,
+    section_id: str,
+    command_base: int,
+    assess_role: bool = True,
+):
+    initial = scenarios.initialise_next_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=command_base),
+            actor="Graduate Engineer",
+            mode=ScenarioMode.EXPLORATION,
+            configuration_version="1.1",
+            fault_section_id=section_id,
+            scenario_time=T0,
+        )
+    )
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = validation.start_execution(test_id, run_id, case_id=case_id)
+    fault = execute_available(
+        scenarios, run_id, ScenarioCommandType.INITIATE_FAULT, command_base + 1, at(10)
+    )
+    if case_id == "EXP-ALL-A4-STALE-OPEN":
+        scenarios.execute(
+            run_id,
+            request(
+                number=command_base + 2,
+                run_id=run_id,
+                revision=fault.snapshot.run.state_revision,
+                command_type=ScenarioCommandType.ACKNOWLEDGE_ALARM,
+                scenario_time=at(61),
+                alarm_id=fault.snapshot.alarms[0].alarm_id,
+            ),
+        )
+    if test_id == "VT-EXP-ROLE-001" and assess_role:
+        number = command_base + 2
+        seconds = 20
+        while any(
+            item.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+            and item.available
+            for item in scenarios.snapshot(run_id).allowed_actions
+        ):
+            execute_available(
+                scenarios,
+                run_id,
+                ScenarioCommandType.OPERATE_ISOLATION_DEVICE,
+                number,
+                at(seconds),
+            )
+            number += 1
+            seconds += 10
+        if any(
+            item.command_type is ScenarioCommandType.RESTORE_NORMAL_SOURCE
+            and item.available
+            for item in scenarios.snapshot(run_id).allowed_actions
+        ):
+            execute_available(
+                scenarios,
+                run_id,
+                ScenarioCommandType.RESTORE_NORMAL_SOURCE,
+                number,
+                at(40),
+            )
+            number += 1
+        execute_available(
+            scenarios,
+            run_id,
+            ScenarioCommandType.ASSESS_RESTORATION,
+            number,
+            at(50),
+        )
+    validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
+    return validation.finalise_execution(
+        execution.validation_execution_id, "CONTROLLED_RESULT"
+    )
+
+
+@pytest.mark.i8
+def test_dc004_exact_constituents_finalise_and_complete_campaigns_pass(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "dc004-campaign")
+    validation_repository = ValidationRepository(
+        tmp_path / "validation.sqlite3", MIGRATIONS
+    )
+    validation = ValidationService(
+        validation_repository,
+        ValidationCatalogueLoader(CATALOGUE),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    all_case_inputs = (
+        ("EXP-ALL-A1", "SEC-A1"),
+        ("EXP-ALL-A2", "SEC-A2"),
+        ("EXP-ALL-A3", "SEC-A3"),
+        ("EXP-ALL-A4-FRESH", "SEC-A4"),
+        ("EXP-ALL-B1", "SEC-B1"),
+        ("EXP-ALL-B2", "SEC-B2"),
+        ("EXP-ALL-B3", "SEC-B3"),
+        ("EXP-ALL-B4", "SEC-B4"),
+        ("EXP-ALL-A4-STALE-OPEN", "SEC-A4"),
+    )
+    all_executions = tuple(
+        execute_dc004_case(
+            scenarios,
+            validation,
+            test_id="VT-EXP-ALL-001",
+            case_id=case_id,
+            section_id=section_id,
+            command_base=1000 + index * 100,
+        )
+        for index, (case_id, section_id) in enumerate(all_case_inputs)
+    )
+    assert all(item.verdict is ValidationVerdict.PASS for item in all_executions), [
+        (
+            item.case_id,
+            item.verdict,
+            [row for row in item.calculations["comparisons"] if not row["match"]],
+        )
+        for item in all_executions
+        if item.verdict is not ValidationVerdict.PASS
+    ]
+    incomplete = validation.assemble_composite(
+        "VT-EXP-ALL-001",
+        tuple(item.validation_execution_id for item in all_executions[:-1]),
+        created_at=at(1000),
+    )
+    assert incomplete.completeness.status.value == "INCOMPLETE"
+    assert incomplete.determination is None
+    assert incomplete.completeness.missing_case_ids == (
+        "EXP-ALL-A4-STALE-OPEN",
+    )
+    with pytest.raises(ValidationBoundaryError, match="incomplete"):
+        validation.finalise_composite(incomplete.composite_result_id, finalised_at=at(1001))
+
+    assembled_all = validation.assemble_composite(
+        "VT-EXP-ALL-001",
+        tuple(item.validation_execution_id for item in all_executions),
+        created_at=at(1002),
+    )
+    final_all = validation.finalise_composite(
+        assembled_all.composite_result_id, finalised_at=at(1003)
+    )
+    assert final_all.determination is ValidationVerdict.PASS
+    assert len(final_all.constituent_links) == 9
+
+    role_case_inputs = (
+        ("EXP-ROLE-A2", "SEC-A2"),
+        ("EXP-ROLE-B2", "SEC-B2"),
+        ("EXP-ROLE-A1", "SEC-A1"),
+        ("EXP-ROLE-A4", "SEC-A4"),
+    )
+    role_executions = tuple(
+        execute_dc004_case(
+            scenarios,
+            validation,
+            test_id="VT-EXP-ROLE-001",
+            case_id=case_id,
+            section_id=section_id,
+            command_base=3000 + index * 100,
+        )
+        for index, (case_id, section_id) in enumerate(role_case_inputs)
+    )
+    assert all(item.verdict is ValidationVerdict.PASS for item in role_executions)
+    assembled_role = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        tuple(item.validation_execution_id for item in role_executions),
+        created_at=at(1004),
+    )
+    final_role = validation.finalise_composite(
+        assembled_role.composite_result_id, finalised_at=at(1005)
+    )
+    assert final_role.determination is ValidationVerdict.PASS
+    assert len(final_role.constituent_links) == 4
+    assert final_role.application_build_id == MANIFEST.application_build_id
+    assert final_role.configuration_id == "network-configuration-v1.1"
+
+    export = EvidenceExportService(
+        EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        validation_repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios,
+        JsonConfigurationLoader(CONFIGURATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        application_build_manifest=MANIFEST,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    composite_package = export.generate_composite(final_role.composite_result_id)
+    assert composite_package.evidence_class is EvidenceClass.EXPLORATORY
+    assert set(composite_package.constituent_execution_ids) == {
+        item.validation_execution_id for item in role_executions
+    }
+    with ZipFile(tmp_path / composite_package.archive_path) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        assert manifest["source_composite_result_id"] == str(
+            final_role.composite_result_id
+        )
+        assert manifest["evidence_notice"] == "NOT FORMAL VALIDATION EVIDENCE"
+        assert set(manifest["constituent_execution_ids"]) == {
+            str(item.validation_execution_id) for item in role_executions
+        }
+        assert "records/composite-validation-result.json" in archive.namelist()
+        for entry in manifest["files"]:
+            assert sha256_bytes(archive.read(entry["path"])) == entry["sha256"]
+
+    with sqlite3.connect(tmp_path / "validation.sqlite3") as connection:
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            connection.execute(
+                "UPDATE composite_validation_results SET determination = 'FAIL' "
+                "WHERE composite_result_id = ?",
+                (str(final_role.composite_result_id),),
+            )
+        connection.rollback()
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            connection.execute(
+                "DELETE FROM composite_validation_constituents "
+                "WHERE composite_result_id = ?",
+                (str(final_role.composite_result_id),),
+            )
+        connection.rollback()
+        with pytest.raises(sqlite3.IntegrityError, match="finalised composite"):
+            connection.execute(
+                "INSERT INTO composite_validation_constituents VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    str(final_role.composite_result_id),
+                    "EXP-ROLE-LATE",
+                    str(role_executions[0].validation_execution_id),
+                    str(role_executions[0].scenario_run_id),
+                    role_executions[0].case_definition_sha256,
+                    role_executions[0].verdict.value,
+                    "{}",
+                ),
+            )
+        connection.rollback()
+
+    unfinished_run = scenarios.initialise_next_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=3900),
+            actor="Graduate Engineer",
+            mode=ScenarioMode.EXPLORATION,
+            configuration_version="1.1",
+            fault_section_id="SEC-A2",
+            scenario_time=T0,
+        )
+    ).snapshot.run
+    unfinished_execution = validation.start_execution(
+        "VT-EXP-ROLE-001",
+        unfinished_run.scenario_run_id,
+        case_id="EXP-ROLE-A2",
+    )
+    unfinished_composite = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        (unfinished_execution.validation_execution_id,),
+        created_at=at(1007),
+    )
+    assert unfinished_composite.completeness.status.value == "INCOMPLETE"
+    assert any(
+        "Unfinished constituent cases" in item
+        for item in unfinished_composite.completeness.reasons
+    )
+    assert unfinished_composite.determination is None
+
+    with pytest.raises(ValidationBoundaryError, match="more than once"):
+        validation.assemble_composite(
+            "VT-EXP-ROLE-001",
+            (
+                role_executions[0].validation_execution_id,
+                role_executions[0].validation_execution_id,
+            ),
+            created_at=at(1006),
+        )
+
+
+@pytest.mark.i8
+def test_dc004_complete_mismatch_fails_and_aggregate_precedence_is_exact(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "dc004-fail")
+    validation = ValidationService(
+        ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    case_inputs = (
+        ("EXP-ROLE-A2", "SEC-A2", True),
+        ("EXP-ROLE-B2", "SEC-B2", False),
+        ("EXP-ROLE-A1", "SEC-A1", True),
+        ("EXP-ROLE-A4", "SEC-A4", True),
+    )
+    executions = tuple(
+        execute_dc004_case(
+            scenarios,
+            validation,
+            test_id="VT-EXP-ROLE-001",
+            case_id=case_id,
+            section_id=section_id,
+            command_base=5000 + index * 100,
+            assess_role=assess,
+        )
+        for index, (case_id, section_id, assess) in enumerate(case_inputs)
+    )
+    assert [item.verdict for item in executions].count(ValidationVerdict.FAIL) == 1
+    assembled = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        tuple(item.validation_execution_id for item in executions),
+        created_at=at(1100),
+    )
+    finalised = validation.finalise_composite(
+        assembled.composite_result_id, finalised_at=at(1101)
+    )
+    assert finalised.determination is ValidationVerdict.FAIL
+    assert ValidationService._aggregate_verdict(
+        (ValidationVerdict.PASS, ValidationVerdict.BLOCKED_TEST)
+    )[0] is ValidationVerdict.BLOCKED_TEST
+    assert ValidationService._aggregate_verdict(
+        (ValidationVerdict.FAIL, ValidationVerdict.BLOCKED_TEST)
+    )[0] is ValidationVerdict.FAIL
+
+
+@pytest.mark.i8
+def test_dc004_historical_execution_is_resolved_exported_and_active_old_work_is_read_only(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "dc004-history")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    historical_catalogue = CATALOGUE.parent / "history/v1.0/catalogue.json"
+    old_service = ValidationService(
+        repository,
+        ValidationCatalogueLoader(historical_catalogue),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    first = scenarios.initialise(
+        InitialiseRunRequest(
+            command_id=UUID(int=7000),
+            actor="Graduate Engineer",
+            mode=ScenarioMode.FORMAL,
+            configuration_version="1.1",
+            scenario_time=T0,
+        )
+    )
+    old_final = old_service.start_execution(
+        "VT-TOP-DEF-001", first.snapshot.run.scenario_run_id
+    )
+    scenarios.execute(
+        first.snapshot.run.scenario_run_id,
+        request(
+            number=7001,
+            run_id=first.snapshot.run.scenario_run_id,
+            revision=0,
+            command_type=ScenarioCommandType.INITIATE_FAULT,
+            scenario_time=at(10),
+        ),
+    )
+    old_service.capture_checkpoint(old_final.validation_execution_id, "POST_TRIP")
+    old_final = old_service.finalise_execution(
+        old_final.validation_execution_id, "POST_TRIP"
+    )
+    second = scenarios.initialise_next_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=7100),
+            actor="Graduate Engineer",
+            mode=ScenarioMode.FORMAL,
+            configuration_version="1.1",
+            scenario_time=T0,
+        )
+    )
+    old_active = old_service.start_execution(
+        "VT-TOP-DEF-001", second.snapshot.run.scenario_run_id
+    )
+
+    promoted = ValidationService(
+        repository,
+        ValidationCatalogueLoader(CATALOGUE),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    assert promoted.get_execution(old_final.validation_execution_id).execution == old_final
+    with pytest.raises(ValidationBoundaryError, match="historical catalogue"):
+        promoted.capture_checkpoint(old_active.validation_execution_id, "POST_TRIP")
+    with pytest.raises(ValidationBoundaryError, match="historical catalogue"):
+        promoted.finalise_execution(old_active.validation_execution_id, "POST_TRIP")
+
+    export = EvidenceExportService(
+        EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios,
+        JsonConfigurationLoader(CONFIGURATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        application_build_manifest=MANIFEST,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    package = export.generate(old_final.validation_execution_id)
+    assert package.source_catalogue_version == "1.0"
+    assert package.source_catalogue_sha256 == (
+        "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1"
+    )
+    assert package.application_build_id == old_final.application_build_id
+    assert package.generation_application_build_id == MANIFEST.application_build_id
+    with ZipFile(tmp_path / package.archive_path) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        definition = json.loads(archive.read("records/test-definition.json"))
+        assert manifest["source_catalogue_version"] == "1.0"
+        assert manifest["catalogue_sha256"] == old_final.catalogue_sha256
+        assert definition["catalogue_version"] == "1.0"
+        assert definition["catalogue_sha256"] == old_final.catalogue_sha256
+
+    third = scenarios.initialise_next_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=7200),
+            actor="Graduate Engineer",
+            mode=ScenarioMode.FORMAL,
+            configuration_version="1.1",
+            scenario_time=T0,
+        )
+    )
+    new_execution = promoted.start_execution(
+        "VT-TOP-DEF-001", third.snapshot.run.scenario_run_id
+    )
+    assert new_execution.catalogue_version == "1.1"
+    assert new_execution.catalogue_sha256 != old_final.catalogue_sha256

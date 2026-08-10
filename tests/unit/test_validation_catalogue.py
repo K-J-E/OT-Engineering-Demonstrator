@@ -6,10 +6,11 @@ from pathlib import Path
 import pytest
 
 from ot_demo.domain.enums import EvidenceClass
-from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes
+from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes, sha256_file
 from ot_demo.modules.validation.catalogue import (
     ValidationCatalogueError,
     ValidationCatalogueLoader,
+    ValidationCatalogueResolver,
 )
 
 
@@ -68,7 +69,14 @@ def test_catalogue_contains_exactly_the_24_accepted_definitions() -> None:
 
     assert len(loaded) == 24
     assert {item.definition.test_id for item in loaded} == ACCEPTED_TEST_IDS
-    assert all(item.definition.version == "1.0" for item in loaded)
+    versions = {item.definition.test_id: item.definition.version for item in loaded}
+    assert versions["VT-EXP-ALL-001"] == "1.1"
+    assert versions["VT-EXP-ROLE-001"] == "1.1"
+    assert all(
+        version == "1.0"
+        for test_id, version in versions.items()
+        if test_id not in {"VT-EXP-ALL-001", "VT-EXP-ROLE-001"}
+    )
     assert all(len(item.definition_sha256) == 64 for item in loaded)
     assert len({item.catalogue_sha256 for item in loaded}) == 1
 
@@ -185,3 +193,81 @@ def test_catalogue_byte_tamper_is_rejected_by_controlled_manifest(tmp_path: Path
 
     with pytest.raises(ValidationCatalogueError, match="SHA-256 mismatch"):
         ValidationCatalogueLoader(copied_catalogue).load()
+
+
+@pytest.mark.i5
+def test_dc004_preserves_v10_and_promotes_exact_case_sets_with_unchanged_rtm() -> None:
+    history = CATALOGUE.parent / "history/v1.0/catalogue.json"
+    history_manifest = history.with_name("manifest.json")
+    assert sha256_file(history) == (
+        "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1"
+    )
+    assert sha256_file(history_manifest) == (
+        "8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714"
+    )
+    resolver = ValidationCatalogueResolver(CATALOGUE, (history,))
+    all_cases = resolver.get("VT-EXP-ALL-001").definition.constituent_cases
+    role_cases = resolver.get("VT-EXP-ROLE-001").definition.constituent_cases
+    assert tuple(item.case_id for item in all_cases) == (
+        "EXP-ALL-A1",
+        "EXP-ALL-A2",
+        "EXP-ALL-A3",
+        "EXP-ALL-A4-FRESH",
+        "EXP-ALL-B1",
+        "EXP-ALL-B2",
+        "EXP-ALL-B3",
+        "EXP-ALL-B4",
+        "EXP-ALL-A4-STALE-OPEN",
+    )
+    assert tuple(item.case_id for item in role_cases) == (
+        "EXP-ROLE-A2",
+        "EXP-ROLE-B2",
+        "EXP-ROLE-A1",
+        "EXP-ROLE-A4",
+    )
+    forbidden_provenance = {
+        "application_build_id",
+        "catalogue_sha256",
+        "test_definition_sha256",
+        "case_definition_sha256",
+    }
+    assert all(
+        forbidden_provenance.isdisjoint(item.comparison_expected_values)
+        for item in (*all_cases, *role_cases)
+    )
+    relationships = {
+        (item.definition.test_id, requirement_id)
+        for item in resolver.load()
+        for requirement_id in item.definition.requirement_ids
+    }
+    assert_exact_section_15_relationship(relationships)
+
+
+@pytest.mark.i5
+def test_historical_resolver_selects_exact_stored_identity_and_rejects_tamper(
+    tmp_path: Path,
+) -> None:
+    history = CATALOGUE.parent / "history/v1.0/catalogue.json"
+    resolver = ValidationCatalogueResolver(CATALOGUE, (history,))
+    old = ValidationCatalogueLoader(history).get("VT-EXP-ALL-001")
+    current = resolver.get("VT-EXP-ALL-001")
+    resolved = resolver.resolve(
+        test_id=old.definition.test_id,
+        catalogue_version=old.catalogue_version,
+        catalogue_sha256=old.catalogue_sha256,
+        test_definition_version=old.definition.version,
+        test_definition_sha256=old.definition_sha256,
+    )
+    assert resolved == old
+    assert old.definition_sha256 != current.definition_sha256
+    assert old.catalogue_sha256 != current.catalogue_sha256
+
+    tampered_directory = tmp_path / "v1.0"
+    tampered_directory.mkdir()
+    tampered = tampered_directory / "catalogue.json"
+    tampered.write_bytes(history.read_bytes().replace(b"SEC-A2", b"SEC-A9", 1))
+    tampered.with_name("manifest.json").write_bytes(
+        history.with_name("manifest.json").read_bytes()
+    )
+    with pytest.raises(ValidationCatalogueError, match="SHA-256 mismatch"):
+        ValidationCatalogueResolver(CATALOGUE, (tampered,))

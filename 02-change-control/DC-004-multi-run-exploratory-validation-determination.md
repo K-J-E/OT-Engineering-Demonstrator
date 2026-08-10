@@ -1,6 +1,6 @@
 # DC-004 — Multi-Run Exploratory Validation Determination
 
-Status: Accepted / authoritative design baseline; machine/application phase pending
+Status: Applied to machine/application baseline; verification passed; pending independent review
 
 Date raised: 2026-08-10
 
@@ -378,7 +378,7 @@ Future implementation verification shall prove:
 
 ## 14. Acceptance and lifecycle gate
 
-Current disposition: **Accepted / authoritative design baseline.**
+Current disposition: **Applied to the controlled machine/application baseline; verification passed; pending independent review.**
 
 This acceptance baselines the DC-004 design and the authoritative Validation
 Plan Section 19 and Demonstrator Design Section 36 treatments only. It does not
@@ -386,12 +386,12 @@ alter the machine-readable catalogue, database contracts, implementation
 behaviour, controlled configurations or accepted I8 runtime baseline. I9
 remains stopped.
 
-DC-004 requires a separate controlled application phase on its own branch from
-the accepted design baseline. That phase must apply the accepted treatment to
-the machine-readable validation definitions/contracts, preserve catalogue v1.0
-as historical input, verify all identity and cross-document impacts, and pass
-independent review before incorporation into `main`. This design acceptance
-does not authorise I9 implementation.
+The separately authorised application phase has applied the accepted treatment
+on `agent/dc-004-application`. Catalogue v1.0 remains byte-identical historical
+input; promoted catalogue v1.1, case-bound executions, historical resolution,
+immutable composites, review projection and preserved-record export have passed
+the application verification suite. The application remains pending independent
+review and incorporation into `main`. This application does not authorise I9.
 
 ## 15. Review and acceptance verification record
 

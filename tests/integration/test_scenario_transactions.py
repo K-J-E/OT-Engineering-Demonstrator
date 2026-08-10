@@ -628,6 +628,11 @@ def test_api_factory_exposes_authorised_run_validation_investigation_and_i8_expo
         "/api/v1/evidence-packages",
         "/api/v1/evidence-packages/candidates",
         "/api/v1/evidence-packages/{package_id}/download",
+        "/api/v1/validation/composites",
+        "/api/v1/validation/composites/{composite_id}",
+        "/api/v1/validation/composites/{composite_id}/finalise",
+        "/api/v1/composite-evidence-packages",
+        "/api/v1/composite-evidence-packages/{package_id}/download",
     }
     assert all(
         token not in path

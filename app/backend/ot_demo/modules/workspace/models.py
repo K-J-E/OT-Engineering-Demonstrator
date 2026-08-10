@@ -29,7 +29,11 @@ from ..restoration.models import AssessmentInvalidation, RestorationAssessment
 from ..scenario.models import RunContext
 from ..telemetry.models import AlarmRecord
 from ..topology.models import IsolationProof
-from ..validation.models import LoadedValidationDefinition, ValidationExecutionSummary
+from ..validation.models import (
+    CompositeValidationResult,
+    LoadedValidationDefinition,
+    ValidationExecutionSummary,
+)
 
 
 class PresentationPosition(FrozenModel):
@@ -157,6 +161,7 @@ class ValidationWorkspaceAction(FrozenModel):
     reason_code: str
     reason: str
     test_id: str
+    case_id: str | None = None
     validation_execution_id: UUID | None = None
     checkpoint_id: str | None = None
 
@@ -165,6 +170,7 @@ class ValidationWorkspaceView(FrozenModel):
     definitions: tuple[LoadedValidationDefinition, ...]
     run_executions: tuple[ValidationExecutionSummary, ...]
     library_executions: tuple[ValidationExecutionSummary, ...]
+    composites: tuple[CompositeValidationResult, ...]
     progress: ValidationProgress
     actions: tuple[ValidationWorkspaceAction, ...]
 

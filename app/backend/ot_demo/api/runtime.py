@@ -17,7 +17,7 @@ from ..infrastructure.investigation_repository import InvestigationRepository
 from ..infrastructure.evidence_package_repository import EvidencePackageRepository
 from ..infrastructure.scenario_repository import ScenarioRepository
 from ..infrastructure.validation_repository import ValidationRepository
-from ..modules.validation.catalogue import ValidationCatalogueLoader
+from ..modules.validation.catalogue import ValidationCatalogueResolver
 from ..modules.validation.service import ValidationService
 from ..modules.evidence_export.service import EvidenceExportService
 from .main import create_app
@@ -48,13 +48,18 @@ def create_local_app(
         configuration_loader,
         application_build_manifest=build_manifest,
     )
-    catalogue = ValidationCatalogueLoader(
-        repository_root / "validation/test-definitions/catalogue.json"
+    catalogue = ValidationCatalogueResolver(
+        repository_root / "validation/test-definitions/catalogue.json",
+        (
+            repository_root
+            / "validation/test-definitions/history/v1.0/catalogue.json",
+        ),
     )
     validation_service = ValidationService(
         ValidationRepository(runtime_data / "validation.sqlite3", migrations),
         catalogue,
         coordinator,
+        configuration_loader,
         application_build_manifest=build_manifest,
     )
     investigation_service = InvestigationService(

@@ -180,6 +180,16 @@ class ValidationExecutionStatus(StrEnum):
     FINALISED = "FINALISED"
 
 
+class CompositeCompletenessStatus(StrEnum):
+    INCOMPLETE = "INCOMPLETE"
+    COMPLETE = "COMPLETE"
+
+
+class CompositeResultStatus(StrEnum):
+    DRAFT = "DRAFT"
+    FINALISED = "FINALISED"
+
+
 class ValidationVerdict(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"

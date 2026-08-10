@@ -1,0 +1,19 @@
+{
+  "active_catalogue_version": "1.1",
+  "revisions": [
+    {
+      "catalogue_version": "1.0",
+      "catalogue_sha256": "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1",
+      "manifest_sha256": "8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714",
+      "catalogue_path": "history/v1.0/catalogue.json",
+      "status": "IMMUTABLE_HISTORICAL"
+    },
+    {
+      "catalogue_version": "1.1",
+      "catalogue_sha256": "354284d1f119b76edd545eaf35330e4f3bf05379852f4c6676f4494d07fb713f",
+      "manifest_sha256": "dadb890ae2ddd9224d2b809b6cdffe1a523faecb40010a5a7b053d815a2be0d3",
+      "catalogue_path": "catalogue.json",
+      "status": "ACTIVE_ACCEPTED"
+    }
+  ]
+}

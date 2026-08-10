@@ -10,6 +10,8 @@ from typing_extensions import Self
 
 from ...domain.base import FrozenModel
 from ...domain.enums import (
+    CompositeCompletenessStatus,
+    CompositeResultStatus,
     EvidenceClass,
     ScenarioMode,
     ValidationDefinitionStatus,
@@ -28,6 +30,17 @@ from ...domain.value_objects import (
 class CheckpointObligation(FrozenModel):
     checkpoint_id: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
     required_content: tuple[str, ...] = Field(min_length=1)
+
+
+class ConstituentCaseDefinition(FrozenModel):
+    case_id: str = Field(pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    test_id: str = Field(pattern=r"^VT-EXP-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_title: str = Field(min_length=1)
+    version: SemanticVersion
+    selected_fault_section_id: EngineeringId
+    initial_conditions: dict[str, Any]
+    comparison_expected_values: dict[str, Any]
+    checkpoint_obligations: tuple[CheckpointObligation, ...] = Field(min_length=1)
 
 
 class ValidationTestDefinition(FrozenModel):
@@ -49,6 +62,7 @@ class ValidationTestDefinition(FrozenModel):
     evidence_requirements: tuple[str, ...] = Field(min_length=1)
     verdict_rule: str = Field(min_length=1)
     reset_repeat_rule: str = Field(min_length=1)
+    constituent_cases: tuple[ConstituentCaseDefinition, ...] = ()
 
     @model_validator(mode="after")
     def validate_controlled_identity(self) -> Self:
@@ -64,6 +78,11 @@ class ValidationTestDefinition(FrozenModel):
         )
         if self.evidence_class is not expected_class:
             raise ValueError("catalogue evidence class contradicts the accepted test family")
+        case_ids = [item.case_id for item in self.constituent_cases]
+        if len(case_ids) != len(set(case_ids)):
+            raise ValueError("constituent case IDs must be unique within a test")
+        if any(item.test_id != self.test_id for item in self.constituent_cases):
+            raise ValueError("constituent case parent test identity is inconsistent")
         return self
 
 
@@ -95,7 +114,17 @@ class ValidationCatalogueManifest(FrozenModel):
 class LoadedValidationDefinition(FrozenModel):
     definition: ValidationTestDefinition
     definition_sha256: Sha256Digest
+    catalogue_id: str = Field(
+        default="VALIDATION-CATALOGUE-V1.0",
+        pattern=r"^VALIDATION-CATALOGUE-V\d+\.\d+$",
+    )
+    catalogue_version: SemanticVersion = "1.0"
     catalogue_sha256: Sha256Digest
+
+
+class LoadedConstituentCase(FrozenModel):
+    definition: ConstituentCaseDefinition
+    definition_sha256: Sha256Digest
 
 
 class ValidationExecutionLinks(FrozenModel):
@@ -109,7 +138,11 @@ class ValidationExecution(FrozenModel):
     test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
     test_definition_version: SemanticVersion
     test_definition_sha256: Sha256Digest
+    catalogue_version: SemanticVersion = "1.0"
     catalogue_sha256: Sha256Digest
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    case_definition_version: SemanticVersion | None = None
+    case_definition_sha256: Sha256Digest | None = None
     scenario_run_id: UUID
     scenario_mode: ScenarioMode
     evidence_class: EvidenceClass
@@ -130,6 +163,15 @@ class ValidationExecution(FrozenModel):
 
     @model_validator(mode="after")
     def validate_lifecycle(self) -> Self:
+        case_fields = (
+            self.case_id,
+            self.case_definition_version,
+            self.case_definition_sha256,
+        )
+        if any(value is not None for value in case_fields) and not all(
+            value is not None for value in case_fields
+        ):
+            raise ValueError("case-bound execution identity must be complete")
         finalised = self.status is ValidationExecutionStatus.FINALISED
         final_fields_present = all(
             value is not None
@@ -152,6 +194,13 @@ class EvidenceSnapshot(FrozenModel):
     evidence_snapshot_id: UUID
     validation_execution_id: UUID
     test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    catalogue_version: SemanticVersion = "1.0"
+    catalogue_sha256: Sha256Digest | None = None
+    test_definition_version: SemanticVersion | None = None
+    test_definition_sha256: Sha256Digest | None = None
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    case_definition_version: SemanticVersion | None = None
+    case_definition_sha256: Sha256Digest | None = None
     scenario_run_id: UUID
     scenario_mode: ScenarioMode
     evidence_class: EvidenceClass
@@ -176,6 +225,7 @@ class ValidationExecutionSummary(FrozenModel):
 
 class StartValidationExecutionRequest(FrozenModel):
     test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
     scenario_run_id: UUID
     links: ValidationExecutionLinks = ValidationExecutionLinks()
 
@@ -186,3 +236,71 @@ class CaptureValidationCheckpointRequest(FrozenModel):
 
 class FinaliseValidationExecutionRequest(FrozenModel):
     checkpoint_id: str = Field(pattern=r"^[A-Z][A-Z0-9_]*$")
+
+
+class CompositeConstituentLink(FrozenModel):
+    case_id: str = Field(pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    validation_execution_id: UUID
+    scenario_run_id: UUID
+    case_definition_sha256: Sha256Digest
+    constituent_verdict: ValidationVerdict | None = None
+    evidence_snapshot_ids: tuple[UUID, ...] = ()
+
+
+class CompositeCompleteness(FrozenModel):
+    status: CompositeCompletenessStatus
+    required_case_ids: tuple[str, ...]
+    present_case_ids: tuple[str, ...]
+    missing_case_ids: tuple[str, ...]
+    duplicate_case_ids: tuple[str, ...]
+    mismatched_case_ids: tuple[str, ...]
+    reasons: tuple[str, ...]
+
+
+class CompositeValidationResult(FrozenModel):
+    composite_result_id: UUID
+    test_id: str = Field(pattern=r"^VT-EXP-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    test_definition_version: SemanticVersion
+    test_definition_sha256: Sha256Digest
+    catalogue_version: SemanticVersion
+    catalogue_sha256: Sha256Digest
+    evidence_class: EvidenceClass = EvidenceClass.EXPLORATORY
+    application_build_id: Sha256Digest
+    configuration_id: ConfigurationId
+    configuration_version: SemanticVersion
+    required_case_ids: tuple[str, ...] = Field(min_length=1)
+    constituent_links: tuple[CompositeConstituentLink, ...]
+    completeness: CompositeCompleteness
+    status: CompositeResultStatus
+    determination: ValidationVerdict | None = None
+    determination_reason: str = Field(min_length=1)
+    source_record_references: tuple[str, ...]
+    created_at: UtcMillisecondInstant
+    finalised_at: UtcMillisecondInstant | None = None
+
+    @model_validator(mode="after")
+    def validate_composite_lifecycle(self) -> Self:
+        finalised = self.status is CompositeResultStatus.FINALISED
+        complete = self.completeness.status is CompositeCompletenessStatus.COMPLETE
+        if finalised and not complete:
+            raise ValueError("only a complete composite may be finalised")
+        if finalised != (self.determination is not None and self.finalised_at is not None):
+            raise ValueError("finalised composite requires determination and audit time")
+        if self.determination not in {
+            None,
+            ValidationVerdict.PASS,
+            ValidationVerdict.FAIL,
+            ValidationVerdict.BLOCKED_TEST,
+        }:
+            raise ValueError("composite determination is outside the accepted rule")
+        return self
+
+
+class AssembleCompositeRequest(FrozenModel):
+    test_id: str = Field(pattern=r"^VT-EXP-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    validation_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+    created_at: UtcMillisecondInstant
+
+
+class FinaliseCompositeRequest(FrozenModel):
+    finalised_at: UtcMillisecondInstant

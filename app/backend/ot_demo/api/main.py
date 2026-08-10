@@ -30,14 +30,21 @@ from ..domain.enums import EvidenceClass, ScenarioCommandType, ScenarioMode, Swi
 from ..infrastructure.validation_repository import ValidationRecordNotFound
 from ..infrastructure.investigation_repository import InvestigationRecordNotFound
 from ..modules.investigation.models import InvestigationWorkspace
-from ..modules.evidence_export.models import EvidenceExportCandidate, EvidencePackage
+from ..modules.evidence_export.models import (
+    CompositeEvidencePackage,
+    EvidenceExportCandidate,
+    EvidencePackage,
+)
 from ..modules.evidence_export.service import (
     EvidenceExportBoundaryError,
     EvidenceExportService,
 )
 from ..modules.validation.models import (
+    AssembleCompositeRequest,
     CaptureValidationCheckpointRequest,
+    CompositeValidationResult,
     EvidenceSnapshot,
+    FinaliseCompositeRequest,
     FinaliseValidationExecutionRequest,
     StartValidationExecutionRequest,
     ValidationExecutionLinks,
@@ -91,12 +98,14 @@ class ValidationExecutionLinksPayload(_ApiRequest):
 
 class StartValidationExecutionPayload(_ApiRequest):
     test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
     scenario_run_id: UUID
     links: ValidationExecutionLinksPayload = ValidationExecutionLinksPayload()
 
     def to_domain(self) -> StartValidationExecutionRequest:
         return StartValidationExecutionRequest(
             test_id=self.test_id,
+            case_id=self.case_id,
             scenario_run_id=self.scenario_run_id,
             links=ValidationExecutionLinks.model_validate(self.links.model_dump()),
         )
@@ -121,6 +130,26 @@ class RunLinkedValidationPayload(_ApiRequest):
 
 class GenerateEvidencePackagePayload(_ApiRequest):
     validation_execution_id: UUID
+
+
+class GenerateCompositeEvidencePackagePayload(_ApiRequest):
+    composite_result_id: UUID
+
+
+class AssembleCompositePayload(_ApiRequest):
+    test_id: str = Field(pattern=r"^VT-EXP-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    validation_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+    created_at: datetime
+
+    def to_domain(self) -> AssembleCompositeRequest:
+        return AssembleCompositeRequest.model_validate(self.model_dump())
+
+
+class FinaliseCompositePayload(_ApiRequest):
+    finalised_at: datetime
+
+    def to_domain(self) -> FinaliseCompositeRequest:
+        return FinaliseCompositeRequest.model_validate(self.model_dump())
 
 
 def create_app(
@@ -216,6 +245,40 @@ def create_app(
             media_type="application/zip",
             filename=path.name,
         )
+
+    @app.post(
+        "/api/v1/composite-evidence-packages",
+        response_model=CompositeEvidencePackage,
+    )
+    def generate_composite_evidence_package(
+        request: GenerateCompositeEvidencePackagePayload,
+    ) -> CompositeEvidencePackage:
+        try:
+            return evidence_export().generate_composite(request.composite_result_id)
+        except (ValidationRecordNotFound, EvidencePackageNotFound) as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceExportBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/composite-evidence-packages",
+        response_model=tuple[CompositeEvidencePackage, ...],
+    )
+    def list_composite_evidence_packages() -> tuple[CompositeEvidencePackage, ...]:
+        return evidence_export().list_composite_packages()
+
+    @app.get(
+        "/api/v1/composite-evidence-packages/{package_id}/download",
+        response_class=FileResponse,
+    )
+    def download_composite_evidence_package(package_id: str) -> FileResponse:
+        try:
+            path = evidence_export().composite_archive_file(package_id)
+        except EvidencePackageNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceExportBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return FileResponse(path, media_type="application/zip", filename=path.name)
 
     @app.post(
         "/api/v1/investigations/start",
@@ -383,6 +446,7 @@ def create_app(
             return validation().start_execution(
                 domain_request.test_id,
                 domain_request.scenario_run_id,
+                case_id=domain_request.case_id,
                 links=domain_request.links,
             )
         except ValidationRecordNotFound as error:
@@ -450,6 +514,62 @@ def create_app(
             evidence_class=evidence_class,
             scenario_run_id=scenario_run_id,
         )
+
+    @app.post(
+        "/api/v1/validation/composites",
+        response_model=CompositeValidationResult,
+    )
+    def assemble_validation_composite(
+        request: AssembleCompositePayload,
+    ) -> CompositeValidationResult:
+        try:
+            domain_request = request.to_domain()
+            return validation().assemble_composite(
+                domain_request.test_id,
+                domain_request.validation_execution_ids,
+                created_at=domain_request.created_at,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/composites/{composite_id}/finalise",
+        response_model=CompositeValidationResult,
+    )
+    def finalise_validation_composite(
+        composite_id: UUID,
+        request: FinaliseCompositePayload,
+    ) -> CompositeValidationResult:
+        try:
+            domain_request = request.to_domain()
+            return validation().finalise_composite(
+                composite_id, finalised_at=domain_request.finalised_at
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/validation/composites/{composite_id}",
+        response_model=CompositeValidationResult,
+    )
+    def get_validation_composite(composite_id: UUID) -> CompositeValidationResult:
+        try:
+            return validation().get_composite(composite_id)
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/validation/composites",
+        response_model=tuple[CompositeValidationResult, ...],
+    )
+    def list_validation_composites(
+        test_id: str | None = None,
+    ) -> tuple[CompositeValidationResult, ...]:
+        return validation().list_composites(test_id=test_id)
 
     return app
 

@@ -57,7 +57,8 @@ DC-004 — Multi-Run Exploratory Validation Determination — is accepted as the
 validation/design treatment. It defines constituent cases, immutable composite determination,
 historical catalogue/test-definition resolution and provenance boundaries without changing the
 24-test catalogue, 124 requirements, 286 RTM relationships, 15 event types or electrical behaviour.
-Its separate machine/application phase remains pending and I9 remains stopped.
+Its separate machine/application phase is applied and verified on the dedicated review branch,
+but remains pending independent review and incorporation into `main`; I9 remains stopped.
 
 The current detailed Design Brief and Network Model are revision 0.4; the Requirements
 Specification remains revision 0.3 with 124 unique requirements. System Architecture and
@@ -84,9 +85,11 @@ acceptance. Implementation proceeds only through separately authorised increment
 accepted implementation baselines. I8 — Exploration and Export passed final independent
 engineering/implementation review, including accepted QA-008 evidence export and independently
 verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 is accepted as
-the authoritative design change, but its machine/application phase has not begun. I9 was authorised
-and then stopped before implementation; it cannot resume until the separate DC-004 application has
-passed independent review and been incorporated into `main`.
+the authoritative design change. Its machine/application phase is applied and verified on
+`agent/dc-004-application`, preserving historical catalogue v1.0 while promoting controlled
+catalogue v1.1; it is not yet an accepted implementation baseline. I9 was authorised and then
+stopped before implementation and cannot resume until the DC-004 application passes independent
+review and is incorporated into `main`.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

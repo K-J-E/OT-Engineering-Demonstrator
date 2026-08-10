@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from ..modules.evidence_export.models import EvidencePackage
+from ..modules.evidence_export.models import CompositeEvidencePackage, EvidencePackage
 from .sqlite_migrations import apply_migrations
 
 
@@ -70,5 +70,52 @@ class EvidencePackageRepository:
             ).fetchall()
         return tuple(
             EvidencePackage.model_validate_json(row["payload_json"], strict=True)
+            for row in rows
+        )
+
+    def insert_composite(self, package: CompositeEvidencePackage) -> None:
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO composite_evidence_packages VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        package.package_id,
+                        str(package.composite_result_id),
+                        package.evidence_class.value,
+                        package.source_application_build_id,
+                        package.manifest_sha256,
+                        package.archive_sha256,
+                        package.archive_path,
+                        package.model_dump_json(),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise EvidencePackageConflict(
+                "composite evidence package identity/path already exists"
+            ) from error
+
+    def get_composite(self, package_id: str) -> CompositeEvidencePackage:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM composite_evidence_packages WHERE package_id = ?",
+                (package_id,),
+            ).fetchone()
+        if row is None:
+            raise EvidencePackageNotFound(
+                f"composite evidence package not found: {package_id}"
+            )
+        return CompositeEvidencePackage.model_validate_json(
+            row["payload_json"], strict=True
+        )
+
+    def list_composites(self) -> tuple[CompositeEvidencePackage, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT payload_json FROM composite_evidence_packages ORDER BY rowid"
+            ).fetchall()
+        return tuple(
+            CompositeEvidencePackage.model_validate_json(
+                row["payload_json"], strict=True
+            )
             for row in rows
         )

@@ -1,12 +1,14 @@
-# Application implementation through authorised I7
+# Application implementation through accepted I8
 
 This directory contains the reproducible local application foundations and the
-separately authorised I1–I7 increments. I6 presents backend-owned
+independently accepted I1–I8 increments. I6 presents backend-owned
 topology/outage, telemetry, event, restoration and validation records without
 moving engineering authority into the browser. I7 adds the controlled DEF-001
-consequence-to-source investigation, immutable defect/correction records,
-same-build corrected repeat and full corrected regression presentation. It does
-not contain the I8 Exploration/export workflow or I9 packaging.
+investigation/correction chain and I8 adds corrected-v1.1 Exploration plus
+immutable evidence export. The separately reviewed DC-004 application branch
+adds the accepted multi-run exploratory validation-assurance treatment; it is
+pending independent review and is not an accepted implementation baseline.
+I9 remains stopped.
 
 ## Pinned local toolchain
 
@@ -26,22 +28,26 @@ The canonical Network Configuration v1.0 and v1.1 packages under `config/network
 are read-only runtime inputs. The application loader verifies their manifests and
 SHA-256 hashes before returning typed configuration records.
 
-The accepted 24-test machine catalogue under `validation/test-definitions/` is a
-hash-protected counterpart of Validation Plan v1.0. I5 binds each execution to the
-backend-controlled build, configuration, definition version/hash, run, mode,
-evidence class and controlled scenario time. Captured evidence is distinct from
-the operational-event catalogue and finalised records are immutable.
+The controlled 24-test machine catalogue under
+`validation/test-definitions/` is a hash-protected counterpart of the accepted
+Validation Plan. DC-004 preserves exact catalogue v1.0 as historical input and
+promotes active catalogue v1.1 with the accepted 9/4 constituent case sets while
+retaining 124 requirements and 286 RTM relationships. I5/DC-004 bind each
+execution to backend-controlled build, configuration, catalogue/definition,
+case where applicable, run, mode, evidence class and controlled scenario time.
+Captured evidence remains distinct from the 15 operational-event types and
+finalised execution/composite records are immutable.
 
-## I7 verification state
+## Current verification state
 
-I7 is the accepted implementation baseline. Verification covers the real v1.0
-400-customer failure, the ordered
-seven-step investigation, the exact immutable package difference, separate
-DEF-001/COR-001 records, the same-build v1.1 850-customer PASS and all six
-corrected N0–N5 regression checkpoints. Backend, React/Cytoscape and Chromium
-workflows, the clean exact-toolchain install and pinned TypeScript/Vite production
-build pass. The reviewed assurance-correction commits, clean identities and final
-acceptance are recorded in the I7 increment closeout.
+I8 is the accepted implementation baseline. Its reviewed Exploration and
+evidence-export treatment remains unchanged. The DC-004 application phase is
+implemented and verification-passed on `agent/dc-004-application`, including
+historical catalogue resolution, exact constituent execution, immutable
+composite assurance, review projection and preserved-record export. Backend,
+React/Cytoscape and Chromium workflows, the clean exact-toolchain install and
+pinned TypeScript/Vite production build pass.
 
-The canonical network packages, validation catalogue, dependency versions and
-lockfiles are unchanged. I8 has not begun.
+The canonical network packages, electrical authorities, dependency versions
+and lockfiles are unchanged. The DC-004 application requires independent review
+and incorporation into `main` before I9 can be separately resumed.

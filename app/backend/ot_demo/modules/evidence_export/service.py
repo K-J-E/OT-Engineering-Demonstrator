@@ -11,6 +11,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from ...application.scenario_coordinator import ScenarioCoordinator
 from ...domain.enums import (
+    CompositeResultStatus,
     EvidenceClass,
     ScenarioMode,
     ScenarioRunStatus,
@@ -22,9 +23,13 @@ from ...infrastructure.evidence_package_repository import EvidencePackageReposit
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes, sha256_file
 from ...infrastructure.investigation_repository import InvestigationRepository
 from ...infrastructure.validation_repository import ValidationRepository
-from ..validation.catalogue import ValidationCatalogueLoader
+from ..validation.catalogue import (
+    ValidationCatalogueError,
+    ValidationCatalogueLoader,
+    ValidationCatalogueResolver,
+)
 from ..validation.models import ValidationExecutionSummary
-from .models import EvidenceExportCandidate, EvidencePackage
+from .models import CompositeEvidencePackage, EvidenceExportCandidate, EvidencePackage
 
 
 class EvidenceExportBoundaryError(ValueError):
@@ -39,7 +44,7 @@ class EvidenceExportService:
         investigations: InvestigationRepository,
         scenarios: ScenarioCoordinator,
         configurations: JsonConfigurationLoader,
-        catalogue: ValidationCatalogueLoader,
+        catalogue: ValidationCatalogueResolver | ValidationCatalogueLoader,
         *,
         application_build_manifest: ApplicationBuildManifest,
         output_directory: Path,
@@ -49,7 +54,16 @@ class EvidenceExportService:
         self._investigations = investigations
         self._scenarios = scenarios
         self._configurations = configurations
-        self._catalogue = catalogue
+        if isinstance(catalogue, ValidationCatalogueResolver):
+            self._catalogue = catalogue
+        else:
+            historical = (
+                catalogue.catalogue_path.parent / "history/v1.0/catalogue.json"
+            )
+            self._catalogue = ValidationCatalogueResolver(
+                catalogue.catalogue_path,
+                (historical,) if historical.is_file() else (),
+            )
         self._application_build_manifest = application_build_manifest
         self._output_directory = output_directory.resolve()
         self._output_directory.mkdir(parents=True, exist_ok=True)
@@ -59,15 +73,18 @@ class EvidenceExportService:
         execution = summary.execution
         run = self._scenarios.run_context(execution.scenario_run_id)
         self._verify_export_boundary(summary, run.status)
-        definition = self._catalogue.get(execution.test_id)
-        if (
-            definition.definition.version != execution.test_definition_version
-            or definition.definition_sha256 != execution.test_definition_sha256
-            or definition.catalogue_sha256 != execution.catalogue_sha256
-        ):
-            raise EvidenceExportBoundaryError(
-                "execution-bound test definition no longer matches the controlled catalogue"
+        try:
+            definition = self._catalogue.resolve(
+                test_id=execution.test_id,
+                catalogue_version=execution.catalogue_version,
+                catalogue_sha256=execution.catalogue_sha256,
+                test_definition_version=execution.test_definition_version,
+                test_definition_sha256=execution.test_definition_sha256,
             )
+        except ValidationCatalogueError as error:
+            raise EvidenceExportBoundaryError(
+                "execution-bound historical test definition did not resolve"
+            ) from error
         loaded = self._configurations.load(f"v{execution.configuration_version}")
         if loaded.catalog_entry.configuration_id != execution.configuration_id:
             raise EvidenceExportBoundaryError(
@@ -101,6 +118,8 @@ class EvidenceExportService:
                 test_id=execution.test_id,
                 test_definition_version=execution.test_definition_version,
                 test_definition_sha256=execution.test_definition_sha256,
+                source_catalogue_version=execution.catalogue_version,
+                source_catalogue_sha256=execution.catalogue_sha256,
                 evidence_class=execution.evidence_class,
                 scenario_run_id=execution.scenario_run_id,
                 configuration_id=execution.configuration_id,
@@ -126,6 +145,128 @@ class EvidenceExportService:
 
     def get(self, package_id: str) -> EvidencePackage:
         return self._packages.get(package_id)
+
+    def generate_composite(self, composite_id: UUID) -> CompositeEvidencePackage:
+        composite = self._validation.get_composite(composite_id)
+        if (
+            composite.status is not CompositeResultStatus.FINALISED
+            or composite.evidence_class is not EvidenceClass.EXPLORATORY
+            or composite.determination is None
+        ):
+            raise EvidenceExportBoundaryError(
+                "composite export requires a finalised immutable EXPLORATORY result"
+            )
+        try:
+            definition = self._catalogue.resolve(
+                test_id=composite.test_id,
+                catalogue_version=composite.catalogue_version,
+                catalogue_sha256=composite.catalogue_sha256,
+                test_definition_version=composite.test_definition_version,
+                test_definition_sha256=composite.test_definition_sha256,
+            )
+        except ValidationCatalogueError as error:
+            raise EvidenceExportBoundaryError(
+                "composite-bound historical test definition did not resolve"
+            ) from error
+        summaries = tuple(
+            self._validation.summary(item.validation_execution_id)
+            for item in composite.constituent_links
+        )
+        package_id = f"CPKG-{uuid4().hex[:12]}"
+        archive_name = f"{package_id}-EXPLORATORY.zip"
+        archive_path = self._output_directory / archive_name
+        if archive_path.exists():
+            raise EvidenceExportBoundaryError(
+                "new composite evidence package path unexpectedly already exists"
+            )
+        records: dict[str, Any] = {
+            "records/composite-validation-result.json": composite.model_dump(mode="json"),
+            "records/test-definition.json": definition.model_dump(mode="json"),
+        }
+        for summary in summaries:
+            execution_id = summary.execution.validation_execution_id
+            records[
+                f"records/constituents/{execution_id}/validation-execution.json"
+            ] = summary.execution.model_dump(mode="json")
+            for evidence in summary.evidence_snapshots:
+                records[
+                    f"records/constituents/{execution_id}/evidence/{evidence.evidence_snapshot_id}.json"
+                ] = evidence.model_dump(mode="json")
+        files = {path: canonical_json_bytes(value) for path, value in records.items()}
+        files["README.txt"] = self._readme(EvidenceClass.EXPLORATORY)
+        source_references = tuple(
+            sorted(
+                {
+                    f"composite-validation-result:{composite.composite_result_id}",
+                    *composite.source_record_references,
+                }
+            )
+        )
+        manifest = {
+            "package_id": package_id,
+            "evidence_class": EvidenceClass.EXPLORATORY.value,
+            "evidence_notice": "NOT FORMAL VALIDATION EVIDENCE",
+            "source_composite_result_id": str(composite.composite_result_id),
+            "source_application_build_id": composite.application_build_id,
+            "generation_application_build_id": (
+                self._application_build_manifest.application_build_id
+            ),
+            "source_catalogue_version": composite.catalogue_version,
+            "source_catalogue_sha256": composite.catalogue_sha256,
+            "test_id": composite.test_id,
+            "test_definition_version": composite.test_definition_version,
+            "test_definition_sha256": composite.test_definition_sha256,
+            "determination": composite.determination.value,
+            "constituent_execution_ids": [
+                str(item.execution.validation_execution_id) for item in summaries
+            ],
+            "source_record_references": list(source_references),
+            "files": [
+                {
+                    "path": path,
+                    "byte_size": len(content),
+                    "sha256": sha256_bytes(content),
+                }
+                for path, content in sorted(files.items())
+            ],
+        }
+        manifest_bytes = canonical_json_bytes(manifest)
+        manifest_sha = sha256_bytes(manifest_bytes)
+        self._write_archive(archive_path, files, manifest_bytes)
+        try:
+            self._verify_archive(archive_path, manifest)
+            record = CompositeEvidencePackage(
+                package_id=package_id,
+                composite_result_id=composite.composite_result_id,
+                test_id=composite.test_id,
+                source_catalogue_version=composite.catalogue_version,
+                source_catalogue_sha256=composite.catalogue_sha256,
+                test_definition_version=composite.test_definition_version,
+                test_definition_sha256=composite.test_definition_sha256,
+                source_application_build_id=composite.application_build_id,
+                generation_application_build_id=(
+                    self._application_build_manifest.application_build_id
+                ),
+                constituent_execution_ids=tuple(
+                    item.execution.validation_execution_id for item in summaries
+                ),
+                manifest_sha256=manifest_sha,
+                archive_sha256=sha256_file(archive_path),
+                archive_path=f"evidence/exports/{archive_name}",
+                verification_status="VERIFIED",
+                source_record_references=source_references,
+            )
+            self._packages.insert_composite(record)
+            return record
+        except Exception:
+            archive_path.unlink(missing_ok=True)
+            raise
+
+    def get_composite_package(self, package_id: str) -> CompositeEvidencePackage:
+        return self._packages.get_composite(package_id)
+
+    def list_composite_packages(self) -> tuple[CompositeEvidencePackage, ...]:
+        return self._packages.list_composites()
 
     def list(self) -> tuple[EvidencePackage, ...]:
         return self._packages.list()
@@ -170,6 +311,19 @@ class EvidenceExportService:
         if sha256_file(candidate) != package.archive_sha256:
             raise EvidenceExportBoundaryError(
                 "stored evidence package archive hash no longer matches its record"
+            )
+        return candidate
+
+    def composite_archive_file(self, package_id: str) -> Path:
+        package = self.get_composite_package(package_id)
+        candidate = (self._output_directory / Path(package.archive_path).name).resolve()
+        if candidate.parent != self._output_directory or not candidate.is_file():
+            raise EvidenceExportBoundaryError(
+                "stored composite package path is outside the controlled export directory"
+            )
+        if sha256_file(candidate) != package.archive_sha256:
+            raise EvidenceExportBoundaryError(
+                "stored composite package archive hash no longer matches its record"
             )
         return candidate
 
@@ -363,6 +517,7 @@ class EvidenceExportService:
             "test_id": execution.test_id,
             "test_definition_version": execution.test_definition_version,
             "test_definition_sha256": execution.test_definition_sha256,
+            "source_catalogue_version": execution.catalogue_version,
             "catalogue_sha256": execution.catalogue_sha256,
             "evidence_snapshots": [
                 {

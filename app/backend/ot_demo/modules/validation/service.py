@@ -3,24 +3,39 @@
 from __future__ import annotations
 
 from typing import Any
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from ...application.scenario_coordinator import ScenarioCoordinator
 from ...domain.enums import (
+    CompositeCompletenessStatus,
+    CompositeResultStatus,
     EvidenceClass,
+    ScenarioCommandType,
+    ScenarioMode,
+    SwitchState,
     ValidationExecutionStatus,
     ValidationVerdict,
 )
 from ...infrastructure.build_identity import ApplicationBuildManifest
+from ...infrastructure.configuration_loader import JsonConfigurationLoader
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ...infrastructure.validation_repository import (
     ValidationRecordConflict,
     ValidationRepository,
 )
 from ..scenario.models import ScenarioSnapshot
-from .catalogue import ValidationCatalogueLoader
+from .catalogue import (
+    ValidationCatalogueError,
+    ValidationCatalogueLoader,
+    ValidationCatalogueResolver,
+)
 from .models import (
+    CompositeCompleteness,
+    CompositeConstituentLink,
+    CompositeValidationResult,
     EvidenceSnapshot,
+    ConstituentCaseDefinition,
     LoadedValidationDefinition,
     ValidationExecution,
     ValidationExecutionLinks,
@@ -36,14 +51,27 @@ class ValidationService:
     def __init__(
         self,
         repository: ValidationRepository,
-        catalogue: ValidationCatalogueLoader,
+        catalogue: ValidationCatalogueResolver | ValidationCatalogueLoader,
         scenarios: ScenarioCoordinator,
+        configurations: JsonConfigurationLoader | None = None,
         *,
         application_build_manifest: ApplicationBuildManifest,
     ) -> None:
         self._repository = repository
-        self._catalogue = catalogue
+        if isinstance(catalogue, ValidationCatalogueResolver):
+            self._catalogue = catalogue
+        else:
+            historical = (
+                catalogue.catalogue_path.parent / "history/v1.0/catalogue.json"
+            )
+            self._catalogue = ValidationCatalogueResolver(
+                catalogue.catalogue_path,
+                (historical,) if historical.is_file() else (),
+            )
         self._scenarios = scenarios
+        self._configurations = configurations or JsonConfigurationLoader(
+            Path(__file__).resolve().parents[5] / "config/network"
+        )
         self._application_build_manifest = application_build_manifest
 
     def start_execution(
@@ -51,6 +79,7 @@ class ValidationService:
         test_id: str,
         scenario_run_id: UUID,
         *,
+        case_id: str | None = None,
         links: ValidationExecutionLinks = ValidationExecutionLinks(),
     ) -> ValidationExecution:
         loaded_definition = self._catalogue.get(test_id)
@@ -61,13 +90,26 @@ class ValidationService:
             raise ValidationBoundaryError(
                 "scenario evidence class does not match the controlled test definition"
             )
+        case = self._select_case(loaded_definition, case_id)
+        if case is not None:
+            self._verify_case_run_boundary(case, snapshot)
+            if self._repository.list_summaries(scenario_run_id=scenario_run_id):
+                raise ValidationBoundaryError(
+                    "a constituent scenario run may bind to only one validation execution"
+                )
         self._verify_links(loaded_definition, links)
         execution = ValidationExecution(
             validation_execution_id=uuid4(),
             test_id=test_id,
             test_definition_version=loaded_definition.definition.version,
             test_definition_sha256=loaded_definition.definition_sha256,
+            catalogue_version=loaded_definition.catalogue_version,
             catalogue_sha256=loaded_definition.catalogue_sha256,
+            case_id=case.case_id if case is not None else None,
+            case_definition_version=case.version if case is not None else None,
+            case_definition_sha256=(
+                self._case_sha256(case) if case is not None else None
+            ),
             scenario_run_id=scenario_run_id,
             scenario_mode=run.mode,
             evidence_class=run.evidence_class,
@@ -80,7 +122,9 @@ class ValidationService:
                 loaded_definition.definition.expected_result_statement
             ),
             expected_comparison_values=(
-                loaded_definition.definition.comparison_expected_values
+                case.comparison_expected_values
+                if case is not None
+                else loaded_definition.definition.comparison_expected_values
             ),
             links=links,
         )
@@ -96,10 +140,11 @@ class ValidationService:
         if execution.status is not ValidationExecutionStatus.ACTIVE:
             raise ValidationBoundaryError("finalised execution evidence cannot be replaced")
         definition = self._bound_definition(execution)
+        obligations = self._checkpoint_obligations(definition, execution.case_id)
         obligation = next(
             (
                 item
-                for item in definition.definition.checkpoint_obligations
+                for item in obligations
                 if item.checkpoint_id == checkpoint_id
             ),
             None,
@@ -117,6 +162,11 @@ class ValidationService:
             "test_id": execution.test_id,
             "test_definition_version": execution.test_definition_version,
             "test_definition_sha256": execution.test_definition_sha256,
+            "catalogue_version": execution.catalogue_version,
+            "catalogue_sha256": execution.catalogue_sha256,
+            "case_id": execution.case_id,
+            "case_definition_version": execution.case_definition_version,
+            "case_definition_sha256": execution.case_definition_sha256,
             "application_build_id": execution.application_build_id,
             "configuration_id": execution.configuration_id,
             "configuration_version": execution.configuration_version,
@@ -132,6 +182,13 @@ class ValidationService:
             evidence_snapshot_id=uuid4(),
             validation_execution_id=execution.validation_execution_id,
             test_id=execution.test_id,
+            catalogue_version=execution.catalogue_version,
+            catalogue_sha256=execution.catalogue_sha256,
+            test_definition_version=execution.test_definition_version,
+            test_definition_sha256=execution.test_definition_sha256,
+            case_id=execution.case_id,
+            case_definition_version=execution.case_definition_version,
+            case_definition_sha256=execution.case_definition_sha256,
             scenario_run_id=execution.scenario_run_id,
             scenario_mode=execution.scenario_mode,
             evidence_class=execution.evidence_class,
@@ -163,7 +220,12 @@ class ValidationService:
         if execution.status is not ValidationExecutionStatus.ACTIVE:
             raise ValidationBoundaryError("validation execution is already finalised")
         definition = self._bound_definition(execution)
-        expected = definition.definition.comparison_expected_values
+        case = self._bound_case(definition, execution)
+        expected = (
+            case.comparison_expected_values
+            if case is not None
+            else definition.definition.comparison_expected_values
+        )
         if expected is None:
             raise ValidationBoundaryError(
                 "this controlled definition has no I5 automated comparison; "
@@ -174,7 +236,7 @@ class ValidationService:
         captured_checkpoint_ids = {item.checkpoint_id for item in all_evidence}
         required_checkpoint_ids = {
             item.checkpoint_id
-            for item in definition.definition.checkpoint_obligations
+            for item in self._checkpoint_obligations(definition, execution.case_id)
         }
         missing = sorted(required_checkpoint_ids - captured_checkpoint_ids)
         if missing:
@@ -224,19 +286,380 @@ class ValidationService:
             scenario_run_id=scenario_run_id,
         )
 
+    def assemble_composite(
+        self,
+        test_id: str,
+        execution_ids: tuple[UUID, ...],
+        *,
+        created_at,
+    ) -> CompositeValidationResult:
+        if len(execution_ids) != len(set(execution_ids)):
+            raise ValidationBoundaryError(
+                "one constituent execution cannot be supplied more than once"
+            )
+        definition = self._catalogue.get(test_id)
+        cases = definition.definition.constituent_cases
+        if not cases:
+            raise ValidationBoundaryError(
+                "the controlled test definition has no composite constituent set"
+            )
+        if definition.definition.evidence_class is not EvidenceClass.EXPLORATORY:
+            raise ValidationBoundaryError("DC-004 composites are EXPLORATORY only")
+
+        required_case_ids = tuple(item.case_id for item in cases)
+        case_by_id = {item.case_id: item for item in cases}
+        summaries = tuple(self._repository.summary(item) for item in execution_ids)
+        corrected = self._configurations.load("v1.1").catalog_entry
+        seen_case_ids = [item.execution.case_id for item in summaries]
+        duplicates = tuple(
+            sorted(
+                case_id
+                for case_id in set(seen_case_ids)
+                if case_id is not None and seen_case_ids.count(case_id) > 1
+            )
+        )
+        if duplicates:
+            raise ValidationBoundaryError(
+                f"duplicate constituent case membership is not permitted: {duplicates}"
+            )
+
+        links: list[CompositeConstituentLink] = []
+        unfinished: list[str] = []
+        mismatched: list[str] = []
+        common_configuration_id = None
+        for summary in summaries:
+            execution = summary.execution
+            case_id = execution.case_id
+            if case_id is None or case_id not in case_by_id:
+                raise ValidationBoundaryError(
+                    f"execution is not bound to one required constituent case: {case_id}"
+                )
+            case = case_by_id[case_id]
+            expected_case_sha = self._case_sha256(case)
+            provenance = (
+                execution.test_id == test_id
+                and execution.test_definition_version == definition.definition.version
+                and execution.test_definition_sha256 == definition.definition_sha256
+                and execution.catalogue_version == definition.catalogue_version
+                and execution.catalogue_sha256 == definition.catalogue_sha256
+                and execution.case_definition_version == case.version
+                and execution.case_definition_sha256 == expected_case_sha
+                and execution.application_build_id
+                == self._application_build_manifest.application_build_id
+                and str(execution.configuration_version) == "1.1"
+                and execution.configuration_id == corrected.configuration_id
+                and execution.scenario_mode is ScenarioMode.EXPLORATION
+                and execution.evidence_class is EvidenceClass.EXPLORATORY
+            )
+            if not provenance:
+                raise ValidationBoundaryError(
+                    f"constituent provenance does not satisfy DC-004: {case_id}"
+                )
+            if common_configuration_id is None:
+                common_configuration_id = execution.configuration_id
+            elif execution.configuration_id != common_configuration_id:
+                raise ValidationBoundaryError(
+                    "constituents do not share one corrected configuration identity"
+                )
+            run = self._scenarios.run_context(execution.scenario_run_id)
+            if (
+                run.scenario_run_id != execution.scenario_run_id
+                or run.mode is not ScenarioMode.EXPLORATION
+                or run.evidence_class is not EvidenceClass.EXPLORATORY
+                or run.configuration_id != execution.configuration_id
+                or run.configuration_version != execution.configuration_version
+                or run.application_build_id != execution.application_build_id
+                or run.fault_section_id != case.selected_fault_section_id
+            ):
+                raise ValidationBoundaryError(
+                    f"constituent execution/run binding is inconsistent: {case_id}"
+                )
+            for evidence in summary.evidence_snapshots:
+                if (
+                    evidence.validation_execution_id
+                    != execution.validation_execution_id
+                    or evidence.scenario_run_id != execution.scenario_run_id
+                    or evidence.case_id != case_id
+                    or evidence.case_definition_sha256 != expected_case_sha
+                ):
+                    raise ValidationBoundaryError(
+                        f"constituent evidence binding is inconsistent: {case_id}"
+                    )
+            if execution.status is not ValidationExecutionStatus.FINALISED:
+                unfinished.append(case_id)
+            elif execution.verdict not in {
+                ValidationVerdict.PASS,
+                ValidationVerdict.FAIL,
+                ValidationVerdict.BLOCKED_TEST,
+            }:
+                raise ValidationBoundaryError(
+                    f"constituent verdict is outside the aggregate rule: {case_id}"
+                )
+            elif (
+                execution.verdict is ValidationVerdict.BLOCKED_TEST
+                and (not execution.verdict_reason or not summary.evidence_snapshots)
+            ):
+                raise ValidationBoundaryError(
+                    f"BLOCKED-TEST constituent lacks its reason/evidence: {case_id}"
+                )
+            links.append(
+                CompositeConstituentLink(
+                    case_id=case_id,
+                    validation_execution_id=execution.validation_execution_id,
+                    scenario_run_id=execution.scenario_run_id,
+                    case_definition_sha256=expected_case_sha,
+                    constituent_verdict=execution.verdict,
+                    evidence_snapshot_ids=execution.evidence_snapshot_ids,
+                )
+            )
+
+        present_case_ids = tuple(sorted(item.case_id for item in links))
+        missing_case_ids = tuple(
+            item for item in required_case_ids if item not in present_case_ids
+        )
+        complete = not (missing_case_ids or unfinished or mismatched)
+        reasons: list[str] = []
+        if missing_case_ids:
+            reasons.append(f"Missing required cases: {list(missing_case_ids)}")
+        if unfinished:
+            reasons.append(f"Unfinished constituent cases: {sorted(unfinished)}")
+        if mismatched:
+            reasons.append(f"Mismatched constituent cases: {sorted(mismatched)}")
+        if complete:
+            reasons.append("Exact required case set and constituent provenance are complete.")
+        completeness = CompositeCompleteness(
+            status=(
+                CompositeCompletenessStatus.COMPLETE
+                if complete
+                else CompositeCompletenessStatus.INCOMPLETE
+            ),
+            required_case_ids=required_case_ids,
+            present_case_ids=present_case_ids,
+            missing_case_ids=missing_case_ids,
+            duplicate_case_ids=duplicates,
+            mismatched_case_ids=tuple(sorted(mismatched)),
+            reasons=tuple(reasons),
+        )
+        first_execution = summaries[0].execution if summaries else None
+        if first_execution is None:
+            raise ValidationBoundaryError(
+                "composite assembly requires at least one preserved constituent execution"
+            )
+        composite = CompositeValidationResult(
+            composite_result_id=uuid4(),
+            test_id=test_id,
+            test_definition_version=definition.definition.version,
+            test_definition_sha256=definition.definition_sha256,
+            catalogue_version=definition.catalogue_version,
+            catalogue_sha256=definition.catalogue_sha256,
+            application_build_id=first_execution.application_build_id,
+            configuration_id=first_execution.configuration_id,
+            configuration_version=first_execution.configuration_version,
+            required_case_ids=required_case_ids,
+            constituent_links=tuple(sorted(links, key=lambda item: item.case_id)),
+            completeness=completeness,
+            status=CompositeResultStatus.DRAFT,
+            determination_reason=(
+                "Composite is complete and ready for deterministic finalisation."
+                if complete
+                else "; ".join(reasons)
+            ),
+            source_record_references=tuple(
+                sorted(
+                    {
+                        *(f"validation-execution:{item.validation_execution_id}" for item in links),
+                        *(f"scenario-run:{item.scenario_run_id}" for item in links),
+                        *(f"evidence-snapshot:{evidence_id}" for item in links for evidence_id in item.evidence_snapshot_ids),
+                    }
+                )
+            ),
+            created_at=created_at,
+        )
+        try:
+            self._repository.insert_composite(composite)
+        except ValidationRecordConflict as error:
+            raise ValidationBoundaryError(str(error)) from error
+        return composite
+
+    def finalise_composite(
+        self, composite_id: UUID, *, finalised_at
+    ) -> CompositeValidationResult:
+        composite = self._repository.get_composite(composite_id)
+        if composite.status is not CompositeResultStatus.DRAFT:
+            raise ValidationBoundaryError("composite validation result is already finalised")
+        if composite.completeness.status is not CompositeCompletenessStatus.COMPLETE:
+            raise ValidationBoundaryError(
+                "incomplete composite has no aggregate validation determination"
+            )
+        if composite.catalogue_sha256 != self._catalogue.raw_catalogue_sha256():
+            raise ValidationBoundaryError(
+                "unfinished composite belongs to a historical catalogue and is read-only"
+            )
+        verdicts: list[ValidationVerdict] = []
+        for link in composite.constituent_links:
+            execution = self._repository.get_execution(link.validation_execution_id)
+            if (
+                execution.status is not ValidationExecutionStatus.FINALISED
+                or execution.case_id != link.case_id
+                or execution.scenario_run_id != link.scenario_run_id
+                or execution.case_definition_sha256 != link.case_definition_sha256
+                or execution.verdict != link.constituent_verdict
+                or execution.evidence_snapshot_ids != link.evidence_snapshot_ids
+                or execution.verdict is None
+            ):
+                raise ValidationBoundaryError(
+                    f"constituent link no longer resolves immutably: {link.case_id}"
+                )
+            verdicts.append(execution.verdict)
+        determination, reason = self._aggregate_verdict(tuple(verdicts))
+        finalised = composite.model_copy(
+            update={
+                "status": CompositeResultStatus.FINALISED,
+                "determination": determination,
+                "determination_reason": reason,
+                "finalised_at": finalised_at,
+            }
+        )
+        self._repository.finalise_composite(finalised)
+        return finalised
+
+    def get_composite(self, composite_id: UUID) -> CompositeValidationResult:
+        return self._repository.get_composite(composite_id)
+
+    def list_composites(
+        self, *, test_id: str | None = None
+    ) -> tuple[CompositeValidationResult, ...]:
+        return self._repository.list_composites(test_id=test_id)
+
+    @staticmethod
+    def _aggregate_verdict(
+        verdicts: tuple[ValidationVerdict, ...],
+    ) -> tuple[ValidationVerdict, str]:
+        if not verdicts or any(
+            item not in {
+                ValidationVerdict.PASS,
+                ValidationVerdict.FAIL,
+                ValidationVerdict.BLOCKED_TEST,
+            }
+            for item in verdicts
+        ):
+            raise ValidationBoundaryError(
+                "aggregate determination requires a complete accepted verdict set"
+            )
+        if ValidationVerdict.FAIL in verdicts:
+            return (
+                ValidationVerdict.FAIL,
+                "Complete constituent set contains at least one FAIL.",
+            )
+        if ValidationVerdict.BLOCKED_TEST in verdicts:
+            return (
+                ValidationVerdict.BLOCKED_TEST,
+                "Complete constituent set has no FAIL and contains at least one "
+                "evidence-supported BLOCKED-TEST; every other constituent is PASS.",
+            )
+        return (
+            ValidationVerdict.PASS,
+            "Complete constituent set contains PASS for every required case.",
+        )
+
     def _bound_definition(
         self, execution: ValidationExecution
     ) -> LoadedValidationDefinition:
-        loaded = self._catalogue.get(execution.test_id)
-        if (
-            loaded.definition.version != execution.test_definition_version
-            or loaded.definition_sha256 != execution.test_definition_sha256
-            or loaded.catalogue_sha256 != execution.catalogue_sha256
-        ):
+        try:
+            loaded = self._catalogue.resolve(
+                test_id=execution.test_id,
+                catalogue_version=execution.catalogue_version,
+                catalogue_sha256=execution.catalogue_sha256,
+                test_definition_version=execution.test_definition_version,
+                test_definition_sha256=execution.test_definition_sha256,
+            )
+        except ValidationCatalogueError as error:
+            raise ValidationBoundaryError(str(error)) from error
+        if not self._catalogue.is_active(loaded):
             raise ValidationBoundaryError(
-                "current catalogue identity differs from the execution-bound definition"
+                "unfinished execution belongs to a historical catalogue and is read-only"
             )
         return loaded
+
+    def resolve_historical_definition(
+        self, execution: ValidationExecution
+    ) -> LoadedValidationDefinition:
+        try:
+            return self._catalogue.resolve(
+                test_id=execution.test_id,
+                catalogue_version=execution.catalogue_version,
+                catalogue_sha256=execution.catalogue_sha256,
+                test_definition_version=execution.test_definition_version,
+                test_definition_sha256=execution.test_definition_sha256,
+            )
+        except ValidationCatalogueError as error:
+            raise ValidationBoundaryError(str(error)) from error
+
+    @staticmethod
+    def _case_sha256(case: ConstituentCaseDefinition) -> str:
+        return sha256_bytes(canonical_json_bytes(case.model_dump(mode="json")))
+
+    def _select_case(
+        self,
+        definition: LoadedValidationDefinition,
+        case_id: str | None,
+    ) -> ConstituentCaseDefinition | None:
+        cases = definition.definition.constituent_cases
+        if cases and case_id is None:
+            raise ValidationBoundaryError("this multi-run test requires one controlled case ID")
+        if not cases and case_id is not None:
+            raise ValidationBoundaryError("this validation definition has no constituent cases")
+        if case_id is None:
+            return None
+        try:
+            return next(item for item in cases if item.case_id == case_id)
+        except StopIteration as error:
+            raise ValidationBoundaryError(
+                f"case {case_id} does not belong to {definition.definition.test_id}"
+            ) from error
+
+    def _bound_case(
+        self,
+        definition: LoadedValidationDefinition,
+        execution: ValidationExecution,
+    ) -> ConstituentCaseDefinition | None:
+        case = self._select_case(definition, execution.case_id)
+        if case is None:
+            return None
+        if (
+            case.version != execution.case_definition_version
+            or self._case_sha256(case) != execution.case_definition_sha256
+        ):
+            raise ValidationBoundaryError("execution-bound case-definition identity differs")
+        return case
+
+    def _checkpoint_obligations(
+        self,
+        definition: LoadedValidationDefinition,
+        case_id: str | None,
+    ):
+        if case_id is None:
+            return definition.definition.checkpoint_obligations
+        case = self._select_case(definition, case_id)
+        assert case is not None
+        return case.checkpoint_obligations
+
+    @staticmethod
+    def _verify_case_run_boundary(
+        case: ConstituentCaseDefinition,
+        snapshot: ScenarioSnapshot,
+    ) -> None:
+        run = snapshot.run
+        if (
+            run.mode is not ScenarioMode.EXPLORATION
+            or run.evidence_class is not EvidenceClass.EXPLORATORY
+            or str(run.configuration_version) != "1.1"
+            or run.fault_section_id != case.selected_fault_section_id
+        ):
+            raise ValidationBoundaryError(
+                "constituent case requires its selected fault on corrected v1.1 "
+                "under EXPLORATION/EXPLORATORY classification"
+            )
 
     def _verify_backend_provenance(self, run_build_id: str) -> None:
         controlled = self._application_build_manifest.application_build_id
@@ -300,9 +723,80 @@ class ValidationService:
                 "current scenario snapshot no longer matches execution provenance"
             )
 
-    @staticmethod
-    def _observed_values(snapshot: ScenarioSnapshot) -> dict[str, Any]:
+    def _observed_values(self, snapshot: ScenarioSnapshot) -> dict[str, Any]:
+        loaded = self._configurations.load(f"v{snapshot.run.configuration_version}")
+        sections = {item.entity_id: item for item in loaded.data.sections}
+        feeders = {item.entity_id: item for item in loaded.data.feeders}
+        affected_feeder_id = sections[snapshot.run.fault_section_id].feeder_id
+        protection_breaker_id = feeders[affected_feeder_id].source_breaker_id
+        proof = snapshot.topology.isolation_proof
+        open_targets = {
+            item.target_entity_id
+            for item in snapshot.allowed_actions
+            if item.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+            and item.requested_state is SwitchState.OPEN
+            and item.available
+        }
+        boundary_evidence = (
+            {
+                item.boundary_device_id: {
+                    "observed_value": (
+                        item.observed_state.value if item.observed_state is not None else None
+                    ),
+                    "quality": item.quality.value if item.quality is not None else None,
+                    "freshness": (
+                        item.freshness_status.value
+                        if item.freshness_status is not None
+                        else None
+                    ),
+                    "proof_status": item.proof_status.value,
+                    "open_action_eligible": item.boundary_device_id in open_targets,
+                    "reason_codes": list(item.reason_codes),
+                }
+                for item in sorted(
+                    proof.boundary_evaluations,
+                    key=lambda value: value.boundary_device_id,
+                )
+            }
+            if proof is not None
+            else {}
+        )
+        assessment = (
+            snapshot.restoration_assessments[-1]
+            if snapshot.restoration_assessments
+            else None
+        )
+        candidate = assessment.candidate if assessment is not None else None
+        calculation = assessment.calculation if assessment is not None else None
         return {
+            "selected_fault_section_id": snapshot.run.fault_section_id,
+            "affected_feeder_id": affected_feeder_id,
+            "protection_breaker_id": protection_breaker_id,
+            "incident_boundary_device_ids": (
+                list(sorted(proof.incident_boundary_device_ids)) if proof else []
+            ),
+            "boundary_evidence": boundary_evidence,
+            "isolated": proof.isolated if proof is not None else False,
+            "alternate_feeder_id": (
+                candidate.alternate_feeder_id if candidate is not None else None
+            ),
+            "proposed_section_ids": (
+                list(sorted(candidate.proposed_section_ids)) if candidate else []
+            ),
+            "transferable_load_kw": (
+                candidate.transferable_load_kw if candidate is not None else None
+            ),
+            "resulting_load_kw": (
+                calculation.resulting_load_kw if calculation is not None else None
+            ),
+            "feeder_capacity_kw": (
+                calculation.feeder_capacity_kw if calculation is not None else None
+            ),
+            "resulting_loading_percent": (
+                str(calculation.resulting_loading_percent)
+                if calculation is not None
+                else None
+            ),
             "de_energised_section_ids": list(
                 snapshot.outage.de_energised_section_ids
             ),
@@ -346,6 +840,8 @@ class ValidationService:
         comparisons: list[dict[str, Any]] = []
         for path, expected_value in cls._flatten(expected):
             observed_value = cls._lookup(observed, path)
+            expected_value = cls._normalise_comparison_value(path, expected_value)
+            observed_value = cls._normalise_comparison_value(path, observed_value)
             comparisons.append(
                 {
                     "field": ".".join(path),
@@ -355,6 +851,12 @@ class ValidationService:
                 }
             )
         return comparisons
+
+    @staticmethod
+    def _normalise_comparison_value(path: tuple[str, ...], value: Any) -> Any:
+        if path[-1] in {"incident_boundary_device_ids", "proposed_section_ids"} and isinstance(value, list):
+            return sorted(value)
+        return value
 
     @classmethod
     def _flatten(
