@@ -1,0 +1,83 @@
+{
+  "schema_version": "1.0.0",
+  "sources": [
+    {
+      "entity_id": "ZS-01",
+      "name": "TasGrid East Zone Substation",
+      "normal_source_availability": "AVAILABLE"
+    }
+  ],
+  "feeders": [
+    {
+      "entity_id": "FDR-A",
+      "name": "East Ridge Feeder",
+      "source_id": "ZS-01",
+      "source_breaker_id": "BRK-A",
+      "capacity_kw": 5500,
+      "normal_connected_load_kw": 3200,
+      "section_ids": ["SEC-A1", "SEC-A2", "SEC-A3", "SEC-A4"],
+      "sectionalising_switch_ids": ["SW-A12", "SW-A23", "SW-A34"]
+    },
+    {
+      "entity_id": "FDR-B",
+      "name": "Riverbend Feeder",
+      "source_id": "ZS-01",
+      "source_breaker_id": "BRK-B",
+      "capacity_kw": 6000,
+      "normal_connected_load_kw": 4200,
+      "section_ids": ["SEC-B1", "SEC-B2", "SEC-B3", "SEC-B4"],
+      "sectionalising_switch_ids": ["SW-B12", "SW-B23", "SW-B34"]
+    }
+  ],
+  "sections": [
+    {"entity_id": "SEC-A1", "name": "East Ridge Section 1", "feeder_id": "FDR-A", "load_kw": 750},
+    {"entity_id": "SEC-A2", "name": "East Ridge Section 2", "feeder_id": "FDR-A", "load_kw": 950},
+    {"entity_id": "SEC-A3", "name": "East Ridge Section 3", "feeder_id": "FDR-A", "load_kw": 850},
+    {"entity_id": "SEC-A4", "name": "East Ridge Section 4", "feeder_id": "FDR-A", "load_kw": 650},
+    {"entity_id": "SEC-B1", "name": "Riverbend Section 1", "feeder_id": "FDR-B", "load_kw": 1100},
+    {"entity_id": "SEC-B2", "name": "Riverbend Section 2", "feeder_id": "FDR-B", "load_kw": 1200},
+    {"entity_id": "SEC-B3", "name": "Riverbend Section 3", "feeder_id": "FDR-B", "load_kw": 1000},
+    {"entity_id": "SEC-B4", "name": "Riverbend Section 4", "feeder_id": "FDR-B", "load_kw": 900}
+  ],
+  "switching_devices": [
+    {"entity_id": "BRK-A", "name": "Feeder A Source Breaker", "device_type": "FEEDER_SOURCE_BREAKER", "feeder_id": "FDR-A", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "BRK-B", "name": "Feeder B Source Breaker", "device_type": "FEEDER_SOURCE_BREAKER", "feeder_id": "FDR-B", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "SW-A12", "name": "SW-A12", "device_type": "SECTIONALISING_SWITCH", "feeder_id": "FDR-A", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "SW-A23", "name": "SW-A23", "device_type": "SECTIONALISING_SWITCH", "feeder_id": "FDR-A", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "SW-A34", "name": "SW-A34", "device_type": "SECTIONALISING_SWITCH", "feeder_id": "FDR-A", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "SW-B12", "name": "SW-B12", "device_type": "SECTIONALISING_SWITCH", "feeder_id": "FDR-B", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "SW-B23", "name": "SW-B23", "device_type": "SECTIONALISING_SWITCH", "feeder_id": "FDR-B", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "SW-B34", "name": "SW-B34", "device_type": "SECTIONALISING_SWITCH", "feeder_id": "FDR-B", "normal_state": "CLOSED", "monitored": true},
+    {"entity_id": "TS-01", "name": "Feeder Tie Switch", "device_type": "TIE_SWITCH", "feeder_id": null, "normal_state": "OPEN", "monitored": true}
+  ],
+  "connectivity_edges": [
+    {"edge_id": "EDGE-BRK-A-1", "endpoint_a_id": "ZS-01", "endpoint_b_id": "BRK-A", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-BRK-A-2", "endpoint_a_id": "BRK-A", "endpoint_b_id": "SEC-A1", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-A12-1", "endpoint_a_id": "SEC-A1", "endpoint_b_id": "SW-A12", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-A12-2", "endpoint_a_id": "SW-A12", "endpoint_b_id": "SEC-A2", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-A23-1", "endpoint_a_id": "SEC-B3", "endpoint_b_id": "SW-A23", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-A23-2", "endpoint_a_id": "SW-A23", "endpoint_b_id": "SEC-A3", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-A34-1", "endpoint_a_id": "SEC-A3", "endpoint_b_id": "SW-A34", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-A34-2", "endpoint_a_id": "SW-A34", "endpoint_b_id": "SEC-A4", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-BRK-B-1", "endpoint_a_id": "ZS-01", "endpoint_b_id": "BRK-B", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-BRK-B-2", "endpoint_a_id": "BRK-B", "endpoint_b_id": "SEC-B1", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-B12-1", "endpoint_a_id": "SEC-B1", "endpoint_b_id": "SW-B12", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-B12-2", "endpoint_a_id": "SW-B12", "endpoint_b_id": "SEC-B2", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-B23-1", "endpoint_a_id": "SEC-B2", "endpoint_b_id": "SW-B23", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-B23-2", "endpoint_a_id": "SW-B23", "endpoint_b_id": "SEC-B3", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-B34-1", "endpoint_a_id": "SEC-B3", "endpoint_b_id": "SW-B34", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-SW-B34-2", "endpoint_a_id": "SW-B34", "endpoint_b_id": "SEC-B4", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-TS-01-1", "endpoint_a_id": "SEC-A4", "endpoint_b_id": "TS-01", "semantics": "SWITCHABLE_DEVICE_CONNECTION"},
+    {"edge_id": "EDGE-TS-01-2", "endpoint_a_id": "TS-01", "endpoint_b_id": "SEC-B4", "semantics": "SWITCHABLE_DEVICE_CONNECTION"}
+  ],
+  "customer_zone_mappings": [
+    {"section_id": "SEC-A1", "customer_zone_id": "CZ-A1", "customer_count": 180},
+    {"section_id": "SEC-A2", "customer_zone_id": "CZ-A2", "customer_count": 220},
+    {"section_id": "SEC-A3", "customer_zone_id": "CZ-A3", "customer_count": 260},
+    {"section_id": "SEC-A4", "customer_zone_id": "CZ-A4", "customer_count": 190},
+    {"section_id": "SEC-B1", "customer_zone_id": "CZ-B1", "customer_count": 240},
+    {"section_id": "SEC-B2", "customer_zone_id": "CZ-B2", "customer_count": 280},
+    {"section_id": "SEC-B3", "customer_zone_id": "CZ-B3", "customer_count": 230},
+    {"section_id": "SEC-B4", "customer_zone_id": "CZ-B4", "customer_count": 210}
+  ]
+}

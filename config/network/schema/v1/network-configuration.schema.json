@@ -1,0 +1,365 @@
+{
+  "$defs": {
+    "ConnectivityEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "edge_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Edge Id",
+          "type": "string"
+        },
+        "endpoint_a_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Endpoint A Id",
+          "type": "string"
+        },
+        "endpoint_b_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Endpoint B Id",
+          "type": "string"
+        },
+        "semantics": {
+          "$ref": "#/$defs/EdgeSemantics"
+        }
+      },
+      "required": [
+        "edge_id",
+        "endpoint_a_id",
+        "endpoint_b_id",
+        "semantics"
+      ],
+      "title": "ConnectivityEdge",
+      "type": "object"
+    },
+    "CustomerZoneMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "customer_count": {
+          "exclusiveMinimum": 0,
+          "title": "Customer Count",
+          "type": "integer"
+        },
+        "customer_zone_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Customer Zone Id",
+          "type": "string"
+        },
+        "section_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Section Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "section_id",
+        "customer_zone_id",
+        "customer_count"
+      ],
+      "title": "CustomerZoneMapping",
+      "type": "object"
+    },
+    "DistributionSection": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "feeder_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Feeder Id",
+          "type": "string"
+        },
+        "load_kw": {
+          "minimum": 0,
+          "title": "Load Kw",
+          "type": "integer"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "feeder_id",
+        "load_kw"
+      ],
+      "title": "DistributionSection",
+      "type": "object"
+    },
+    "EdgeSemantics": {
+      "enum": [
+        "SWITCHABLE_DEVICE_CONNECTION"
+      ],
+      "title": "EdgeSemantics",
+      "type": "string"
+    },
+    "Feeder": {
+      "additionalProperties": false,
+      "properties": {
+        "capacity_kw": {
+          "minimum": 0,
+          "title": "Capacity Kw",
+          "type": "integer"
+        },
+        "entity_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "normal_connected_load_kw": {
+          "minimum": 0,
+          "title": "Normal Connected Load Kw",
+          "type": "integer"
+        },
+        "section_ids": {
+          "items": {
+            "maxLength": 96,
+            "minLength": 4,
+            "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Section Ids",
+          "type": "array"
+        },
+        "sectionalising_switch_ids": {
+          "items": {
+            "maxLength": 96,
+            "minLength": 4,
+            "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Sectionalising Switch Ids",
+          "type": "array"
+        },
+        "source_breaker_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Source Breaker Id",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "source_id",
+        "source_breaker_id",
+        "capacity_kw",
+        "normal_connected_load_kw",
+        "section_ids",
+        "sectionalising_switch_ids"
+      ],
+      "title": "Feeder",
+      "type": "object"
+    },
+    "SourceAvailability": {
+      "enum": [
+        "AVAILABLE",
+        "UNAVAILABLE"
+      ],
+      "title": "SourceAvailability",
+      "type": "string"
+    },
+    "SwitchState": {
+      "enum": [
+        "OPEN",
+        "CLOSED"
+      ],
+      "title": "SwitchState",
+      "type": "string"
+    },
+    "SwitchingDevice": {
+      "additionalProperties": false,
+      "properties": {
+        "device_type": {
+          "$ref": "#/$defs/SwitchingDeviceType"
+        },
+        "entity_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "feeder_id": {
+          "anyOf": [
+            {
+              "maxLength": 96,
+              "minLength": 4,
+              "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Feeder Id"
+        },
+        "monitored": {
+          "title": "Monitored",
+          "type": "boolean"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "normal_state": {
+          "$ref": "#/$defs/SwitchState"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "device_type",
+        "feeder_id",
+        "normal_state",
+        "monitored"
+      ],
+      "title": "SwitchingDevice",
+      "type": "object"
+    },
+    "SwitchingDeviceType": {
+      "enum": [
+        "FEEDER_SOURCE_BREAKER",
+        "SECTIONALISING_SWITCH",
+        "TIE_SWITCH"
+      ],
+      "title": "SwitchingDeviceType",
+      "type": "string"
+    },
+    "ZoneSubstation": {
+      "additionalProperties": false,
+      "properties": {
+        "entity_id": {
+          "maxLength": 96,
+          "minLength": 4,
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$",
+          "title": "Entity Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "normal_source_availability": {
+          "$ref": "#/$defs/SourceAvailability"
+        }
+      },
+      "required": [
+        "entity_id",
+        "name",
+        "normal_source_availability"
+      ],
+      "title": "ZoneSubstation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "connectivity_edges": {
+      "items": {
+        "$ref": "#/$defs/ConnectivityEdge"
+      },
+      "minItems": 1,
+      "title": "Connectivity Edges",
+      "type": "array"
+    },
+    "customer_zone_mappings": {
+      "items": {
+        "$ref": "#/$defs/CustomerZoneMapping"
+      },
+      "minItems": 1,
+      "title": "Customer Zone Mappings",
+      "type": "array"
+    },
+    "feeders": {
+      "items": {
+        "$ref": "#/$defs/Feeder"
+      },
+      "minItems": 1,
+      "title": "Feeders",
+      "type": "array"
+    },
+    "schema_version": {
+      "pattern": "^\\d+\\.\\d+(?:\\.\\d+)?$",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "sections": {
+      "items": {
+        "$ref": "#/$defs/DistributionSection"
+      },
+      "minItems": 1,
+      "title": "Sections",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/ZoneSubstation"
+      },
+      "minItems": 1,
+      "title": "Sources",
+      "type": "array"
+    },
+    "switching_devices": {
+      "items": {
+        "$ref": "#/$defs/SwitchingDevice"
+      },
+      "minItems": 1,
+      "title": "Switching Devices",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "sources",
+    "feeders",
+    "sections",
+    "switching_devices",
+    "connectivity_edges",
+    "customer_zone_mappings"
+  ],
+  "title": "NetworkConfigurationData",
+  "type": "object"
+}

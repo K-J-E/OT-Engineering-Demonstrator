@@ -1,0 +1,20 @@
+{
+  "configuration_id": "network-configuration-v1.1",
+  "data_file": {
+    "path": "network.json",
+    "sha256": "7d65b7fb2e3e7b5cb3f0fc698554c3848935222fe56aee727d25cfc324e93281"
+  },
+  "schema_file": {
+    "path": "schema/v1/network-configuration.schema.json",
+    "sha256": "ee6d42cb36be3470870028ab9983eba3a6ce33529ead73dfebc584b04b89c60c"
+  },
+  "schema_version": "1.0.0",
+  "source_references": [
+    "OT Project Network Model.docx Sections 5-17 and 18.6",
+    "OT Project Requirements Specification.docx REQ-NET-001-011, REQ-CFG-001-003, REQ-CFG-006, REQ-CFG-008-010, REQ-NFR-002, REQ-NFR-004 and REQ-NFR-009",
+    "DC-003-generic-active-fault-isolation-boundary-derivation.md Section 9",
+    "OT Project Demonstrator Design.docx Sections 8.1, 26-27, 31-32 and 35.5"
+  ],
+  "status": "CORRECTED_BASELINE",
+  "version": "1.1"
+}
