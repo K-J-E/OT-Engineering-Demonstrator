@@ -1,5 +1,5 @@
 ---
-Status: I6 assurance corrections implemented — pending independent re-review
+Status: Accepted I6 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -25,6 +25,13 @@ JSON-transport correction. The targeted assurance-correction commit
 `09622018d8bbd57adf8da818d3d0d5c253f49a0b` implements QA-034 and QA-035:
 FORMAL-only validation progress and continuously visible full scenario-run
 identity. It does not change engineering behaviour or add later-increment scope.
+
+Independent engineering/implementation re-review accepted the complete revised
+I6 branch at tip `36c2aa8568eacddc5505677609c812706ec9c345` as the I6
+implementation baseline. QA-033, QA-034 and QA-035 are independently verified
+closed, and the I6 presentation treatment of QA-003 is accepted. This acceptance
+update is administrative only; no implementation behaviour, controlled input or
+dependency has changed.
 
 I1–I5 remain the engineering and transaction authorities. I6 composes and renders
 their controlled outputs; it does not calculate topology, energisation, outage,
@@ -151,11 +158,11 @@ converts their parsed typed values into the unchanged strict domain contracts
 before calling the I3/I5 services. It does not weaken domain validation or change
 engineering behaviour. The passing full browser flow exercises initialisation,
 scenario commands and validation checkpoint requests through the corrected
-boundary. QA-033 is independently verified; final closure under the I6 baseline
-awaits acceptance of the complete increment.
+boundary. QA-033 is independently verified closed under the accepted I6
+baseline.
 
-QA-003 was not reopened. Its I6 presentation treatment is implemented and awaits
-review with the increment.
+QA-003 was not reopened. Its configured-versus-derived feeder-load presentation
+treatment is accepted under the I6 baseline.
 
 QA-034 records that the first progress aggregator counted all 24 definitions and
 all executions while its UI was explicitly labelled FORMAL. The corrected read
@@ -164,12 +171,14 @@ Regression proves active/finalised exploratory executions with PASS, FAIL and
 BLOCKED-TEST verdicts cannot affect any FORMAL total. The interface now states
 that FORMAL scope contains 21 of 24 controlled catalogue definitions, preserving
 the separate total-catalogue fact without presenting I8 exploratory records.
+QA-034 is independently verified closed under the accepted I6 baseline.
 
 QA-035 records that the first context ribbon exposed the complete run UUID only
 through hover and assistive text. The ribbon now visibly presents the short ID for
 scanning and the complete UUID for provenance. Component and browser coverage
 prove the full identity is visible without hover and remains unchanged from N0
-through N5 while the persistent ribbon crosses workspace views.
+through N5 while the persistent ribbon crosses workspace views. QA-035 is
+independently verified closed under the accepted I6 baseline.
 
 ## 7. Verification evidence
 
@@ -243,10 +252,10 @@ choice was guessed; no frontend engineering authority, editable topology,
 unlabelled evidence deficiency, configured/derived-load conflation, real-control
 implication or later-increment workflow was introduced.
 
-Independent review should focus on projection ownership, information-class
-separation, action availability/reasons, the JSON transport correction, formal
-workflow checkpoint values, fixed one-line behaviour and the absence of I7/I8
-scope. Later increments must preserve all I1–I6 regression gates.
+Independent review accepted projection ownership, information-class separation,
+action availability/reasons, the JSON transport correction, formal workflow
+checkpoint values, fixed one-line behaviour and the absence of I7/I8 scope.
+Later increments must preserve all I1–I6 regression gates.
 
 **V2 Automation Candidate — evidence-led interface regression.** Comparing the
 approved N-state answer key, API projection, one-line labels, tables and captured
@@ -256,8 +265,10 @@ review without changing V1 calculations or verdict authority.
 
 ## 10. Review and progression gate
 
-The I6 implementation commit and this derived closeout are to be pushed on
-`agent/i6-operational-ui` for independent re-review. I6 remains unmerged and is
-not the accepted implementation baseline until separately reviewed and accepted.
+Independent engineering/implementation review accepted the revised branch tip
+`36c2aa8568eacddc5505677609c812706ec9c345`. The reviewed implementation
+history and this administrative acceptance record form the accepted I6 baseline
+for incorporation into reviewed `main`.
 
-**I7 has not started. No later increment may begin automatically.**
+**I7 has not started. It requires separate user authorisation and no later
+increment may begin automatically.**
