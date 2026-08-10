@@ -16,6 +16,8 @@ describe('I6 engineering presentation components', () => {
     expect(screen.getByText('N4')).toBeVisible()
     expect(screen.getByText('PERMITTED')).toBeVisible()
     expect(screen.getByText('4')).toBeVisible()
+    expect(screen.getByTestId('full-run-id')).toHaveTextContent('20000000-0000-0000-0000-000000000001')
+    expect(screen.getByTestId('full-run-id')).toBeVisible()
   })
 
   it('presents configured, observed, derived and fault states as separate authorities', () => {
@@ -65,9 +67,16 @@ describe('I6 engineering presentation components', () => {
     expect(screen.getByText(new RegExp(phrase, 'i'))).toBeVisible()
   })
 
-  it('does not treat 24 definitions as executed or passed', () => {
-    render(<ValidationView projection={makeProjection()} busy={false} onAction={vi.fn()} />)
-    expect(screen.getAllByText('24').length).toBeGreaterThanOrEqual(1)
+  it('separates 21 FORMAL definitions from the total catalogue and does not claim execution or pass', () => {
+    const projection = makeProjection()
+    const template = projection.validation.definitions[0]!
+    projection.validation.definitions = Array.from({ length: 24 }, (_, index) => ({
+      ...template,
+      definition: { ...template.definition, test_id: `VT-FML-FIXTURE-${String(index + 1).padStart(3, '0')}` },
+    }))
+    render(<ValidationView projection={projection} busy={false} onAction={vi.fn()} />)
+    expect(screen.getByText(/21 of 24 total controlled catalogue definitions/i)).toBeVisible()
+    expect(screen.getAllByText('21').length).toBeGreaterThanOrEqual(2)
     expect(screen.getByText('Definitions are not executions.')).toBeVisible()
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(3)
     expect(screen.getByText(/no pass\/fail has been created|no VT-FML/i)).toBeVisible()

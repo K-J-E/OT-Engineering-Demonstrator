@@ -2,13 +2,20 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
 
 from ot_demo.application.scenario_coordinator import ScenarioCoordinator
 from ot_demo.application.workspace_service import WorkspaceService
-from ot_demo.domain.enums import ScenarioCommandType, ScenarioMode
+from ot_demo.domain.enums import (
+    EvidenceClass,
+    ScenarioCommandType,
+    ScenarioMode,
+    ValidationExecutionStatus,
+    ValidationVerdict,
+)
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
     BuildIdentityPayload,
@@ -152,11 +159,92 @@ def test_workspace_bootstrap_and_n0_projection_preserve_authority_classes(
     initiate = action(projection, ScenarioCommandType.INITIATE_FAULT)
     assert initiate.proposed_scenario_time.isoformat() == "2030-01-01T00:00:10+00:00"
     assert initiate.expected_revision == 0
-    assert projection.validation.progress.definition_count == 24
-    assert projection.validation.progress.definitions_without_execution_count == 24
+    assert projection.validation.progress.definition_count == 21
+    assert projection.validation.progress.definitions_without_execution_count == 21
     assert projection.validation.progress.pass_count == 0
     assert projection.validation.actions[0].action_type == "START_EXECUTION"
     assert projection.validation.actions[0].available is True
+
+
+@pytest.mark.i6
+def test_formal_validation_progress_excludes_every_exploratory_record_state() -> None:
+    definitions = ValidationCatalogueLoader(
+        ROOT / "validation/test-definitions/catalogue.json"
+    ).load()
+
+    def execution(
+        test_id: str,
+        evidence_class: EvidenceClass,
+        status: ValidationExecutionStatus,
+        verdict: ValidationVerdict | None,
+    ) -> SimpleNamespace:
+        return SimpleNamespace(
+            execution=SimpleNamespace(
+                test_id=test_id,
+                evidence_class=evidence_class,
+                status=status,
+                verdict=verdict,
+            )
+        )
+
+    formal_active = execution(
+        "VT-FML-N0-N5-001",
+        EvidenceClass.FORMAL,
+        ValidationExecutionStatus.ACTIVE,
+        None,
+    )
+    exploratory_records = (
+        execution(
+            "VT-EXP-ALL-001",
+            EvidenceClass.EXPLORATORY,
+            ValidationExecutionStatus.ACTIVE,
+            None,
+        ),
+        execution(
+            "VT-EXP-ALL-001",
+            EvidenceClass.EXPLORATORY,
+            ValidationExecutionStatus.FINALISED,
+            ValidationVerdict.PASS,
+        ),
+        execution(
+            "VT-EXP-ROLE-001",
+            EvidenceClass.EXPLORATORY,
+            ValidationExecutionStatus.FINALISED,
+            ValidationVerdict.FAIL,
+        ),
+        execution(
+            "VT-EXP-SEPARATION-001",
+            EvidenceClass.EXPLORATORY,
+            ValidationExecutionStatus.FINALISED,
+            ValidationVerdict.BLOCKED_TEST,
+        ),
+    )
+
+    formal_only = WorkspaceService._validation_progress(
+        definitions,
+        (formal_active,),
+    )
+    with_exploratory = WorkspaceService._validation_progress(
+        definitions,
+        (formal_active, *exploratory_records),
+    )
+
+    assert len(definitions) == 24
+    assert sum(
+        item.definition.evidence_class is EvidenceClass.EXPLORATORY
+        for item in definitions
+    ) == 3
+    assert with_exploratory == formal_only
+    assert formal_only.model_dump() == {
+        "definition_count": 21,
+        "definitions_without_execution_count": 20,
+        "execution_count": 1,
+        "active_execution_count": 1,
+        "finalised_execution_count": 0,
+        "pass_count": 0,
+        "fail_count": 0,
+        "blocked_test_count": 0,
+    }
 
 
 @pytest.mark.i6
@@ -247,7 +335,7 @@ def test_workspace_actions_drive_exact_n0_n5_and_validation_progress_without_ui_
     assert final_projection.validation.progress.execution_count == 1
     assert final_projection.validation.progress.active_execution_count == 1
     assert final_projection.validation.progress.pass_count == 0
-    assert final_projection.validation.progress.definitions_without_execution_count == 23
+    assert final_projection.validation.progress.definitions_without_execution_count == 20
     finalise = next(
         item
         for item in final_projection.validation.actions

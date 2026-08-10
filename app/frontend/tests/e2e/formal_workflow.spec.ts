@@ -21,6 +21,9 @@ test('formal v1.1 N0-N5 is presented from backend-owned engineering state', asyn
   await expect(page.getByRole('heading', { name: 'OT engineering review workspace' })).toBeVisible()
   await page.getByRole('button', { name: 'Start formal v1.1 run' }).click()
 
+  const fullRunIdentity = await page.getByTestId('full-run-id').textContent()
+  expect(fullRunIdentity).toMatch(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/)
+  await expect(page.getByTestId('full-run-id')).toBeVisible()
   await expect(page.getByTestId('formal-state')).toHaveText('N0')
   await expect(page.getByTestId('affected-customers')).toHaveText('0')
   await expect(page.getByText('LOCAL · SIMULATED · NO REAL CONTROL')).toBeVisible()
@@ -64,6 +67,8 @@ test('formal v1.1 N0-N5 is presented from backend-owned engineering state', asyn
   await executeConfirmed(page, /^Execute permitted restoration$/)
 
   await expect(page.getByTestId('formal-state')).toHaveText('N5')
+  await expect(page.getByTestId('full-run-id')).toHaveText(fullRunIdentity!)
+  await expect(page.getByTestId('full-run-id')).toBeVisible()
   await selectView(page, 'Operational')
   await expect(page.getByTestId('affected-customers')).toHaveText('220')
   await expect(page.getByTestId('restored-customers')).toHaveText('450')

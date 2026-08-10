@@ -10,6 +10,7 @@ from uuid import UUID
 
 from ..domain.enums import (
     AlarmAcknowledgementState,
+    EvidenceClass,
     NetworkStateLabel,
     ScenarioCommandType,
     ScenarioMode,
@@ -362,20 +363,37 @@ class WorkspaceService:
         definitions: tuple[LoadedValidationDefinition, ...],
         executions: tuple[ValidationExecutionSummary, ...],
     ) -> ValidationProgress:
-        finalised = tuple(
+        formal_definitions = tuple(
+            item
+            for item in definitions
+            if item.definition.evidence_class is EvidenceClass.FORMAL
+        )
+        formal_test_ids = {
+            item.definition.test_id for item in formal_definitions
+        }
+        formal_executions = tuple(
             item
             for item in executions
+            if item.execution.evidence_class is EvidenceClass.FORMAL
+        )
+        finalised = tuple(
+            item
+            for item in formal_executions
             if item.execution.status is ValidationExecutionStatus.FINALISED
         )
-        executed_test_ids = {item.execution.test_id for item in executions}
+        executed_test_ids = {
+            item.execution.test_id
+            for item in formal_executions
+            if item.execution.test_id in formal_test_ids
+        }
         return ValidationProgress(
-            definition_count=len(definitions),
-            definitions_without_execution_count=len(definitions)
+            definition_count=len(formal_definitions),
+            definitions_without_execution_count=len(formal_definitions)
             - len(executed_test_ids),
-            execution_count=len(executions),
+            execution_count=len(formal_executions),
             active_execution_count=sum(
                 item.execution.status is ValidationExecutionStatus.ACTIVE
-                for item in executions
+                for item in formal_executions
             ),
             finalised_execution_count=len(finalised),
             pass_count=sum(

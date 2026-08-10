@@ -15,6 +15,7 @@ export function ValidationView({ projection, busy, onAction }: { projection: Wor
     <section className="panel validation-progress" aria-labelledby="validation-progress-title">
       <div className="panel-heading"><div><span className="eyebrow">Backend-assembled catalogue status</span><h2 id="validation-progress-title">Formal validation progress</h2></div><span className="status-badge formal">FORMAL</span></div>
       <div className="callout warning"><strong>Definitions are not executions.</strong> An accepted definition with no execution is not PASS, and operational BLOCKED/REJECTED is separate from validation determination.</div>
+      <p className="progress-scope"><strong>FORMAL scope:</strong> {progress.definition_count} of {projection.validation.definitions.length} total controlled catalogue definitions.</p>
       <div className="progress-grid"><article><strong>{progress.definition_count}</strong><span>Controlled definitions</span></article><article><strong>{progress.definitions_without_execution_count}</strong><span>Without execution</span></article><article><strong>{progress.execution_count}</strong><span>Executions started</span></article><article><strong>{progress.finalised_execution_count}</strong><span>Finalised</span></article><article><strong>{progress.pass_count}</strong><span>PASS</span></article><article><strong>{progress.fail_count}</strong><span>FAIL</span></article></div>
     </section>
     {definition !== undefined && <section className="panel" aria-labelledby="definition-title">

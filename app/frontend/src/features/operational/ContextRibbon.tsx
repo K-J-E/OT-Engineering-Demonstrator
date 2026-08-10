@@ -7,9 +7,9 @@ export function ContextRibbon({ projection }: { projection: WorkspaceProjection 
     <section className="context-ribbon" aria-label="Persistent run context">
       <div><span className="eyebrow">Mode</span><strong>{run.mode}</strong></div>
       <div><span className="eyebrow">Evidence class</span><strong>{run.evidence_class}</strong></div>
-      <div title={run.scenario_run_id}>
+      <div className="run-identity" title={run.scenario_run_id}>
         <span className="eyebrow">Scenario run</span><strong>{shortId(run.scenario_run_id)}</strong>
-        <span className="sr-only">Full identity {run.scenario_run_id}</span>
+        <code data-testid="full-run-id">{run.scenario_run_id}</code>
       </div>
       <div><span className="eyebrow">Configuration</span><strong>v{run.configuration_version}</strong></div>
       <div><span className="eyebrow">Active fault section</span><strong>{run.fault_section_id}</strong></div>
