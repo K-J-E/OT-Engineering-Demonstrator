@@ -202,31 +202,34 @@ class ScenarioCoordinator:
                 f"v{request.configuration_version}"
             )
             self._validate_definition(loaded)
+            if (
+                prior_run.application_build_id
+                != self._application_build_manifest.application_build_id
+            ):
+                raise ScenarioBoundaryError(
+                    "replacement initialisation cannot continue a run created by a different application build"
+                )
 
-            closed_run = prior_run.model_copy(
-                update={"status": ScenarioRunStatus.CLOSED}
-            )
-            unit.update_run(closed_run)
-            reset_events = self._events_from_specs(
+            closed_run, reset_events = self._close_run_and_preserve_history(
                 unit,
-                closed_run,
-                request.command_id,
-                request.actor,
-                (
-                    _EventSpec(
-                        OperationalEventSource.SCENARIO_CONTROL,
-                        OperationalEventType.SCENARIO_RESET,
-                        None,
-                        "Run closed for a controlled linked test; prior history is preserved.",
-                    ),
+                run=prior_run,
+                command_id=request.command_id,
+                actor=request.actor,
+                close_scenario_time=prior_run.scenario_time,
+                invalidation_description=(
+                    "Current restoration assessment invalidated by controlled linked-test replacement."
+                ),
+                reset_description=(
+                    "Run closed for a controlled linked test; prior history is preserved."
                 ),
             )
-            unit.insert_events(reset_events)
 
             new_run = self._new_run(
                 loaded=loaded,
                 scenario_time=request.scenario_time,
-                application_build_id=prior_run.application_build_id,
+                application_build_id=(
+                    self._application_build_manifest.application_build_id
+                ),
             )
             unit.insert_run(new_run)
             telemetry = self._normal_telemetry(loaded, new_run)
@@ -786,68 +789,19 @@ class ScenarioCoordinator:
         request: ScenarioCommandRequest,
         request_sha: str,
     ) -> CommandResult:
-        closed_run = run.model_copy(
-            update={
-                "scenario_time": request.scenario_time,
-                "status": ScenarioRunStatus.CLOSED,
-            }
-        )
-        unit.update_run(closed_run)
-        current_assessments = unit.list_assessments(run.scenario_run_id)
-        existing_invalidations = {
-            item.assessment_id
-            for item in unit.list_assessment_invalidations(run.scenario_run_id)
-        }
-        current_assessment = current_assessments[-1] if current_assessments else None
-        reset_specs: tuple[_EventSpec, ...] = (
-            *(
-                (
-                    _EventSpec(
-                        OperationalEventSource.ADMS_RESTORATION,
-                        OperationalEventType.RESTORATION_ASSESSMENT_INVALIDATED,
-                        (
-                            current_assessment.candidate.tie_device_id
-                            if current_assessment.candidate is not None
-                            else None
-                        ),
-                        "Current restoration assessment invalidated by controlled reset.",
-                        previous_value=current_assessment.outcome.value,
-                        new_value="INVALIDATED",
-                        assessment_id=current_assessment.assessment_id,
-                    ),
-                )
-                if current_assessment is not None
-                and current_assessment.assessment_id not in existing_invalidations
-                else ()
-            ),
-            _EventSpec(
-                OperationalEventSource.SCENARIO_CONTROL,
-                OperationalEventType.SCENARIO_RESET,
-                None,
-                "Run closed for controlled reset; prior history is preserved.",
-            ),
-        )
-        reset_event = self._events_from_specs(
+        closed_run, reset_event = self._close_run_and_preserve_history(
             unit,
-            closed_run,
-            request.command_id,
-            request.actor,
-            reset_specs,
+            run=run,
+            command_id=request.command_id,
+            actor=request.actor,
+            close_scenario_time=request.scenario_time,
+            invalidation_description=(
+                "Current restoration assessment invalidated by controlled reset."
+            ),
+            reset_description=(
+                "Run closed for controlled reset; prior history is preserved."
+            ),
         )
-        unit.insert_events(reset_event)
-        if current_assessment is not None and current_assessment.assessment_id not in existing_invalidations:
-            invalidation_event = reset_event[0]
-            unit.insert_assessment_invalidation(
-                AssessmentInvalidation(
-                    invalidation_id=uuid4(),
-                    assessment_id=current_assessment.assessment_id,
-                    scenario_run_id=run.scenario_run_id,
-                    superseding_state_revision=run.state_revision,
-                    superseding_scenario_time=request.scenario_time,
-                    reason_code="SCENARIO_RESET",
-                    event_id=invalidation_event.event_id,
-                )
-            )
         self._invoke_failure_hook("AFTER_PRIMARY_MUTATION")
 
         new_run = self._new_run(
@@ -896,6 +850,83 @@ class ScenarioCoordinator:
             result=result,
         )
         return result
+
+    def _close_run_and_preserve_history(
+        self,
+        unit: ScenarioUnitOfWork,
+        *,
+        run: RunContext,
+        command_id: UUID,
+        actor: str,
+        close_scenario_time: datetime,
+        invalidation_description: str,
+        reset_description: str,
+    ) -> tuple[RunContext, tuple[OperationalEvent, ...]]:
+        """Close a run using the accepted reset history/invalidation treatment."""
+
+        closed_run = run.model_copy(
+            update={
+                "scenario_time": close_scenario_time,
+                "status": ScenarioRunStatus.CLOSED,
+            }
+        )
+        unit.update_run(closed_run)
+        current_assessments = unit.list_assessments(run.scenario_run_id)
+        existing_invalidations = {
+            item.assessment_id
+            for item in unit.list_assessment_invalidations(run.scenario_run_id)
+        }
+        current_assessment = current_assessments[-1] if current_assessments else None
+        reset_specs: tuple[_EventSpec, ...] = (
+            *(
+                (
+                    _EventSpec(
+                        OperationalEventSource.ADMS_RESTORATION,
+                        OperationalEventType.RESTORATION_ASSESSMENT_INVALIDATED,
+                        (
+                            current_assessment.candidate.tie_device_id
+                            if current_assessment.candidate is not None
+                            else None
+                        ),
+                        invalidation_description,
+                        previous_value=current_assessment.outcome.value,
+                        new_value="INVALIDATED",
+                        assessment_id=current_assessment.assessment_id,
+                    ),
+                )
+                if current_assessment is not None
+                and current_assessment.assessment_id not in existing_invalidations
+                else ()
+            ),
+            _EventSpec(
+                OperationalEventSource.SCENARIO_CONTROL,
+                OperationalEventType.SCENARIO_RESET,
+                None,
+                reset_description,
+            ),
+        )
+        reset_event = self._events_from_specs(
+            unit,
+            closed_run,
+            command_id,
+            actor,
+            reset_specs,
+        )
+        unit.insert_events(reset_event)
+        if current_assessment is not None and current_assessment.assessment_id not in existing_invalidations:
+            invalidation_event = reset_event[0]
+            unit.insert_assessment_invalidation(
+                AssessmentInvalidation(
+                    invalidation_id=uuid4(),
+                    assessment_id=current_assessment.assessment_id,
+                    scenario_run_id=run.scenario_run_id,
+                    superseding_state_revision=run.state_revision,
+                    superseding_scenario_time=close_scenario_time,
+                    reason_code="SCENARIO_RESET",
+                    event_id=invalidation_event.event_id,
+                )
+            )
+        return closed_run, reset_event
 
     def _assess_restoration(
         self,

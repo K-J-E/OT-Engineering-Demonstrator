@@ -2,18 +2,35 @@
 
 import sqlite3
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
-from ot_demo.application.investigation_service import InvestigationBoundaryError, InvestigationService
-from ot_demo.application.scenario_coordinator import ScenarioCoordinator
-from ot_demo.domain.enums import OperationalEventType, RepeatRelationshipType, ValidationExecutionStatus, ValidationVerdict
-from ot_demo.infrastructure.build_identity import ApplicationBuildManifest, BuildIdentityPayload
+from ot_demo.application.investigation_service import (
+    InvestigationBoundaryError,
+    InvestigationService,
+)
+from ot_demo.application.scenario_coordinator import (
+    ScenarioBoundaryError,
+    ScenarioCoordinator,
+)
+from ot_demo.domain.enums import (
+    OperationalEventType,
+    RepeatRelationshipType,
+    ScenarioMode,
+    ValidationExecutionStatus,
+    ValidationVerdict,
+)
+from ot_demo.infrastructure.build_identity import (
+    ApplicationBuildManifest,
+    BuildIdentityPayload,
+)
 from ot_demo.infrastructure.configuration_loader import JsonConfigurationLoader
 from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ot_demo.infrastructure.investigation_repository import InvestigationRepository
 from ot_demo.infrastructure.scenario_repository import ScenarioRepository
 from ot_demo.infrastructure.validation_repository import ValidationRepository
+from ot_demo.modules.scenario.models import InitialiseRunRequest
 from ot_demo.modules.validation.catalogue import ValidationCatalogueLoader
 from ot_demo.modules.validation.service import ValidationService
 
@@ -39,28 +56,39 @@ MANIFEST = ApplicationBuildManifest(
     application_build_id=sha256_bytes(canonical_json_bytes(IDENTITY.model_dump(mode="json"))),
     identity=IDENTITY,
 )
+LATER_IDENTITY = IDENTITY.model_copy(update={"git_commit": "8" * 40})
+LATER_MANIFEST = ApplicationBuildManifest(
+    application_build_id=sha256_bytes(
+        canonical_json_bytes(LATER_IDENTITY.model_dump(mode="json"))
+    ),
+    identity=LATER_IDENTITY,
+)
 
 
-def service(tmp_path: Path) -> InvestigationService:
+def service(
+    tmp_path: Path,
+    *,
+    manifest: ApplicationBuildManifest = MANIFEST,
+) -> InvestigationService:
     loader = JsonConfigurationLoader(CONFIGURATIONS)
     scenarios = ScenarioCoordinator(
         ScenarioRepository(tmp_path / "scenario.sqlite3", MIGRATIONS),
         loader,
-        application_build_manifest=MANIFEST,
+        application_build_manifest=manifest,
     )
     validation_repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
     validation = ValidationService(
         validation_repository,
         ValidationCatalogueLoader(CATALOGUE),
         scenarios,
-        application_build_manifest=MANIFEST,
+        application_build_manifest=manifest,
     )
     return InvestigationService(
         InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
         loader,
         scenarios,
         validation,
-        application_build_manifest=MANIFEST,
+        application_build_manifest=manifest,
     )
 
 
@@ -147,3 +175,97 @@ def test_defect_correction_and_repeat_rows_reject_update_and_delete(tmp_path: Pa
                 connection.execute(f"UPDATE {table} SET payload_json = '{{}}'")
             with pytest.raises(sqlite3.IntegrityError, match="immutable"):
                 connection.execute(f"DELETE FROM {table}")
+
+
+@pytest.mark.i7
+def test_completed_chain_remains_reviewable_under_a_later_build(
+    tmp_path: Path,
+) -> None:
+    build_a = service(tmp_path)
+    chain = build_a.start_failure("Graduate Engineer")
+    failure_id = chain.original_failure.execution.validation_execution_id
+    build_a.record_defect(
+        failure_id,
+        "Independent Reviewer",
+        InvestigationService.REVIEW_STEP_IDS,
+    )
+    build_a.record_correction(failure_id, "Independent Reviewer")
+    build_a.run_direct_repeat(failure_id, "Graduate Engineer")
+    completed = build_a.run_regression(failure_id, "Graduate Engineer")
+
+    build_b = service(tmp_path, manifest=LATER_MANIFEST)
+    historical = build_b.workspace(failure_id)
+
+    assert historical.original_failure == completed.original_failure
+    assert historical.defect_record == completed.defect_record
+    assert historical.correction_record == completed.correction_record
+    assert historical.direct_repeat == completed.direct_repeat
+    assert historical.regression == completed.regression
+    assert historical.repeat_links == completed.repeat_links
+    assert historical.same_build_proven is True
+    assert (
+        historical.original_failure.execution.application_build_id
+        == MANIFEST.application_build_id
+    )
+    assert (
+        historical.original_failure.execution.application_build_id
+        != LATER_MANIFEST.application_build_id
+    )
+    assert all(not action.available for action in historical.actions)
+    assert {action.reason_code for action in historical.actions} == {
+        "HISTORICAL_BUILD_READ_ONLY"
+    }
+
+
+@pytest.mark.i7
+def test_incomplete_old_build_chain_is_historical_and_cannot_be_extended(
+    tmp_path: Path,
+) -> None:
+    build_a = service(tmp_path)
+    chain = build_a.start_failure("Graduate Engineer")
+    failure_id = chain.original_failure.execution.validation_execution_id
+    build_b = service(tmp_path, manifest=LATER_MANIFEST)
+
+    historical = build_b.workspace(failure_id)
+    assert historical.original_failure.execution == chain.original_failure.execution
+    assert all(not action.available for action in historical.actions)
+    assert {action.reason_code for action in historical.actions} == {
+        "HISTORICAL_BUILD_READ_ONLY"
+    }
+    with pytest.raises(InvestigationBoundaryError, match="historical and read-only"):
+        build_b.record_defect(
+            failure_id,
+            "Reviewer",
+            InvestigationService.REVIEW_STEP_IDS,
+        )
+    build_b_coordinator = ScenarioCoordinator(
+        ScenarioRepository(tmp_path / "scenario.sqlite3", MIGRATIONS),
+        JsonConfigurationLoader(CONFIGURATIONS),
+        application_build_manifest=LATER_MANIFEST,
+    )
+    with pytest.raises(ScenarioBoundaryError, match="different application build"):
+        build_b_coordinator.initialise_replacement_run(
+            InitialiseRunRequest(
+                command_id=uuid4(),
+                actor="Graduate Engineer",
+                mode=ScenarioMode.FORMAL,
+                configuration_version="1.1",
+                scenario_time=InvestigationService.FORMAL_EPOCH,
+            )
+        )
+
+    build_a.record_defect(
+        failure_id,
+        "Reviewer",
+        InvestigationService.REVIEW_STEP_IDS,
+    )
+    with pytest.raises(InvestigationBoundaryError, match="historical and read-only"):
+        build_b.record_correction(failure_id, "Reviewer")
+
+    build_a.record_correction(failure_id, "Reviewer")
+    with pytest.raises(InvestigationBoundaryError, match="historical and read-only"):
+        build_b.run_direct_repeat(failure_id, "Graduate Engineer")
+
+    build_a.run_direct_repeat(failure_id, "Graduate Engineer")
+    with pytest.raises(InvestigationBoundaryError, match="historical and read-only"):
+        build_b.run_regression(failure_id, "Graduate Engineer")

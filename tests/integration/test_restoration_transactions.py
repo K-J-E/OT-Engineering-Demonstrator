@@ -404,6 +404,56 @@ def test_time_only_binding_change_invalidates_old_assessment_without_revision(
     assert execution.available is False
 
 
+@pytest.mark.i7
+def test_replacement_run_preserves_and_invalidates_current_assessment(
+    tmp_path: Path,
+) -> None:
+    coordinator = service(tmp_path)
+    prior_run_id, _ = n3(coordinator)
+    n4 = assess(coordinator, prior_run_id, at(50))
+    assessment = n4.snapshot.restoration_assessments[-1]
+    assert assessment.outcome is RestorationOutcome.PERMITTED
+
+    replacement = coordinator.initialise_replacement_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=8),
+            actor="Graduate Engineer",
+            mode=ScenarioMode.FORMAL,
+            configuration_version="1.0",
+            scenario_time=T0,
+        )
+    )
+    prior = coordinator.snapshot(prior_run_id)
+
+    assert prior.run.status is ScenarioRunStatus.CLOSED
+    assert prior.run.scenario_time == at(50)
+    assert prior.restoration_assessments[-1] == assessment
+    assert (
+        prior.restoration_invalidations[-1].assessment_id
+        == assessment.assessment_id
+    )
+    assert prior.restoration_invalidations[-1].reason_code == "SCENARIO_RESET"
+    invalidation_event, reset_event = prior.events[-2:]
+    assert (
+        invalidation_event.event_type
+        is OperationalEventType.RESTORATION_ASSESSMENT_INVALIDATED
+    )
+    assert invalidation_event.assessment_id == assessment.assessment_id
+    assert prior.restoration_invalidations[-1].event_id == invalidation_event.event_id
+    assert reset_event.event_type is OperationalEventType.SCENARIO_RESET
+    assert {invalidation_event.event_id, reset_event.event_id} <= set(
+        replacement.new_event_ids
+    )
+    assert len({item.value for item in OperationalEventType}) == 15
+
+    assert replacement.snapshot.run.scenario_run_id != prior_run_id
+    assert replacement.snapshot.run.configuration_version == "1.0"
+    assert replacement.snapshot.run.network_state_label is NetworkStateLabel.N0
+    assert replacement.snapshot.run.state_revision == 0
+    assert replacement.snapshot.restoration_assessments == ()
+    assert replacement.snapshot.restoration_invalidations == ()
+
+
 @pytest.mark.i4
 def test_capacity_boundary_is_exact_integer_arithmetic() -> None:
     passing = RestorationService.calculate_capacity(

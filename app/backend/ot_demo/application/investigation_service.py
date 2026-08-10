@@ -137,12 +137,15 @@ class InvestigationService:
             direct is not None
             and direct.execution.application_build_id
             == failure.execution.application_build_id
-            == self._application_build_manifest.application_build_id
             and (
                 regression is None
                 or regression.execution.application_build_id
                 == failure.execution.application_build_id
             )
+        )
+        current_build = (
+            failure.execution.application_build_id
+            == self._application_build_manifest.application_build_id
         )
         return InvestigationWorkspace(
             original_failure=failure,
@@ -153,7 +156,13 @@ class InvestigationService:
             direct_repeat=direct,
             regression=regression,
             repeat_links=links,
-            actions=self._actions(defect, correction, direct, regression),
+            actions=self._actions(
+                defect,
+                correction,
+                direct,
+                regression,
+                current_build=current_build,
+            ),
             same_build_proven=same_build,
             conceptual_boundary_notice=self.NOTICE,
         )
@@ -168,7 +177,7 @@ class InvestigationService:
             raise InvestigationBoundaryError(
                 "all seven consequence-to-source steps must be reviewed in order before recording DEF-001"
             )
-        failure = self._failure(failure_execution_id)
+        failure = self._current_build_failure(failure_execution_id)
         steps, comparison = self._investigation_projection(failure)
         difference = comparison.differences[0]
         evidence = failure.evidence_snapshots[0]
@@ -223,7 +232,7 @@ class InvestigationService:
     def record_correction(
         self, failure_execution_id: UUID, reviewer: str
     ) -> InvestigationWorkspace:
-        failure = self._failure(failure_execution_id)
+        failure = self._current_build_failure(failure_execution_id)
         defect = self._required_defect(failure_execution_id)
         _steps, comparison = self._investigation_projection(failure)
         record = CorrectionRecord(
@@ -256,7 +265,7 @@ class InvestigationService:
     def run_direct_repeat(
         self, failure_execution_id: UUID, actor: str
     ) -> InvestigationWorkspace:
-        failure = self._failure(failure_execution_id)
+        failure = self._current_build_failure(failure_execution_id)
         defect = self._required_defect(failure_execution_id)
         correction = self._required_correction(defect)
         if self._link(defect, RepeatRelationshipType.DIRECT_REPEAT) is not None:
@@ -303,7 +312,7 @@ class InvestigationService:
     def run_regression(
         self, failure_execution_id: UUID, actor: str
     ) -> InvestigationWorkspace:
-        failure = self._failure(failure_execution_id)
+        failure = self._current_build_failure(failure_execution_id)
         defect = self._required_defect(failure_execution_id)
         correction = self._required_correction(defect)
         direct_link = self._link(defect, RepeatRelationshipType.DIRECT_REPEAT)
@@ -367,14 +376,25 @@ class InvestigationService:
             or execution.status is not ValidationExecutionStatus.FINALISED
             or execution.verdict is not ValidationVerdict.FAIL
             or execution.configuration_version != "1.0"
-            or execution.application_build_id
-            != self._application_build_manifest.application_build_id
             or len(summary.evidence_snapshots) != 1
         ):
             raise InvestigationBoundaryError(
-                "investigation entry requires the current-build finalised v1.0 VT-TOP-DEF-001 FAIL"
+                "investigation entry requires a preserved finalised v1.0 VT-TOP-DEF-001 FAIL"
             )
         return summary
+
+    def _current_build_failure(
+        self, execution_id: UUID
+    ) -> ValidationExecutionSummary:
+        failure = self._failure(execution_id)
+        if (
+            failure.execution.application_build_id
+            != self._application_build_manifest.application_build_id
+        ):
+            raise InvestigationBoundaryError(
+                "an investigation created by a different application build is historical and read-only"
+            )
+        return failure
 
     def _investigation_projection(
         self, failure: ValidationExecutionSummary
@@ -630,7 +650,27 @@ class InvestigationService:
         correction: CorrectionRecord | None,
         direct: ValidationExecutionSummary | None,
         regression: ValidationExecutionSummary | None,
+        *,
+        current_build: bool,
     ) -> tuple[InvestigationAction, ...]:
+        if not current_build:
+            return tuple(
+                InvestigationAction(
+                    action_type=action_type,
+                    available=False,
+                    reason_code="HISTORICAL_BUILD_READ_ONLY",
+                    reason=(
+                        "This investigation belongs to an earlier application build; "
+                        "its preserved records are review-only."
+                    ),
+                )
+                for action_type in (
+                    "RECORD_DEFECT",
+                    "RECORD_CORRECTION",
+                    "RUN_DIRECT_REPEAT",
+                    "RUN_REGRESSION",
+                )
+            )
         return (
             InvestigationAction(
                 action_type="RECORD_DEFECT",
