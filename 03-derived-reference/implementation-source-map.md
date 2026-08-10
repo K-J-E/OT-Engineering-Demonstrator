@@ -50,6 +50,6 @@ For controlled definition, execution, checkpoint, comparison and evidence work, 
 5. Demonstrator Design Sections 8.7, 9, 10.5, 12, 19, 21–22 and 27–28 for module, persistence and interface decisions; and
 6. Validation Plan Sections 3–15 and 17–18 in full, including all 24 catalogue/procedure rows and the exact 124-row RTM.
 
-Current gate: I4 is the accepted implementation baseline. I5 is implemented at commit `4a5c8e7916a6053a5e149150b032475fa6240a27` on `agent/i5-validation-evidence` and is pending independent review; it is not merged or accepted yet. **I6 has not begun and requires separate user authorisation after I5 acceptance.**
+Current gate: I4 is the accepted implementation baseline. Independent review accepted I5 in substance; QA-031/QA-032 corrections are implemented at `c8ac8db63ba275d24cdf8b92dcaa487bd2ee3170` on `agent/i5-validation-evidence` and are pending independent re-review. I5 is not merged or accepted yet. **I6 has not begun and requires separate user authorisation after I5 acceptance.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.

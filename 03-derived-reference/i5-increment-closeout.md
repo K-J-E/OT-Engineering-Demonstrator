@@ -1,5 +1,5 @@
 ---
-Status: I5 complete — pending independent review
+Status: I5 assurance corrections complete — pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -20,6 +20,11 @@ The bounded implementation commit is
 execution and evidence records, generic expected-versus-observed comparison,
 backend-controlled provenance, reset/repeat preservation and the approved direct
 DEF-001 v1.0/v1.1 comparison.
+
+Independent review accepted I5 in substance and requested two bounded assurance
+corrections. Commit `c8ac8db63ba275d24cdf8b92dcaa487bd2ee3170`
+implements QA-031 and QA-032 without changing catalogue content, mappings,
+expected results, engineering behaviour, configuration packages or dependencies.
 
 I2 remains authoritative for topology, energisation, source attribution,
 radiality, isolation and outage/customer results. I3 remains authoritative for
@@ -102,6 +107,14 @@ EVT 11, VAL 14, CFG 12 and NFR 9. Loader tests reject a missing/extra definition
 duplicate ID, contradictory Exploration evidence class, invalid manifest identity
 or byte-level catalogue tamper.
 
+QA-032 adds an independent test-only oracle calculated directly from the accepted
+Validation Plan Section 15 table. The authoritative table contains exactly 286
+sorted `(test_id, requirement_id)` relationships and has canonical SHA-256
+`53ecf30a7f59bb294410a1b5abbd0b9e014f02ea294f674d9a0ba22ddaf604c8`.
+The machine catalogue matches it exactly. A mutation test moves one requirement to
+the wrong test while retaining all 124 requirement IDs and all 286 relationships;
+the exact oracle rejects it. No catalogue mapping required correction.
+
 The catalogue byte hash is
 `e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1`.
 Each execution additionally stores the canonical SHA-256 of its individual
@@ -146,7 +159,11 @@ content or inventing a verdict.
 Final records preserve expected and observed results, calculations/comparison
 rows, evidence IDs, verdict/reason, and all provenance/link fields. SQLite triggers
 reject verdict rewrite, execution update/delete and evidence update/delete after
-finalisation. Operational events remain in their original tables and exact
+finalisation. QA-031 adds a database-level evidence-insert guard: once the parent
+execution is `FINALISED`, an otherwise valid new checkpoint/evidence row is
+rejected. The final immutable `evidence_snapshot_ids` is verified to equal the
+persisted evidence rows exactly; active checkpoint capture remains unchanged.
+Operational events remain in their original tables and exact
 15-type enum; no PASS, FAIL, defect, correction or engineering-review record is
 created as an operational event.
 
@@ -190,18 +207,23 @@ calculations under the same build/definition/configuration.
 | `VT-TOP-DEF-001` | Same-build v1.0 400-customer FAIL and linked v1.1 850-customer PASS are separate immutable records. | I5 controlled direct execution PASS. |
 | `VT-CFG-INV-001` | DEF-001/COR-001 failure/correction/repeat linkage fields exist without I7 workflow. | Authorised I5 record/linkage portion PASS. |
 | `VT-DET-REPEAT-001` | New execution/run/evidence IDs, explicit repeat link and equal canonical observed/calculation content. | Authorised I5 portion PASS. |
-| All 24 definitions / 124 RTM rows | Exact count/IDs, accepted row content, 124 unique mapped requirements and evidence/checkpoint obligations. | Machine-definition gate PASS; not a claim of full campaign execution. |
+| All 24 definitions / 124 RTM rows | Exact count/IDs, accepted row content, 124 unique mapped requirements, exact 286-pair Section 15 relationship and evidence/checkpoint obligations. | Machine-definition and exact-RTM gate PASS; not a claim of full campaign execution. |
+| QA-031 evidence-set closure | Database insert guard rejects post-finalisation evidence; final evidence IDs exactly match returned rows. | Correction PASS — pending independent re-review. |
+| QA-032 exact RTM oracle | Independent Section 15 fingerprint matches; wrong-test mutation fails despite unchanged 124-ID coverage. | Correction PASS — pending independent re-review. |
 
 ## 8. Verification results and controlled identities
 
 | Verification | Result |
 |---|---|
-| I5-marked backend suite | PASS — 13 tests |
-| Complete backend unit/integration suite | PASS — 95 tests |
-| I1–I4 regression included in full suite | PASS |
+| I5-marked backend suite | PASS — 15 tests |
+| Complete backend unit/integration suite | PASS — 97 tests |
+| I1 regression | PASS — 11 tests |
+| I2 regression | PASS — 31 tests |
+| I3 regression | PASS — 20 tests |
+| I4 regression | PASS — 17 tests |
 | Same-build v1.0 FAIL / v1.1 PASS | PASS — 400 versus 850 exact accepted consequences |
 | Reset, repeat, provenance, class separation and immutable-trigger gates | PASS |
-| Catalogue exact-count/ID/124-row coverage and tamper tests | PASS |
+| Catalogue exact-count/ID/124-row coverage, exact 286-pair RTM and tamper tests | PASS |
 | Pinned TypeScript/Vite production build | PASS — Node 24.19.0 / npm 11.17.0 |
 | Python dependency consistency | PASS — no broken requirements |
 | Git whitespace check | PASS |
@@ -211,14 +233,14 @@ calculations under the same build/definition/configuration.
 | Dependencies/locks | PASS — unchanged |
 | Authoritative engineering/change-control artefacts | PASS — unchanged |
 
-The clean application build identity captured at implementation commit
-`4a5c8e7916a6053a5e149150b032475fa6240a27` is:
+The clean application build identity captured at QA-031/QA-032 correction commit
+`c8ac8db63ba275d24cdf8b92dcaa487bd2ee3170` is:
 
-`daed4ed601c0c6f4fb50b2d5425e44eec08ec3f0a319e2aa8fc658e70aa53676`
+`a22d49f926180e1a5d4ae6bc08e5001c0f43c1f21268b3a2082d6687a913ad3a`
 
 Its identity records `git_dirty = false`, Python 3.13.15, Node.js 24.19.0,
 npm 11.17.0, accepted dependency-lock hashes, backend source hash
-`c4dbf9a1050023d663d253a9b1e30684e8ba9a5507ffa7d587ed05b6b7876c16`
+`77af439e7940edc427004883deb0f5663c1d3956d773ac70d69c39d16bb680c3`
 and unchanged frontend bundle hash
 `1e6d5ebc33a8e11a06fcb929603af00386a471b13e381e25f3cc3dfb9bde4305`.
 
@@ -233,10 +255,16 @@ The accepted canonical configuration identities remain:
 
 ## 9. QA findings and V2 candidate
 
-No new engineering contradiction or legitimate implementation defect was found
-during I5. No new QA identifier was created merely to describe normal increment
-work. QA-007 and QA-009 now record the completed I5 implementation treatment as
-pending independent review; no previously closed item was reopened.
+Independent review raised QA-031 because the existing database controls did not
+close the evidence set against a new insert after execution finalisation. The new
+insert trigger and regression close the implementation gap pending independent
+re-review.
+
+Independent review raised QA-032 because the initial assurance test proved the
+124-ID union and group totals but not every exact Section 15 relationship. The
+independent 286-pair fingerprint and mapping-mutation negative close that assurance
+gap pending independent re-review. The independent comparison found no actual
+catalogue mismatch. No previously closed item was reopened.
 
 **V2 Automation Candidate — validation evidence completeness and RTM impact.**
 Capturing/checking checkpoint content, recomputing definition and evidence hashes,
@@ -258,8 +286,9 @@ I9 may execute/package the full accepted campaign. None has begun.
 
 ## 11. Review and progression gate
 
-I5 is complete on `agent/i5-validation-evidence` and is being pushed for
-independent review. It is not merged and is not yet the accepted implementation
-baseline. The accepted baseline remains reviewed `main` through I4.
+The QA-031/QA-032 corrections are complete on
+`agent/i5-validation-evidence` and are being pushed for independent re-review. I5
+is not merged and is not yet the accepted implementation baseline. The accepted
+baseline remains reviewed `main` through I4.
 
 **I6 has not started. No later increment may begin automatically.**
