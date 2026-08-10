@@ -1,0 +1,24 @@
+{
+  "presentation_id": "NETWORK-ONE-LINE-V1",
+  "authority": "Presentation metadata only — never consumed by topology processing",
+  "positions": {
+    "ZS-01": {"x": 80, "y": 330},
+    "BRK-A": {"x": 220, "y": 160},
+    "SEC-A1": {"x": 360, "y": 160},
+    "SW-A12": {"x": 500, "y": 160},
+    "SEC-A2": {"x": 640, "y": 160},
+    "SW-A23": {"x": 780, "y": 160},
+    "SEC-A3": {"x": 920, "y": 160},
+    "SW-A34": {"x": 1060, "y": 160},
+    "SEC-A4": {"x": 1200, "y": 160},
+    "BRK-B": {"x": 220, "y": 500},
+    "SEC-B1": {"x": 360, "y": 500},
+    "SW-B12": {"x": 500, "y": 500},
+    "SEC-B2": {"x": 640, "y": 500},
+    "SW-B23": {"x": 780, "y": 500},
+    "SEC-B3": {"x": 920, "y": 500},
+    "SW-B34": {"x": 1060, "y": 500},
+    "SEC-B4": {"x": 1200, "y": 500},
+    "TS-01": {"x": 1360, "y": 330}
+  }
+}

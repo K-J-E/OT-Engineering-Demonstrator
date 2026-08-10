@@ -1,9 +1,11 @@
-"""Versioned local API foundation through I5 without an operational UI."""
+"""Versioned local API foundation through the authorised I6 workspace."""
 
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..application.scenario_coordinator import (
     ScenarioBoundaryError,
@@ -11,6 +13,7 @@ from ..application.scenario_coordinator import (
     ScenarioCoordinator,
     ScenarioRecordNotFound,
 )
+from ..application.workspace_service import WorkspaceProjectionError, WorkspaceService
 from ..modules.events.models import OperationalEvent
 from ..modules.scenario.models import (
     CommandResult,
@@ -18,28 +21,84 @@ from ..modules.scenario.models import (
     ScenarioCommandRequest,
     ScenarioSnapshot,
 )
-from ..domain.enums import EvidenceClass
+from ..domain.enums import EvidenceClass, ScenarioCommandType, ScenarioMode, SwitchState
 from ..infrastructure.validation_repository import ValidationRecordNotFound
 from ..modules.validation.models import (
     CaptureValidationCheckpointRequest,
     EvidenceSnapshot,
     FinaliseValidationExecutionRequest,
     StartValidationExecutionRequest,
+    ValidationExecutionLinks,
     ValidationExecution,
     ValidationExecutionSummary,
 )
 from ..modules.validation.service import ValidationBoundaryError, ValidationService
+from ..modules.workspace.models import WorkspaceBootstrap, WorkspaceProjection
+
+
+class _ApiRequest(BaseModel):
+    """Permissive JSON transport model; converted to a strict domain contract."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class InitialiseRunPayload(_ApiRequest):
+    command_id: UUID
+    actor: str = Field(min_length=1, max_length=120)
+    expected_revision: int = Field(default=0, ge=0, le=0)
+    mode: ScenarioMode
+    configuration_version: str
+    scenario_time: datetime
+
+    def to_domain(self) -> InitialiseRunRequest:
+        return InitialiseRunRequest.model_validate(self.model_dump())
+
+
+class ScenarioCommandPayload(_ApiRequest):
+    command_id: UUID
+    scenario_run_id: UUID
+    actor: str = Field(min_length=1, max_length=120)
+    expected_revision: int = Field(ge=0)
+    command_type: ScenarioCommandType
+    scenario_time: datetime
+    target_entity_id: str | None = None
+    requested_state: SwitchState | None = None
+    alarm_id: UUID | None = None
+    assessment_id: UUID | None = None
+
+    def to_domain(self) -> ScenarioCommandRequest:
+        return ScenarioCommandRequest.model_validate(self.model_dump())
+
+
+class ValidationExecutionLinksPayload(_ApiRequest):
+    repeat_of_execution_id: UUID | None = None
+    defect_id: str | None = None
+    correction_id: str | None = None
+
+
+class StartValidationExecutionPayload(_ApiRequest):
+    test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    scenario_run_id: UUID
+    links: ValidationExecutionLinksPayload = ValidationExecutionLinksPayload()
+
+    def to_domain(self) -> StartValidationExecutionRequest:
+        return StartValidationExecutionRequest(
+            test_id=self.test_id,
+            scenario_run_id=self.scenario_run_id,
+            links=ValidationExecutionLinks.model_validate(self.links.model_dump()),
+        )
 
 
 def create_app(
     coordinator: ScenarioCoordinator | None = None,
     validation_service: ValidationService | None = None,
+    workspace_service: WorkspaceService | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="OT Graduate Demonstrator",
-        version="0.5.0",
+        version="0.6.0",
         description=(
-            "Fictional local engineering demonstrator — scenario and I5 evidence API"
+            "Fictional local engineering demonstrator — scenario, evidence and I6 workspace API"
         ),
     )
 
@@ -59,10 +118,37 @@ def create_app(
             )
         return validation_service
 
-    @app.post("/api/v1/runs", response_model=CommandResult)
-    def initialise_run(request: InitialiseRunRequest) -> CommandResult:
+    def workspace() -> WorkspaceService:
+        if workspace_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Operational workspace service is not configured for this process.",
+            )
+        return workspace_service
+
+    @app.get("/api/v1/workspace/bootstrap", response_model=WorkspaceBootstrap)
+    def get_workspace_bootstrap() -> WorkspaceBootstrap:
         try:
-            return service().initialise(request)
+            return workspace().bootstrap()
+        except WorkspaceProjectionError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/workspace/runs/{scenario_run_id}",
+        response_model=WorkspaceProjection,
+    )
+    def get_workspace_projection(scenario_run_id: UUID) -> WorkspaceProjection:
+        try:
+            return workspace().projection(scenario_run_id)
+        except ScenarioRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except WorkspaceProjectionError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post("/api/v1/runs", response_model=CommandResult)
+    def initialise_run(request: InitialiseRunPayload) -> CommandResult:
+        try:
+            return service().initialise(request.to_domain())
         except (ScenarioBoundaryError, ScenarioCommandConflict) as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
 
@@ -72,10 +158,10 @@ def create_app(
     )
     def execute_command(
         scenario_run_id: UUID,
-        request: ScenarioCommandRequest,
+        request: ScenarioCommandPayload,
     ) -> CommandResult | JSONResponse:
         try:
-            result = service().execute(scenario_run_id, request)
+            result = service().execute(scenario_run_id, request.to_domain())
         except ScenarioRecordNotFound as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except (ScenarioBoundaryError, ScenarioCommandConflict) as error:
@@ -112,13 +198,14 @@ def create_app(
         response_model=ValidationExecution,
     )
     def start_validation_execution(
-        request: StartValidationExecutionRequest,
+        request: StartValidationExecutionPayload,
     ) -> ValidationExecution:
         try:
+            domain_request = request.to_domain()
             return validation().start_execution(
-                request.test_id,
-                request.scenario_run_id,
-                links=request.links,
+                domain_request.test_id,
+                domain_request.scenario_run_id,
+                links=domain_request.links,
             )
         except ValidationRecordNotFound as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
