@@ -85,6 +85,6 @@ For corrected-v1.1 Exploration Mode and immutable evidence-package export, read 
 
 I8 consumes the accepted I2 topology/outage, I3 transaction/event, I4 restoration, I5 validation/evidence, I6 projection and I7 investigation authorities. Runtime engineering results must remain configuration-driven; answer-key section/boundary/outcome values belong only in tests. Evidence ZIPs are assembled from immutable preserved execution/evidence records and remain explicitly FORMAL or EXPLORATORY.
 
-Current gate: I7 remains the accepted implementation baseline on `main`. I8 has been implemented and verified on dedicated branch `agent/i8-exploration-export` and is **pending independent review; it is not accepted or authorised for merge**. **I9 has not begun and is not authorised.**
+Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263` and administrative incorporation of the reviewed history into `main`. **I9 has not begun and requires separate user authorisation.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.

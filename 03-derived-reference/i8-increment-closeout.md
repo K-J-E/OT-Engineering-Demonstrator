@@ -1,5 +1,5 @@
 ---
-Status: I8 implemented and verified — pending independent review
+Status: Accepted I8 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -14,6 +14,13 @@ The user explicitly authorised I8 only. Branch
 `agent/i8-exploration-export` was created from exact accepted I7 `main`
 commit `b5cf733e2ebc30f7fd38e05b6e11377bc2ce540c` after verifying the clean,
 synchronised I7 baseline.
+
+Final independent engineering/implementation review accepted the complete I8
+branch at reviewed tip `111df44a425731dc7f44c437c1d675e5dac85263`.
+QA-008 is accepted as implemented under the I8 baseline and QA-040 is
+independently verified closed. This acceptance update is administrative only;
+it changes no engineering behaviour, implementation logic, controlled package,
+authoritative artefact or dependency.
 
 I8 implements corrected-v1.1 Exploration Mode and immutable evidence ZIP
 export. It consumes the accepted I1 configuration/build identity, I2
@@ -167,7 +174,7 @@ the regression remains ACTIVE / NOT DETERMINED.
 
 ## 7. QA disposition
 
-QA-008 is implemented and accepted in substance by independent I8 review.
+QA-008 is accepted as implemented under the I8 baseline.
 QA-040 records that the first Exploration action projection reused a single
 lexically ordered "next target" result, allowing an earlier `UNPROVEN` boundary
 to suppress another independently `PROVEN_CLOSED` incident boundary. The
@@ -176,7 +183,8 @@ EXPLORATION a per-actual-boundary evidence gate shared by projection and command
 acceptance. Both SEC-A2 asymmetric permutations prove order independence;
 post-operation evidence proves the operated boundary becomes `PROVEN_OPEN`, the
 other remains `UNPROVEN`, overall isolation remains false and full action/proof
-recalculation occurs. QA-040 is pending independent re-review.
+recalculation occurs. Final independent review verified QA-040 closed under the
+accepted I8 baseline.
 
 The accepted QA-003, QA-007, QA-009, QA-014, QA-027, QA-031, QA-032 and
 QA-034–QA-039 controls remain under passing regression. No authoritative
@@ -184,7 +192,8 @@ engineering change or new design decision was required.
 
 The current-baseline manifest, README, implementation control plan, source map
 and QA register were refreshed as derived navigation/control aids. Their update
-does not accept I8 or alter authoritative engineering meaning.
+records the accepted I8 status without altering authoritative engineering
+meaning.
 
 ## 8. Verification evidence
 
@@ -258,9 +267,9 @@ Accepted controlled hashes remain:
 
 ## 10. Review gate
 
-I7 remains the accepted implementation baseline on `main`. I8 is committed on
-its dedicated branch for independent review and is not accepted or authorised
-for merge. I9 has not begun and remains separately unauthorised.
+I8 is the accepted implementation baseline. The reviewed I8 history and this
+administrative acceptance record are authorised for fast-forward incorporation
+into `main`. I9 has not begun and remains separately unauthorised.
 
 ## V2 Automation Candidate
 
