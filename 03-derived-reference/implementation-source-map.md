@@ -12,6 +12,7 @@ This file is a navigation aid only. It is not a replacement for the detailed doc
 - Practical application/module boundaries, data structures and ownership, persistence and IDs, API/transaction design, views/actions, evidence export, defect presentation, technology decisions and implementation increments: `OT Project Demonstrator Design.docx`
 - Controlled test catalogue, deterministic scenario time, expected outcomes, negative-test interpretation, Exploration verification, evidence strategy and 124-requirement verification mapping: `OT Project Validation Plan.docx`
 - Accepted generic active-fault isolation rule, A/B/C boundary evidence conditions, eight-section v1.1 incidence answer key, all-open plus zero-source-path proof and application verification: `DC-003-generic-active-fault-isolation-boundary-derivation.md` together with the applied sections in the six authoritative Word artefacts
+- Proposed multi-run exploratory validation determination: `DC-004-multi-run-exploratory-validation-determination.md` together with proposed Validation Plan Section 19 and Demonstrator Design Section 36. This proposal is review material only until independently accepted and applied.
 
 ## Mandatory implementation discipline
 When coding begins:
@@ -85,6 +86,16 @@ For corrected-v1.1 Exploration Mode and immutable evidence-package export, read 
 
 I8 consumes the accepted I2 topology/outage, I3 transaction/event, I4 restoration, I5 validation/evidence, I6 projection and I7 investigation authorities. Runtime engineering results must remain configuration-driven; answer-key section/boundary/outcome values belong only in tests. Evidence ZIPs are assembled from immutable preserved execution/evidence records and remain explicitly FORMAL or EXPLORATORY.
 
-Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263` and administrative incorporation of the reviewed history into `main`. **I9 has not begun and requires separate user authorisation.**
+## Proposed DC-004 review reading path
+
+For review of the stopped I9 multi-run Exploration determination, read:
+
+1. proposed DC-004 in full;
+2. Validation Plan Sections 3–4, 7–8, 12–15 and proposed Section 19;
+3. Demonstrator Design Sections 8.7, 9, 19–21, 28 and proposed Section 36;
+4. accepted I5 validation/evidence and I8 exploration/export closeouts; and
+5. the unchanged catalogue rows for `VT-EXP-ALL-001` and `VT-EXP-ROLE-001` as the pre-change identity.
+
+Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263` and administrative incorporation of the reviewed history into `main`. **I9 was authorised but stopped before implementation at the multi-run Exploration determination gap. Proposed DC-004 is pending independent review; I9 must not resume under this proposal.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.
