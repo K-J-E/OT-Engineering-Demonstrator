@@ -294,7 +294,7 @@ class TopologyService:
         for component in nx.connected_components(graph):
             subgraph = graph.subgraph(component)
             injections = set(component) & set(injection_by_breaker)
-            if not nx.is_tree(subgraph) or len(injections) > 1:
+            if injections and (not nx.is_tree(subgraph) or len(injections) > 1):
                 invalid_components.append(tuple(sorted(set(component) & section_ids)))
         if invalid_components:
             return RadialityStatus.UNINTENDED_LOOP, tuple(sorted(invalid_components))

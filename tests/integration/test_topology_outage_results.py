@@ -7,7 +7,7 @@ import pytest
 from ot_demo.domain.enums import FreshnessStatus, SwitchState, TelemetryQuality
 from ot_demo.infrastructure.configuration_loader import JsonConfigurationLoader
 from ot_demo.modules.configuration.models import LoadedConfiguration
-from ot_demo.modules.outage import OutageService
+from ot_demo.modules.outage import OutageConfigurationMismatch, OutageService
 from ot_demo.modules.topology import BoundaryObservation, TopologyInputs, TopologyService
 
 
@@ -52,7 +52,7 @@ def calculate(
             boundary_observations=observations,
         ),
     )
-    outage = OutageService().calculate(loaded.data, topology)
+    outage = OutageService().calculate(loaded, topology)
     return topology, outage
 
 
@@ -152,7 +152,7 @@ def test_outage_recalculation_reports_restored_customer_delta(
     )
     normal_topology, _ = calculate(loaded)
     restored = OutageService().calculate(
-        loaded.data,
+        loaded,
         normal_topology,
         previous=n1_outage,
     )
@@ -160,3 +160,71 @@ def test_outage_recalculation_reports_restored_customer_delta(
     assert n1_topology.configuration_id == normal_topology.configuration_id
     assert restored.affected_customer_count == 0
     assert restored.restored_customer_delta == 850
+
+
+@pytest.mark.i2
+def test_outage_rejects_topology_from_another_configuration(
+    loader: JsonConfigurationLoader,
+) -> None:
+    v10 = loader.load("v1.0")
+    v11 = loader.load("v1.1")
+    v10_topology, _ = calculate(v10)
+
+    with pytest.raises(
+        OutageConfigurationMismatch,
+        match="different configuration identities",
+    ):
+        OutageService().calculate(v11, v10_topology)
+
+
+@pytest.mark.i2
+def test_outage_rejects_previous_state_from_another_configuration(
+    loader: JsonConfigurationLoader,
+) -> None:
+    v10 = loader.load("v1.0")
+    v11 = loader.load("v1.1")
+    _, v10_outage = calculate(
+        v10,
+        device_overrides={"BRK-A": SwitchState.OPEN},
+    )
+    v11_topology, _ = calculate(v11)
+
+    with pytest.raises(
+        OutageConfigurationMismatch,
+        match="previous and current outage states",
+    ):
+        OutageService().calculate(v11, v11_topology, previous=v10_outage)
+
+
+@pytest.mark.i2
+def test_restored_customer_delta_uses_customer_zone_identity_not_net_counts(
+    loader: JsonConfigurationLoader,
+) -> None:
+    loaded = loader.load("v1.1")
+    _, previous = calculate(
+        loaded,
+        device_overrides={
+            "BRK-A": SwitchState.OPEN,
+            "SW-A23": SwitchState.OPEN,
+            "TS-01": SwitchState.CLOSED,
+        },
+    )
+    current_topology, _ = calculate(
+        loaded,
+        device_overrides={
+            "SW-A12": SwitchState.OPEN,
+            "SW-A34": SwitchState.OPEN,
+            "TS-01": SwitchState.CLOSED,
+        },
+    )
+    current = OutageService().calculate(
+        loaded,
+        current_topology,
+        previous=previous,
+    )
+
+    assert previous.de_energised_section_ids == ("SEC-A1", "SEC-A2")
+    assert previous.affected_customer_count == 400
+    assert current.de_energised_section_ids == ("SEC-A2", "SEC-A3")
+    assert current.affected_customer_count == 480
+    assert current.restored_customer_delta == 180

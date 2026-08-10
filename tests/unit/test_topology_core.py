@@ -1,5 +1,6 @@
 """I2 topology domain: REQ-TOP-001–009, REQ-NFR-003/009, DC-003."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,7 @@ from ot_demo.domain.enums import (
     SwitchState,
     TelemetryQuality,
 )
+from ot_demo.domain.configuration import NetworkConfigurationData
 from ot_demo.infrastructure.configuration_loader import JsonConfigurationLoader
 from ot_demo.modules.configuration.models import LoadedConfiguration
 from ot_demo.modules.topology import BoundaryObservation, TopologyInputs, TopologyService
@@ -71,6 +73,24 @@ def trustworthy(device_id: str, state: SwitchState) -> BoundaryObservation:
         observed_state=state,
         quality=TelemetryQuality.GOOD,
         freshness_status=FreshnessStatus.FRESH,
+    )
+
+
+def cyclic_fixture(v11: LoadedConfiguration) -> LoadedConfiguration:
+    """Create a validated lower-level fixture without editing the canonical package."""
+
+    payload = v11.data.model_dump(mode="json")
+    for edge in payload["connectivity_edges"]:
+        if edge["edge_id"] == "EDGE-SW-A23-2":
+            edge["endpoint_b_id"] = "SEC-A1"
+    data = NetworkConfigurationData.model_validate_json(
+        json.dumps(payload),
+        strict=True,
+    )
+    return LoadedConfiguration(
+        catalog_entry=v11.catalog_entry,
+        manifest=v11.manifest,
+        data=data,
     )
 
 
@@ -158,6 +178,34 @@ def test_closed_tie_with_two_active_feeder_sources_is_not_radial(
         and not load.load_attribution_complete
         for load in result.feeder_loads
     )
+
+
+@pytest.mark.i2
+def test_energised_cyclic_component_is_an_unintended_loop(
+    v11: LoadedConfiguration,
+) -> None:
+    fixture = cyclic_fixture(v11)
+    result = TopologyService().calculate(fixture, inputs_for(fixture))
+
+    assert result.radiality_status is RadialityStatus.UNINTENDED_LOOP
+    assert result.unintended_loop_component_section_ids == (("SEC-A1", "SEC-A2"),)
+
+
+@pytest.mark.i2
+def test_de_energised_cyclic_component_is_not_an_unintended_energised_loop(
+    v11: LoadedConfiguration,
+) -> None:
+    fixture = cyclic_fixture(v11)
+    result = TopologyService().calculate(
+        fixture,
+        inputs_for(fixture, device_overrides={"BRK-A": SwitchState.OPEN}),
+    )
+    sections = {section.section_id: section for section in result.sections}
+
+    assert result.radiality_status is RadialityStatus.RADIAL
+    assert result.unintended_loop_component_section_ids == ()
+    assert sections["SEC-A1"].energised is False
+    assert sections["SEC-A2"].energised is False
 
 
 @pytest.mark.i2
