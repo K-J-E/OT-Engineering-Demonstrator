@@ -27,9 +27,11 @@ autonomous correction, real switching/control, new operational-event type,
 engineering rule or authoritative-document change was added.
 
 Independent review accepted I7 in substance and accepted QA-036's bounded
-cross-configuration replacement-run concept in principle. Correction commit
-`ae645053af1cf6b464bf411166b328f0b6abc1d3` addresses the two targeted
-assurance findings QA-037 and QA-038 without redesigning the increment.
+cross-configuration replacement-run concept. Correction commit
+`ae645053af1cf6b464bf411166b328f0b6abc1d3` addressed QA-037 and QA-038;
+independent re-review verified both closed. Final bounded presentation commit
+`f32ab569b22624b325b0029fae6daa8e92fa23aa` addresses QA-039 without
+changing backend provenance semantics or redesigning the increment.
 
 ## 2. Mandatory sources and requirements
 
@@ -118,8 +120,7 @@ a new run using a different already-approved package. The bounded replacement-ru
 operation preserves history, closes the previous mutable run, emits only the
 existing operational-event types and loads v1.1 through the accepted
 configuration authority under the same build. It changes neither reset semantics
-nor package contents. Independent I7 review accepted this concept in principle;
-final I7 acceptance remains pending.
+nor package contents. Independent I7 re-review accepts QA-036 for the I7 baseline.
 
 QA-037 records that the first historical workspace read reused the current-build
 mutation guard, which made a completed chain unreadable after the executable
@@ -130,7 +131,7 @@ the failure build; historical actions are explicitly
 `HISTORICAL_BUILD_READ_ONLY`. Regression reopens a complete build-A chain under
 build B and proves it remains reviewable, then proves an incomplete build-A chain
 cannot be extended at any defect/correction/repeat/regression boundary under
-build B. QA-037 is closed in implementation pending independent re-review.
+build B. Independent I7 re-review verified QA-037 closed.
 
 QA-038 records that the first replacement-run path closed a prior run without the
 accepted I4 reset invalidation treatment. Reset and replacement now share one
@@ -138,8 +139,17 @@ history-preserving close operation. A focused N4 regression proves a current
 PERMITTED assessment and its original evidence remain preserved, an immutable
 invalidation record is created, `RESTORATION_ASSESSMENT_INVALIDATED` precedes
 `SCENARIO_RESET`, the prior run becomes CLOSED and the separately identified new
-run starts at N0. The 15-type event catalogue is unchanged. QA-038 is closed in
-implementation pending independent re-review.
+run starts at N0. The 15-type event catalogue is unchanged. Independent I7
+re-review verified QA-038 closed.
+
+QA-039 records a presentation overclaim after the direct repeat and before the
+corrected regression existed. Backend `same_build_proven` meaning remains
+unchanged. The frontend now uses only that backend result and backend-provided
+record presence: the two-record statement names the v1.0 failure and v1.1 direct
+repeat, while the three-record statement adds corrected regression only after its
+record exists. Focused component tests prove both states and the Chromium workflow
+proves the wording transition through the real I7 sequence. QA-039 is closed in
+implementation pending final independent acceptance.
 
 ## 7. Verification evidence
 
@@ -147,7 +157,7 @@ implementation pending independent re-review.
 |---|---|
 | Complete backend unit/integration suite | PASS — 106 tests |
 | I7 backend chain/integrity tests | PASS — 6 tests |
-| React/Cytoscape component suite | PASS — 10 tests |
+| React/Cytoscape component suite | PASS — 12 tests |
 | Chromium formal I6 and I7 investigation workflows | PASS — 2 tests |
 | Exact-toolchain clean frontend install | PASS |
 | Pinned TypeScript/Vite production build | PASS |
@@ -161,6 +171,8 @@ implementation pending independent re-review.
 | Complete chain review under later build | PASS — stored build identities retain same-build proof |
 | Incomplete old-build mutation boundary | PASS — historical read-only at every continuation step |
 | N4 replacement assessment invalidation | PASS — assessment/event/invalidation preserved; new run N0 |
+| Pre-regression same-build wording | PASS — failure and direct repeat only; no regression claim |
+| Post-regression same-build wording | PASS — complete three-record statement |
 | Exact 15 operational-event types | PASS — unchanged |
 | Exact 24 validation definitions and 286 RTM relationships | PASS — unchanged |
 | Configuration/catalogue/hash integrity | PASS — unchanged |
@@ -208,11 +220,20 @@ lock hashes, backend-source hash
 and unchanged frontend-bundle hash
 `e92d6d2281c9a4417a3402086c19cb67d35cc2df4c7a9e7df01555fa1955c0c9`.
 
+The clean QA-039 presentation commit is
+`f32ab569b22624b325b0029fae6daa8e92fa23aa`. Its application build ID is:
+
+`8f48caff9d1420656415720da89a2525948f2d9f9290d73f65bf1cb19651cbfa`
+
+Backend source and dependency identities remain unchanged. The rebuilt frontend
+bundle hash is
+`40c1faf92fee3b4fa6abaf6c6caac29be74002fbe6b62868d35164f7d9d2583e`.
+
 ## 9. Review gate
 
-I7 is complete on its dedicated branch and pending independent re-review. Draft
-PR #7 remains open and must not be merged until accepted. I8 has not begun and
-requires separate user authorisation after the reviewed I7 baseline is
+I7 is complete on its dedicated branch and pending final independent acceptance.
+Draft PR #7 remains open and must not be merged until accepted. I8 has not begun
+and requires separate user authorisation after the reviewed I7 baseline is
 incorporated into `main`.
 
 ## V2 Automation Candidate
