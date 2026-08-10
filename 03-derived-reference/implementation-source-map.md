@@ -61,6 +61,17 @@ For the local review workspace and projection-only frontend, read all of the fol
 5. Demonstrator Design Sections 13–19, 23–25 and 27–29 for screens, interactions and implementation decisions; and
 6. Validation Plan Sections 6–10 and 13–15, especially `VT-FML-N0-N5-001`, `VT-ALM-EVT-001`, telemetry presentation cases, `VT-VAL-RECORD-001` and `VT-NFR-REVIEW-001`.
 
-Current gate: I5 is the accepted implementation baseline. Independent review accepted I6 in substance and accepted QA-033. QA-034/QA-035 corrections are implemented and verified at `09622018d8bbd57adf8da818d3d0d5c253f49a0b` on `agent/i6-operational-ui`, pending independent re-review. **I6 is not merged or accepted; I7 has not begun and requires separate authorisation after I6 acceptance.**
+## I7 investigation/correction implementation reading path
+
+For the controlled DEF-001 consequence-to-source investigation and correction chain, read all of the following before changing I7 behaviour:
+
+1. Requirements Specification `REQ-CFG-001–012`, `REQ-VAL-005`, `REQ-VAL-010–012` and the applicable `REQ-TOP-*`/`REQ-OUT-*` consequence requirements;
+2. Network Model Section 16.5 and Sections 17–18.7 for the defective/corrected answer key, package difference and investigation basis;
+3. System Architecture Sections 19–20 and 26.4–26.5 for defect, correction, evidence and configuration ownership;
+4. Workflow Design Sections 15–17 and 19 for the ordered investigation, correction, repeat and regression workflow;
+5. Demonstrator Design Sections 19, 21–22, 27–28 and 35.4–35.5 for records, persistence, read models, screens and increment boundary; and
+6. Validation Plan definitions/procedures `VT-TOP-DEF-001`, `VT-CFG-INV-001`, `VT-DET-REPEAT-001`, `VT-FML-N0-N5-001` and Sections 11, 13–15.
+
+Current gate: I6 is the accepted implementation baseline. I7 is implemented and verified on `agent/i7-investigation-correction`, pending independent review. **I7 is not merged or accepted; I8 has not begun and requires separate authorisation after I7 acceptance.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.
