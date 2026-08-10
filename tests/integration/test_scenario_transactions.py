@@ -601,7 +601,7 @@ def test_reset_creates_new_run_and_repeat_is_deterministic(tmp_path: Path) -> No
 
 
 @pytest.mark.i3
-def test_api_factory_exposes_only_the_i3_run_query_and_command_foundations(
+def test_api_factory_exposes_run_and_i5_validation_query_command_foundations(
     tmp_path: Path,
 ) -> None:
     application = create_app(coordinator(tmp_path))
@@ -612,9 +612,13 @@ def test_api_factory_exposes_only_the_i3_run_query_and_command_foundations(
         "/api/v1/runs/{scenario_run_id}/commands",
         "/api/v1/runs/{scenario_run_id}/snapshot",
         "/api/v1/runs/{scenario_run_id}/events",
+        "/api/v1/validation/executions",
+        "/api/v1/validation/executions/{execution_id}",
+        "/api/v1/validation/executions/{execution_id}/checkpoints",
+        "/api/v1/validation/executions/{execution_id}/finalise",
     }
     assert all(
         token not in path
         for path in paths
-        for token in ("restoration", "validation", "defect", "exploration")
+        for token in ("defect", "exploration", "export", "dashboard")
     )

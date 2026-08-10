@@ -169,3 +169,19 @@ class OperationalEventSource(StrEnum):
     ADMS_TOPOLOGY = "ADMS_TOPOLOGY"
     OMS = "OMS"
     ADMS_RESTORATION = "ADMS_RESTORATION"
+
+
+class ValidationDefinitionStatus(StrEnum):
+    ACCEPTED = "ACCEPTED"
+
+
+class ValidationExecutionStatus(StrEnum):
+    ACTIVE = "ACTIVE"
+    FINALISED = "FINALISED"
+
+
+class ValidationVerdict(StrEnum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    NOT_RUN = "NOT_RUN"
+    BLOCKED_TEST = "BLOCKED-TEST"

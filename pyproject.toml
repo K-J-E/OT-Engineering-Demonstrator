@@ -37,4 +37,5 @@ markers = [
   "i2: Implementation Increment I2 topology and outage core",
   "i3: Implementation Increment I3 scenario transactions",
   "i4: Implementation Increment I4 restoration assessment and execution",
+  "i5: Implementation Increment I5 validation and immutable evidence",
 ]

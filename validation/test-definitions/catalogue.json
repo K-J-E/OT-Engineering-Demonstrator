@@ -1,0 +1,1644 @@
+{
+  "catalogue_id": "VALIDATION-CATALOGUE-V1.0",
+  "catalogue_version": "1.0",
+  "authority": "Machine-readable counterpart of accepted OT Project Validation Plan v1.0",
+  "definition_count": 24,
+  "definitions": [
+    {
+      "test_id": "VT-CFG-BASE-001",
+      "title": "Controlled configuration and network integrity",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-NET-001",
+        "REQ-NET-002",
+        "REQ-NET-003",
+        "REQ-NET-004",
+        "REQ-NET-005",
+        "REQ-NET-006",
+        "REQ-NET-007",
+        "REQ-NET-008",
+        "REQ-NET-009",
+        "REQ-NET-010",
+        "REQ-NET-011",
+        "REQ-CFG-001",
+        "REQ-CFG-002",
+        "REQ-CFG-003",
+        "REQ-CFG-006",
+        "REQ-CFG-007",
+        "REQ-CFG-008",
+        "REQ-CFG-009",
+        "REQ-NFR-002"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-CFG-BASE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-CFG-BASE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §§17–18",
+        "OT Project System Architecture v0.2 §§19–20",
+        "OT Project Workflow Design v0.2 §§15–17"
+      ],
+      "objective": "Controlled configuration and network integrity",
+      "method": "Inspection + functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "After authorised implementation has instantiated the approved engineering definitions, load immutable v1.0 and v1.1 independently; verify IDs, assets, connectivity, normal states, loads, capacities, customer zones and the single controlled SW-A23 endpoint difference."
+      ],
+      "procedure_steps": [
+        "After authorised implementation has instantiated the approved engineering definitions, load immutable v1.0 and v1.1 independently; verify IDs, assets, connectivity, normal states, loads, capacities, customer zones and the single controlled SW-A23 endpoint difference."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "CONFIGURATION_PACKAGE_HASHES",
+            "CONFIGURATION_COMPARISON"
+          ]
+        }
+      ],
+      "expected_result_statement": "Both implementation packages are schema-valid; values match the Network Model; no uncontrolled difference exists; hashes and version IDs are captured before execution.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "CONFIGURATION_PACKAGE_HASHES",
+        "CONFIGURATION_COMPARISON"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TOP-NORMAL-001",
+      "title": "Corrected normal topology and source attribution",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-NET-001",
+        "REQ-NET-002",
+        "REQ-NET-003",
+        "REQ-NET-004",
+        "REQ-NET-005",
+        "REQ-NET-006",
+        "REQ-NET-007",
+        "REQ-NET-008",
+        "REQ-NET-009",
+        "REQ-NET-010",
+        "REQ-NET-011",
+        "REQ-TOP-001",
+        "REQ-TOP-002",
+        "REQ-TOP-003",
+        "REQ-TOP-004",
+        "REQ-TOP-005",
+        "REQ-TOP-006",
+        "REQ-TOP-007",
+        "REQ-TOP-008",
+        "REQ-TOP-009"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TOP-NORMAL-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TOP-NORMAL-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Workflow Design v0.2 §§14–15"
+      ],
+      "objective": "Corrected normal topology and source attribution",
+      "method": "Functional + analysis",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Reset v1.1 at T0 with both breakers/sectionalisers CLOSED and TS-01 OPEN; run topology/energisation/load derivation."
+      ],
+      "procedure_steps": [
+        "Reset v1.1 at T0 with both breakers/sectionalisers CLOSED and TS-01 OPEN; run topology/energisation/load derivation."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT"
+          ]
+        }
+      ],
+      "expected_result_statement": "All eight sections are ENERGISED; A1–A4 trace to FDR-A, B1–B4 to FDR-B; supplied load is 3.20 MW and 4.20 MW; no loop/outage.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "TOPOLOGY",
+        "SOURCE_ATTRIBUTION",
+        "ENERGISATION",
+        "OUTAGE_AND_CUSTOMER_IMPACT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-FML-N0-N5-001",
+      "title": "Complete formal SEC-A2 sequence",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TOP-001",
+        "REQ-TOP-002",
+        "REQ-TOP-003",
+        "REQ-TOP-004",
+        "REQ-TOP-005",
+        "REQ-TOP-006",
+        "REQ-TOP-007",
+        "REQ-TOP-008",
+        "REQ-TOP-009",
+        "REQ-OUT-001",
+        "REQ-OUT-002",
+        "REQ-OUT-003",
+        "REQ-OUT-004",
+        "REQ-OUT-005",
+        "REQ-OUT-006",
+        "REQ-OUT-007",
+        "REQ-RST-001",
+        "REQ-RST-002",
+        "REQ-RST-003",
+        "REQ-RST-004",
+        "REQ-RST-005",
+        "REQ-RST-006",
+        "REQ-RST-007",
+        "REQ-RST-008",
+        "REQ-RST-009",
+        "REQ-RST-010",
+        "REQ-RST-011",
+        "REQ-RST-012",
+        "REQ-RST-013",
+        "REQ-RST-014",
+        "REQ-RST-015",
+        "REQ-RST-016",
+        "REQ-RST-017",
+        "REQ-RST-018",
+        "REQ-RST-019",
+        "REQ-RST-020",
+        "REQ-RST-021",
+        "REQ-RST-022",
+        "REQ-RST-023",
+        "REQ-RST-024",
+        "REQ-RST-025",
+        "REQ-RST-026",
+        "REQ-RST-027",
+        "REQ-RST-028",
+        "REQ-RST-029",
+        "REQ-EVT-008",
+        "REQ-EVT-009",
+        "REQ-EVT-010",
+        "REQ-EVT-011",
+        "REQ-VAL-004",
+        "REQ-VAL-006",
+        "REQ-VAL-007",
+        "REQ-VAL-008",
+        "REQ-VAL-009"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-FML-N0-N5-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-FML-N0-N5-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Workflow Design v0.2 §§14–15"
+      ],
+      "objective": "Complete formal SEC-A2 sequence",
+      "method": "Controlled scenario",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Execute the approved N0→N5 actions at the Step 9 times and capture every checkpoint."
+      ],
+      "procedure_steps": [
+        "Execute the approved N0→N5 actions at the Step 9 times and capture every checkpoint."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "N0",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT",
+            "RESTORATION_ASSESSMENT",
+            "OPERATIONAL_EVENTS"
+          ]
+        },
+        {
+          "checkpoint_id": "N1",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT",
+            "RESTORATION_ASSESSMENT",
+            "OPERATIONAL_EVENTS"
+          ]
+        },
+        {
+          "checkpoint_id": "N2",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT",
+            "RESTORATION_ASSESSMENT",
+            "OPERATIONAL_EVENTS"
+          ]
+        },
+        {
+          "checkpoint_id": "N3",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT",
+            "RESTORATION_ASSESSMENT",
+            "OPERATIONAL_EVENTS"
+          ]
+        },
+        {
+          "checkpoint_id": "N4",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT",
+            "RESTORATION_ASSESSMENT",
+            "OPERATIONAL_EVENTS"
+          ]
+        },
+        {
+          "checkpoint_id": "N5",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT",
+            "RESTORATION_ASSESSMENT",
+            "OPERATIONAL_EVENTS"
+          ]
+        }
+      ],
+      "expected_result_statement": "N1 outage 850; N3 outage 670; N4 PERMITTED at 5.70 MW/95.0%; N5 restores 450 and leaves 220 affected; topology remains radial.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY",
+        "SOURCE_ATTRIBUTION",
+        "ENERGISATION",
+        "OUTAGE_AND_CUSTOMER_IMPACT",
+        "RESTORATION_ASSESSMENT",
+        "OPERATIONAL_EVENTS"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TOP-DEF-001",
+      "title": "Seeded topology defect direct comparison",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TOP-003",
+        "REQ-OUT-001",
+        "REQ-OUT-002",
+        "REQ-OUT-003",
+        "REQ-OUT-007",
+        "REQ-VAL-005",
+        "REQ-VAL-010",
+        "REQ-VAL-011",
+        "REQ-VAL-012",
+        "REQ-CFG-001",
+        "REQ-CFG-002",
+        "REQ-CFG-003",
+        "REQ-CFG-004",
+        "REQ-CFG-005",
+        "REQ-CFG-006",
+        "REQ-CFG-007",
+        "REQ-CFG-008",
+        "REQ-CFG-009",
+        "REQ-CFG-010",
+        "REQ-CFG-011",
+        "REQ-CFG-012"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TOP-DEF-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TOP-DEF-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §§17–18",
+        "OT Project System Architecture v0.2 §§19–20",
+        "OT Project Workflow Design v0.2 §§15–17"
+      ],
+      "objective": "Seeded topology defect direct comparison",
+      "method": "Formal negative + repeat",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Run the same post-trip definition on v1.0 then v1.1 using the same build and inputs."
+      ],
+      "procedure_steps": [
+        "Run the same post-trip definition on v1.0 then v1.1 using the same build and inputs."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "POST_TRIP",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "TOPOLOGY",
+            "SOURCE_ATTRIBUTION",
+            "ENERGISATION",
+            "OUTAGE_AND_CUSTOMER_IMPACT"
+          ]
+        }
+      ],
+      "expected_result_statement": "v1.0 FAIL: A3/A4 energised from FDR-B and 400 affected; v1.1 PASS: A1–A4 de-energised and 850 affected. Original failure remains immutable.",
+      "comparison_expected_values": {
+        "de_energised_section_ids": [
+          "SEC-A1",
+          "SEC-A2",
+          "SEC-A3",
+          "SEC-A4"
+        ],
+        "affected_customer_count": 850,
+        "section_source_feeder_ids": {
+          "SEC-A1": [],
+          "SEC-A2": [],
+          "SEC-A3": [],
+          "SEC-A4": []
+        }
+      },
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "TOPOLOGY",
+        "SOURCE_ATTRIBUTION",
+        "ENERGISATION",
+        "OUTAGE_AND_CUSTOMER_IMPACT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-CFG-INV-001",
+      "title": "Defect investigation, correction and evidence chain",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-VAL-005",
+        "REQ-VAL-010",
+        "REQ-VAL-011",
+        "REQ-VAL-012",
+        "REQ-CFG-001",
+        "REQ-CFG-002",
+        "REQ-CFG-003",
+        "REQ-CFG-004",
+        "REQ-CFG-005",
+        "REQ-CFG-006",
+        "REQ-CFG-007",
+        "REQ-CFG-008",
+        "REQ-CFG-009",
+        "REQ-CFG-010",
+        "REQ-CFG-011",
+        "REQ-CFG-012"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-CFG-INV-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-CFG-INV-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §§17–18",
+        "OT Project System Architecture v0.2 §§19–20",
+        "OT Project Workflow Design v0.2 §§15–17"
+      ],
+      "objective": "Defect investigation, correction and evidence chain",
+      "method": "Inspection + workflow",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Follow consequence→SCADA→source trace→OMS→configuration comparison; record DEF-001 and the single endpoint correction."
+      ],
+      "procedure_steps": [
+        "Follow consequence→SCADA→source trace→OMS→configuration comparison; record DEF-001 and the single endpoint correction."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "CONFIGURATION_PACKAGE_HASHES",
+            "CONFIGURATION_COMPARISON"
+          ]
+        }
+      ],
+      "expected_result_statement": "Root cause is SW-A23 endpoint 1 SEC-B3 instead of SEC-A2; algorithms are unchanged; failure, correction, repeat and regression records are linked.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "CONFIGURATION_PACKAGE_HASHES",
+        "CONFIGURATION_COMPARISON"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TEL-FRESH-001",
+      "title": "Freshness arithmetic and inclusive boundary",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TEL-001",
+        "REQ-TEL-002",
+        "REQ-TEL-003",
+        "REQ-TEL-004",
+        "REQ-TEL-005",
+        "REQ-TEL-006",
+        "REQ-TEL-007",
+        "REQ-TEL-008",
+        "REQ-TEL-009",
+        "REQ-TEL-010",
+        "REQ-RST-008",
+        "REQ-RST-009"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TEL-FRESH-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TEL-FRESH-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §§5 and 9",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Freshness arithmetic and inclusive boundary",
+      "method": "Boundary functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Use controlled timestamps at ages 0, 59.999 and 60.000 seconds; repeat restoration assessment."
+      ],
+      "procedure_steps": [
+        "Use controlled timestamps at ages 0, 59.999 and 60.000 seconds; repeat restoration assessment."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_TIME",
+            "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Age is non-negative integer milliseconds; each point is FRESH at ≤60,000 ms; quality/freshness evidence is captured.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_TIME",
+        "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TEL-STALE-001",
+      "title": "Stale telemetry blocking",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TEL-006",
+        "REQ-TEL-007",
+        "REQ-TEL-010",
+        "REQ-RST-008",
+        "REQ-RST-009",
+        "REQ-RST-020",
+        "REQ-RST-021",
+        "REQ-RST-022",
+        "REQ-VAL-013"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TEL-STALE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TEL-STALE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §§5 and 9",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Stale telemetry blocking",
+      "method": "Negative functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Set one required point to age 60.001 seconds with GOOD quality and assess."
+      ],
+      "procedure_steps": [
+        "Set one required point to age 60.001 seconds with GOOD quality and assess."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_TIME",
+            "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Operational result is BLOCKED for insufficient freshness; validation verdict is PASS because BLOCKED is expected; no restoration action is available.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_TIME",
+        "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TEL-UNCERTAIN-001",
+      "title": "UNCERTAIN telemetry blocking",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TEL-003",
+        "REQ-TEL-007",
+        "REQ-TEL-008",
+        "REQ-RST-010",
+        "REQ-RST-020",
+        "REQ-RST-021",
+        "REQ-RST-022"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TEL-UNCERTAIN-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TEL-UNCERTAIN-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §§5 and 9",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "UNCERTAIN telemetry blocking",
+      "method": "Negative functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Set one required point to UNCERTAIN and fresh; assess."
+      ],
+      "procedure_steps": [
+        "Set one required point to UNCERTAIN and fresh; assess."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_TIME",
+            "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Operational result BLOCKED; validation PASS; record identifies the point and quality cause.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_TIME",
+        "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TEL-BAD-001",
+      "title": "BAD telemetry blocking",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TEL-003",
+        "REQ-TEL-007",
+        "REQ-TEL-009",
+        "REQ-RST-011",
+        "REQ-RST-020",
+        "REQ-RST-021",
+        "REQ-RST-022"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TEL-BAD-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TEL-BAD-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §§5 and 9",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "BAD telemetry blocking",
+      "method": "Negative functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Set one required point to BAD and fresh; assess."
+      ],
+      "procedure_steps": [
+        "Set one required point to BAD and fresh; assess."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_TIME",
+            "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Operational result BLOCKED; validation PASS; record identifies the point and quality cause.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_TIME",
+        "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-TEL-FUTURE-001",
+      "title": "Future timestamp rejection",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TEL-006",
+        "REQ-TEL-007",
+        "REQ-RST-020",
+        "REQ-RST-021",
+        "REQ-RST-022"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-TEL-FUTURE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-TEL-FUTURE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §§5 and 9",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Future timestamp rejection",
+      "method": "Negative boundary",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "At assessment T+60.000 set a required point timestamp to T+60.001."
+      ],
+      "procedure_steps": [
+        "At assessment T+60.000 set a required point timestamp to T+60.001."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_TIME",
+            "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Timestamp is invalid rather than given a negative age; assessment is BLOCKED and validation PASS.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_TIME",
+        "TELEMETRY_VALUE_QUALITY_TIMESTAMP_AGE",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-RST-ISOLATION-001",
+      "title": "Fault-isolation proof and workflow gate",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-NET-009",
+        "REQ-TOP-007",
+        "REQ-RST-004"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-RST-ISOLATION-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-RST-ISOLATION-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Validation Plan v1.0 §10",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Fault-isolation proof and workflow gate",
+      "method": "Functional + topology",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Before isolation, verify the next workflow action is unavailable. Open applicable incident boundary devices one command at a time, refresh/recalculate evidence, and prove isolation."
+      ],
+      "procedure_steps": [
+        "Before isolation, verify the next workflow action is unavailable. Open applicable incident boundary devices one command at a time, refresh/recalculate evidence, and prove isolation."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Every incident boundary is trustworthy/fresh OPEN and zero active source paths exist. Proven isolation enables only the next action permitted by the approved workflow: for formal SEC-A2, BRK-A reclose/N2→N3. Alternate restoration assessment remains unavailable until N3 preconditions are satisfied.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-RST-SOURCE-001",
+      "title": "Alternate-source breaker proven open",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-RST-005",
+        "REQ-RST-006",
+        "REQ-RST-018",
+        "REQ-RST-019"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-RST-SOURCE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-RST-SOURCE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Validation Plan v1.0 §10",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Alternate-source breaker proven open",
+      "method": "Deterministic negative functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "At formal N4 pre-assessment, hold ZS-01 AVAILABLE and BRK-B OPEN with GOOD/FRESH telemetry; keep isolation, radiality, capacity and all other required evidence valid."
+      ],
+      "procedure_steps": [
+        "At formal N4 pre-assessment, hold ZS-01 AVAILABLE and BRK-B OPEN with GOOD/FRESH telemetry; keep isolation, radiality, capacity and all other required evidence valid."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Operational result REJECTED because the required alternate path is unavailable through a breaker proven OPEN. Validation PASS. Untrustworthy breaker evidence would instead produce BLOCKED.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-RST-RADIAL-001",
+      "title": "Radial/no-loop permissive",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-TOP-009",
+        "REQ-RST-007",
+        "REQ-RST-018",
+        "REQ-RST-019"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-RST-RADIAL-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-RST-RADIAL-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Validation Plan v1.0 §10",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Radial/no-loop permissive",
+      "method": "Controlled fixture negative",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "At the lower-level topology/restoration rule boundary, supply a controlled proposed-topology fixture that would form an unintended source loop; retain complete trustworthy evidence."
+      ],
+      "procedure_steps": [
+        "At the lower-level topology/restoration rule boundary, supply a controlled proposed-topology fixture that would form an unintended source loop; retain complete trustworthy evidence."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Operational result REJECTED; offending source path/loop evidence is recorded; close action remains unavailable; validation PASS. The immutable v1.1 package is not edited.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-RST-CAP-EQUAL-001",
+      "title": "Capacity equality boundary",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-RST-012",
+        "REQ-RST-013",
+        "REQ-RST-014",
+        "REQ-RST-015",
+        "REQ-RST-016"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-RST-CAP-EQUAL-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-RST-CAP-EQUAL-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Validation Plan v1.0 §10",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Capacity equality boundary",
+      "method": "Controlled calculation fixture",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "At the lower-level capacity-rule boundary, supply 4,500 kW existing plus 1,500 kW transfer against 6,000 kW capacity."
+      ],
+      "procedure_steps": [
+        "At the lower-level capacity-rule boundary, supply 4,500 kW existing plus 1,500 kW transfer against 6,000 kW capacity."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "6,000 ≤ 6,000 kW passes the capacity permissive; displayed figures follow controlled MW/percentage rounding. Canonical configuration/load records are not edited.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-RST-CAP-OVER-001",
+      "title": "Capacity exceedance boundary",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-RST-012",
+        "REQ-RST-013",
+        "REQ-RST-014",
+        "REQ-RST-015",
+        "REQ-RST-016",
+        "REQ-RST-017",
+        "REQ-RST-018",
+        "REQ-RST-019",
+        "REQ-VAL-013"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-RST-CAP-OVER-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-RST-CAP-OVER-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Validation Plan v1.0 §10",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Capacity exceedance boundary",
+      "method": "Controlled calculation fixture",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "At the lower-level capacity-rule boundary, supply 4,501 kW existing plus 1,500 kW transfer against 6,000 kW capacity."
+      ],
+      "procedure_steps": [
+        "At the lower-level capacity-rule boundary, supply 4,501 kW existing plus 1,500 kW transfer against 6,000 kW capacity."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "6,001 > 6,000 kW is REJECTED with a failed capacity permissive; validation PASS. Canonical configuration/load records are not edited.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-RST-BINDING-001",
+      "title": "Assessment binding and invalidation",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-RST-023"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-RST-BINDING-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-RST-BINDING-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §16",
+        "OT Project Validation Plan v1.0 §10",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Assessment binding and invalidation",
+      "method": "Transaction functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Create N4, change a relevant topology/telemetry/input revision, then attempt to use the old assessment."
+      ],
+      "procedure_steps": [
+        "Create N4, change a relevant topology/telemetry/input revision, then attempt to use the old assessment."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SCENARIO_RUN_AND_REVISION",
+            "TELEMETRY",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Old assessment is not current and cannot authorise execution; recalculation produces a new assessment linked to current revisions.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SCENARIO_RUN_AND_REVISION",
+        "TELEMETRY",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-ALM-EVT-001",
+      "title": "Alarm acknowledgement and operational chronology",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-ALM-001",
+        "REQ-ALM-002",
+        "REQ-ALM-003",
+        "REQ-ALM-004",
+        "REQ-ALM-005",
+        "REQ-EVT-001",
+        "REQ-EVT-002",
+        "REQ-EVT-003",
+        "REQ-EVT-004",
+        "REQ-EVT-005",
+        "REQ-EVT-006",
+        "REQ-EVT-007",
+        "REQ-EVT-008",
+        "REQ-EVT-009",
+        "REQ-EVT-010",
+        "REQ-EVT-011"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-ALM-EVT-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-ALM-EVT-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project System Architecture v0.2 §§12 and 17",
+        "OT Project Workflow Design v0.2 §§14 and 18"
+      ],
+      "objective": "Alarm acknowledgement and operational chronology",
+      "method": "Functional + inspection",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Execute formal workflow, acknowledge the alarm and inspect all operational event types/sequence ordering."
+      ],
+      "procedure_steps": [
+        "Execute formal workflow, acknowledge the alarm and inspect all operational event types/sequence ordering."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "ALARM_LIFECYCLE",
+            "OPERATIONAL_EVENTS"
+          ]
+        }
+      ],
+      "expected_result_statement": "Alarm lifecycle and 15-type event catalogue are correct; command events precede derived records at the same timestamp; test/defect verdicts are not operational events.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "ALARM_LIFECYCLE",
+        "OPERATIONAL_EVENTS"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-VAL-RECORD-001",
+      "title": "Validation records, reset and immutability",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-EVT-001",
+        "REQ-EVT-002",
+        "REQ-EVT-003",
+        "REQ-EVT-004",
+        "REQ-EVT-005",
+        "REQ-EVT-006",
+        "REQ-EVT-007",
+        "REQ-EVT-008",
+        "REQ-EVT-009",
+        "REQ-EVT-010",
+        "REQ-EVT-011",
+        "REQ-VAL-001",
+        "REQ-VAL-002",
+        "REQ-VAL-003",
+        "REQ-VAL-004",
+        "REQ-VAL-005",
+        "REQ-VAL-006",
+        "REQ-VAL-007",
+        "REQ-VAL-008",
+        "REQ-VAL-009",
+        "REQ-VAL-010",
+        "REQ-VAL-011",
+        "REQ-VAL-012",
+        "REQ-VAL-013",
+        "REQ-VAL-014"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-VAL-RECORD-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-VAL-RECORD-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project System Architecture v0.2 §§12 and 20",
+        "OT Project Workflow Design v0.2 §§5.2–5.3 and 18–19",
+        "OT Project Demonstrator Design v0.2 §§8.7, 9, 21–22 and 27–28"
+      ],
+      "objective": "Validation records, reset and immutability",
+      "method": "Functional + inspection",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Create formal and negative executions, reset, repeat and inspect records/snapshots/links."
+      ],
+      "procedure_steps": [
+        "Create formal and negative executions, reset, repeat and inspect records/snapshots/links."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "TEST_DEFINITION_IDENTITY",
+            "SCENARIO_RUN_AND_REVISION",
+            "EVIDENCE_SNAPSHOTS",
+            "EXECUTION_AND_LINKS"
+          ]
+        }
+      ],
+      "expected_result_statement": "New runs/records are created without overwriting history; expected, observed, calculations, evidence class, build/config/test IDs and verdict are complete.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "TEST_DEFINITION_IDENTITY",
+        "SCENARIO_RUN_AND_REVISION",
+        "EVIDENCE_SNAPSHOTS",
+        "EXECUTION_AND_LINKS"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-EXP-ALL-001",
+      "title": "All-section Exploration selection and isolation derivation",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "EXPLORATORY",
+      "requirement_ids": [
+        "REQ-NET-009",
+        "REQ-TOP-007",
+        "REQ-OUT-001",
+        "REQ-OUT-002",
+        "REQ-OUT-003",
+        "REQ-OUT-007",
+        "REQ-EXP-001",
+        "REQ-EXP-002",
+        "REQ-EXP-003",
+        "REQ-EXP-004",
+        "REQ-EXP-005",
+        "REQ-EXP-006",
+        "REQ-EXP-007"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-EXP-ALL-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-EXP-ALL-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §18",
+        "OT Project Validation Plan v1.0 §12",
+        "OT Project System Architecture v0.2 §26"
+      ],
+      "objective": "All-section Exploration selection and isolation derivation",
+      "method": "Requirement functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "For each of eight sections in v1.1, select the fault, apply protection, and derive affected feeder and incident boundaries. Execute the controlled SEC-A4 trustworthy-OPEN versus untrustworthy-last-OPEN boundary subcase."
+      ],
+      "procedure_steps": [
+        "For each of eight sections in v1.1, select the fault, apply protection, and derive affected feeder and incident boundaries. Execute the controlled SEC-A4 trustworthy-OPEN versus untrustworthy-last-OPEN boundary subcase."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "EXPLORATORY_CLASSIFICATION",
+            "SCENARIO_RUN_AND_REVISION",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Selection is transient; affected feeder/breaker and boundary set match configuration incidence. A trustworthy OPEN boundary is satisfied without a redundant command; an untrustworthy last-reported OPEN is UNPROVEN, blocks isolation, presents the evidence deficiency and still offers no redundant OPEN command. Evidence is EXPLORATORY; DC-003 acceptance is a prerequisite.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "EXPLORATORY_CLASSIFICATION",
+        "SCENARIO_RUN_AND_REVISION",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-EXP-ROLE-001",
+      "title": "Exploration role reversal and non-guaranteed outcomes",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "EXPLORATORY",
+      "requirement_ids": [
+        "REQ-TOP-008",
+        "REQ-RST-001",
+        "REQ-RST-002",
+        "REQ-RST-003",
+        "REQ-RST-024",
+        "REQ-RST-025",
+        "REQ-RST-026",
+        "REQ-RST-027",
+        "REQ-RST-028",
+        "REQ-RST-029",
+        "REQ-EXP-002",
+        "REQ-EXP-003",
+        "REQ-EXP-004",
+        "REQ-EXP-006"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-EXP-ROLE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-EXP-ROLE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §18",
+        "OT Project Validation Plan v1.0 §12",
+        "OT Project System Architecture v0.2 §26"
+      ],
+      "objective": "Exploration role reversal and non-guaranteed outcomes",
+      "method": "Requirement functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Execute controlled representative SEC-A2, SEC-B2, SEC-A1 and SEC-A4 exploration cases."
+      ],
+      "procedure_steps": [
+        "Execute controlled representative SEC-A2, SEC-B2, SEC-A1 and SEC-A4 exploration cases."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "EXPLORATORY_CLASSIFICATION",
+            "SCENARIO_RUN_AND_REVISION",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Common engine supports affected/alternate role reversal and legitimately produces representative PERMITTED, REJECTED or NO CANDIDATE results without stored section outcomes.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "EXPLORATORY_CLASSIFICATION",
+        "SCENARIO_RUN_AND_REVISION",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-EXP-SEPARATION-001",
+      "title": "Formal/Exploration separation",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "EXPLORATORY",
+      "requirement_ids": [
+        "REQ-EXP-001",
+        "REQ-EXP-002",
+        "REQ-EXP-003",
+        "REQ-EXP-004",
+        "REQ-EXP-005",
+        "REQ-EXP-006",
+        "REQ-EXP-007"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-EXP-SEPARATION-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-EXP-SEPARATION-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Network Model v0.4 §18",
+        "OT Project Validation Plan v1.0 §12",
+        "OT Project System Architecture v0.2 §26"
+      ],
+      "objective": "Formal/Exploration separation",
+      "method": "Functional + inspection",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Create/reset/switch between formal and exploratory runs; inspect inputs, records and evidence library."
+      ],
+      "procedure_steps": [
+        "Create/reset/switch between formal and exploratory runs; inspect inputs, records and evidence library."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "EXPLORATORY_CLASSIFICATION",
+            "SCENARIO_RUN_AND_REVISION",
+            "TOPOLOGY_AND_ISOLATION",
+            "RESTORATION_ASSESSMENT"
+          ]
+        }
+      ],
+      "expected_result_statement": "Formal remains fixed to SEC-A2; exploration uses v1.1; modes cannot be converted in place; exploratory evidence never satisfies the formal test automatically.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "EXPLORATORY_CLASSIFICATION",
+        "SCENARIO_RUN_AND_REVISION",
+        "TOPOLOGY_AND_ISOLATION",
+        "RESTORATION_ASSESSMENT"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-NFR-REVIEW-001",
+      "title": "Scope, clarity, conceptual boundaries and reviewability",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-NFR-001",
+        "REQ-NFR-002",
+        "REQ-NFR-003",
+        "REQ-NFR-004",
+        "REQ-NFR-005",
+        "REQ-NFR-006",
+        "REQ-NFR-007",
+        "REQ-NFR-008",
+        "REQ-NFR-009"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-NFR-REVIEW-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-NFR-REVIEW-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "Project Vision, Project Definition and Project Decisions",
+        "OT Project Demonstrator Design v0.2 §§27–28"
+      ],
+      "objective": "Scope, clarity, conceptual boundaries and reviewability",
+      "method": "Engineering review",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Structured review of labels, engineering-basis links, simulated-operation notices, conceptual module wording, topology diagrams and information separation."
+      ],
+      "procedure_steps": [
+        "Structured review of labels, engineering-basis links, simulated-operation notices, conceptual module wording, topology diagrams and information separation."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "ENGINEERING_REVIEW_RECORD"
+          ]
+        }
+      ],
+      "expected_result_statement": "The demonstrator is understandable, fictional, local and engineering-led; it makes no production SCADA/ADMS or real-control claim.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "ENGINEERING_REVIEW_RECORD"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-DET-REPEAT-001",
+      "title": "Deterministic repeatability",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-VAL-014",
+        "REQ-CFG-010",
+        "REQ-CFG-011",
+        "REQ-CFG-012",
+        "REQ-NFR-003"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-DET-REPEAT-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-DET-REPEAT-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project System Architecture v0.2 §§19–20",
+        "OT Project Workflow Design v0.2 §§18–19"
+      ],
+      "objective": "Deterministic repeatability",
+      "method": "Repeat functional",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Repeat selected formal, negative and corrected tests with identical build, configuration, test definition and controlled clock inputs."
+      ],
+      "procedure_steps": [
+        "Repeat selected formal, negative and corrected tests with identical build, configuration, test definition and controlled clock inputs."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "SEPARATE_EXECUTION_IDENTITIES",
+            "CANONICAL_CHECKPOINT_COMPARISON",
+            "REPEAT_LINK"
+          ]
+        }
+      ],
+      "expected_result_statement": "Canonical engineering outputs/checkpoints are equal; unique record IDs may differ and are linked as separate immutable executions.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "SEPARATE_EXECUTION_IDENTITIES",
+        "CANONICAL_CHECKPOINT_COMPARISON",
+        "REPEAT_LINK"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    },
+    {
+      "test_id": "VT-PKG-EVIDENCE-001",
+      "title": "Self-contained evidence-package integrity",
+      "version": "1.0",
+      "status": "ACCEPTED",
+      "evidence_class": "FORMAL",
+      "requirement_ids": [
+        "REQ-NFR-008"
+      ],
+      "source_references": [
+        "OT Project Validation Plan v1.0 §7 catalogue row VT-PKG-EVIDENCE-001",
+        "OT Project Validation Plan v1.0 §8 procedure row VT-PKG-EVIDENCE-001",
+        "OT Project Validation Plan v1.0 §15 requirements-to-verification matrix",
+        "OT Project Validation Plan v1.0 §13",
+        "OT Project Demonstrator Design v0.2 §§21–22"
+      ],
+      "objective": "Self-contained evidence-package integrity",
+      "method": "Inspection + hash",
+      "preconditions": [
+        "Bind execution to the backend-controlled application build, immutable test-definition version/hash, controlled configuration identity, scenario run/mode/evidence class, and controlled scenario time applicable to this procedure.",
+        "Satisfy the Validation Plan §14 entry criteria and suspend rather than guess when a required controlled input or accepted expected result is unavailable."
+      ],
+      "controlled_inputs": [
+        "Export two executions separately and verify ZIP contents, relative links, canonical JSON, figures, README and SHA-256 manifest."
+      ],
+      "procedure_steps": [
+        "Export two executions separately and verify ZIP contents, relative links, canonical JSON, figures, README and SHA-256 manifest."
+      ],
+      "checkpoint_obligations": [
+        {
+          "checkpoint_id": "CONTROLLED_RESULT",
+          "required_content": [
+            "BUILD_AND_CONFIGURATION_IDENTITY",
+            "EXPECTED_OBSERVED_COMPARISON",
+            "EVIDENCE_PACKAGE_MANIFEST",
+            "SOURCE_RECORD_LINKS"
+          ]
+        }
+      ],
+      "expected_result_statement": "Every manifest entry exists and hashes match; source records/build/config/test IDs are traceable; prior package/execution is unchanged.",
+      "comparison_expected_values": null,
+      "evidence_requirements": [
+        "BUILD_AND_CONFIGURATION_IDENTITY",
+        "EXPECTED_OBSERVED_COMPARISON",
+        "EVIDENCE_PACKAGE_MANIFEST",
+        "SOURCE_RECORD_LINKS"
+      ],
+      "verdict_rule": "PASS only when the preserved observed result agrees with the pre-defined expected result and the required evidence is complete. An expected operational BLOCKED or REJECTED outcome is a validation PASS; BLOCKED-TEST is reserved for a test that cannot validly execute.",
+      "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage."
+    }
+  ]
+}
+
+

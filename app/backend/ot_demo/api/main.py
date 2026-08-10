@@ -1,4 +1,4 @@
-"""Versioned local API foundation for exercising I3 without an operational UI."""
+"""Versioned local API foundation through I5 without an operational UI."""
 
 from uuid import UUID
 
@@ -18,14 +18,28 @@ from ..modules.scenario.models import (
     ScenarioCommandRequest,
     ScenarioSnapshot,
 )
+from ..domain.enums import EvidenceClass
+from ..infrastructure.validation_repository import ValidationRecordNotFound
+from ..modules.validation.models import (
+    CaptureValidationCheckpointRequest,
+    EvidenceSnapshot,
+    FinaliseValidationExecutionRequest,
+    StartValidationExecutionRequest,
+    ValidationExecution,
+    ValidationExecutionSummary,
+)
+from ..modules.validation.service import ValidationBoundaryError, ValidationService
 
 
-def create_app(coordinator: ScenarioCoordinator | None = None) -> FastAPI:
+def create_app(
+    coordinator: ScenarioCoordinator | None = None,
+    validation_service: ValidationService | None = None,
+) -> FastAPI:
     app = FastAPI(
         title="OT Graduate Demonstrator",
-        version="0.3.0",
+        version="0.5.0",
         description=(
-            "Fictional local engineering demonstrator — I3 scenario transaction API"
+            "Fictional local engineering demonstrator — scenario and I5 evidence API"
         ),
     )
 
@@ -36,6 +50,14 @@ def create_app(coordinator: ScenarioCoordinator | None = None) -> FastAPI:
                 detail="Scenario coordinator is not configured for this process.",
             )
         return coordinator
+
+    def validation() -> ValidationService:
+        if validation_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Validation service is not configured for this process.",
+            )
+        return validation_service
 
     @app.post("/api/v1/runs", response_model=CommandResult)
     def initialise_run(request: InitialiseRunRequest) -> CommandResult:
@@ -84,6 +106,85 @@ def create_app(coordinator: ScenarioCoordinator | None = None) -> FastAPI:
             return service().events(scenario_run_id)
         except ScenarioRecordNotFound as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/executions",
+        response_model=ValidationExecution,
+    )
+    def start_validation_execution(
+        request: StartValidationExecutionRequest,
+    ) -> ValidationExecution:
+        try:
+            return validation().start_execution(
+                request.test_id,
+                request.scenario_run_id,
+                links=request.links,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/executions/{execution_id}/checkpoints",
+        response_model=EvidenceSnapshot,
+    )
+    def capture_validation_checkpoint(
+        execution_id: UUID,
+        request: CaptureValidationCheckpointRequest,
+    ) -> EvidenceSnapshot:
+        try:
+            return validation().capture_checkpoint(
+                execution_id,
+                request.checkpoint_id,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/executions/{execution_id}/finalise",
+        response_model=ValidationExecution,
+    )
+    def finalise_validation_execution(
+        execution_id: UUID,
+        request: FinaliseValidationExecutionRequest,
+    ) -> ValidationExecution:
+        try:
+            return validation().finalise_execution(
+                execution_id,
+                request.checkpoint_id,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/validation/executions/{execution_id}",
+        response_model=ValidationExecutionSummary,
+    )
+    def get_validation_execution(execution_id: UUID) -> ValidationExecutionSummary:
+        try:
+            return validation().get_execution(execution_id)
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/validation/executions",
+        response_model=tuple[ValidationExecutionSummary, ...],
+    )
+    def list_validation_executions(
+        test_id: str | None = None,
+        evidence_class: EvidenceClass | None = None,
+        scenario_run_id: UUID | None = None,
+    ) -> tuple[ValidationExecutionSummary, ...]:
+        return validation().list_executions(
+            test_id=test_id,
+            evidence_class=evidence_class,
+            scenario_run_id=scenario_run_id,
+        )
 
     return app
 
