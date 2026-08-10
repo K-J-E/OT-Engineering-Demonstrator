@@ -1,5 +1,5 @@
 ---
-Status: I3 assurance corrections complete — pending independent re-review
+Status: Accepted I3 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -26,6 +26,11 @@ The targeted QA-027/QA-028 assurance correction commit is
 run build provenance, injects the trusted I1 build manifest at coordinator
 construction and makes the returned current topology/isolation projection coherent
 with current controlled scenario time without rewriting persisted revision evidence.
+
+Independent engineering/implementation review accepted the complete I3 branch at
+tip `b22e5a50cdfc2a9ef34bb8b7657887c520e0b201`. The subsequent
+acceptance-status update is administrative only and does not alter the reviewed
+implementation baseline.
 
 Topology, source attribution, energisation, fault isolation, radiality and outage
 calculation remain owned by the accepted I2 services. I3 coordinates their use but
@@ -221,9 +226,9 @@ The accepted canonical configuration identities remain:
   boundaries, blocked isolation actions, unchanged revision/evidence and only the
   acknowledgement event.
 
-Independent review accepts QA-024, QA-025 and QA-026 in substance. QA-027 and QA-028
-are corrected and verified on the I3 branch but remain pending independent re-review
-before closure under an accepted I3 baseline.
+Independent review accepted the complete I3 baseline and independently verified
+QA-024, QA-025, QA-026, QA-027 and QA-028 closed. Their regression treatments remain
+part of the accepted I3 baseline.
 
 ## 8. Stop conditions, dependencies and regression implications
 
@@ -246,8 +251,8 @@ transaction behaviour and judgement unchanged.
 
 ## 9. Review and progression gate
 
-The corrected branch `agent/i3-scenario-transactions` is pushed for independent
-re-review with its implementation and administrative closeout history preserved.
-PR #3 remains unmerged. I3 shall not be merged until accepted. I4 has not begun and
-requires separate user authorisation from reviewed `main` after I3 acceptance and
-merge.
+Independent review accepted `agent/i3-scenario-transactions` at
+`b22e5a50cdfc2a9ef34bb8b7657887c520e0b201`. The reviewed implementation
+history and this administrative acceptance record are incorporated into `main` as
+the accepted I3 implementation baseline. I4 has not begun and requires separate
+user authorisation from this reviewed `main` baseline.
