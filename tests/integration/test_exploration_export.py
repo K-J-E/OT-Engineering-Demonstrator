@@ -24,6 +24,7 @@ from ot_demo.domain.enums import (
     ScenarioMode,
     ScenarioRunStatus,
     SwitchState,
+    TelemetryQuality,
 )
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
@@ -305,6 +306,111 @@ def test_sec_a4_trustworthy_and_untrustworthy_open_tie_follow_dc003(
         and item.available
         for item in stale.snapshot.allowed_actions
     )
+
+
+@pytest.mark.i8
+@pytest.mark.parametrize(
+    ("unproven_boundary", "proven_closed_boundary"),
+    [
+        ("SW-A12", "SW-A23"),
+        ("SW-A23", "SW-A12"),
+    ],
+)
+def test_exploration_boundary_action_eligibility_is_independent_per_incident_boundary(
+    tmp_path: Path,
+    unproven_boundary: str,
+    proven_closed_boundary: str,
+) -> None:
+    service = scenario(tmp_path, f"qa040-{unproven_boundary}")
+    run_id = initialise_exploration(service, "SEC-A2").snapshot.run.scenario_run_id
+    fault = execute_available(
+        service, run_id, ScenarioCommandType.INITIATE_FAULT, 2, at(10)
+    )
+    repository = ScenarioRepository(
+        tmp_path / f"qa040-{unproven_boundary}.sqlite3", MIGRATIONS
+    )
+    with repository.transaction() as unit:
+        points = {
+            item.entity_id: item for item in unit.list_telemetry(run_id)
+        }
+        unit.put_telemetry(
+            run_id,
+            points[unproven_boundary].model_copy(
+                update={
+                    "quality": TelemetryQuality.BAD,
+                    "last_update_scenario_time": at(10),
+                }
+            ),
+        )
+        unit.put_telemetry(
+            run_id,
+            points[proven_closed_boundary].model_copy(
+                update={
+                    "quality": TelemetryQuality.GOOD,
+                    "last_update_scenario_time": at(10),
+                }
+            ),
+        )
+
+    asymmetric = service.snapshot(run_id)
+    proof = asymmetric.topology.isolation_proof
+    assert proof is not None and not proof.isolated
+    proof_by_boundary = {
+        item.boundary_device_id: item for item in proof.boundary_evaluations
+    }
+    assert (
+        proof_by_boundary[unproven_boundary].proof_status
+        is BoundaryProofStatus.UNPROVEN
+    )
+    assert (
+        proof_by_boundary[proven_closed_boundary].proof_status
+        is BoundaryProofStatus.PROVEN_CLOSED
+    )
+    actions = {
+        item.target_entity_id: item
+        for item in asymmetric.allowed_actions
+        if item.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+    }
+    assert not actions[unproven_boundary].available
+    assert "UNPROVEN" in actions[unproven_boundary].reason
+    assert actions[proven_closed_boundary].available
+
+    operated = service.execute(
+        run_id,
+        request(
+            number=3,
+            run_id=run_id,
+            revision=fault.snapshot.run.state_revision,
+            command_type=ScenarioCommandType.OPERATE_ISOLATION_DEVICE,
+            scenario_time=at(20),
+            target=proven_closed_boundary,
+            state=SwitchState.OPEN,
+        ),
+    )
+    assert operated.accepted
+    recalculated = operated.snapshot.topology.isolation_proof
+    assert recalculated is not None and not recalculated.isolated
+    recalculated_by_boundary = {
+        item.boundary_device_id: item
+        for item in recalculated.boundary_evaluations
+    }
+    assert (
+        recalculated_by_boundary[proven_closed_boundary].proof_status
+        is BoundaryProofStatus.PROVEN_OPEN
+    )
+    assert (
+        recalculated_by_boundary[unproven_boundary].proof_status
+        is BoundaryProofStatus.UNPROVEN
+    )
+    recalculated_actions = {
+        item.target_entity_id: item
+        for item in operated.snapshot.allowed_actions
+        if item.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+    }
+    assert not recalculated_actions[proven_closed_boundary].available
+    assert "already proven OPEN" in recalculated_actions[proven_closed_boundary].reason
+    assert not recalculated_actions[unproven_boundary].available
+    assert "UNPROVEN" in recalculated_actions[unproven_boundary].reason
 
 
 @pytest.mark.i8

@@ -580,10 +580,18 @@ class ScenarioCoordinator:
         request_sha: str,
     ) -> CommandResult:
         gate_topology = self._gate_topology(unit, loaded, run, request.scenario_time)
-        next_target, gate_reason = self._next_isolation_target(run, gate_topology)
+        if run.mode is ScenarioMode.EXPLORATION:
+            target_available, gate_reason = self._exploration_isolation_action_gate(
+                run, gate_topology, request.target_entity_id
+            )
+        else:
+            next_target, gate_reason = self._next_isolation_target(
+                run, gate_topology
+            )
+            target_available = request.target_entity_id == next_target
         if (
             request.requested_state is not SwitchState.OPEN
-            or request.target_entity_id != next_target
+            or not target_available
         ):
             return self._reject(
                 unit,
@@ -1509,8 +1517,12 @@ class ScenarioCoordinator:
                 )
             )
 
-        next_target, next_reason = self._next_isolation_target(run, gate_topology)
         proof = gate_topology.isolation_proof
+        next_target, next_reason = (
+            self._next_isolation_target(run, gate_topology)
+            if run.mode is ScenarioMode.FORMAL
+            else (None, "")
+        )
         actual_boundaries = (
             self._ordered_isolation_boundaries(
                 run, proof.incident_boundary_device_ids
@@ -1523,21 +1535,31 @@ class ScenarioCoordinator:
             )
         )
         for device_id in actual_boundaries:
+            if run.mode is ScenarioMode.EXPLORATION:
+                gate_available, gate_reason = self._exploration_isolation_action_gate(
+                    run, gate_topology, device_id
+                )
+            else:
+                gate_available = device_id == next_target
+                gate_reason = next_reason
+            action_available = mutable and gate_available
             actions.append(
                 AllowedAction(
                     command_type=ScenarioCommandType.OPERATE_ISOLATION_DEVICE,
                     target_entity_id=device_id,
                     requested_state=SwitchState.OPEN,
-                    available=mutable and device_id == next_target,
+                    available=action_available,
                     reason_code=(
                         "AVAILABLE"
-                        if mutable and device_id == next_target
+                        if action_available
                         else "ISOLATION_ACTION_UNAVAILABLE"
                     ),
                     reason=(
                         "Backend-authorised isolation action is available."
-                        if mutable and device_id == next_target
-                        else next_reason
+                        if action_available
+                        else "The scenario run is closed."
+                        if not mutable
+                        else gate_reason
                     ),
                 )
             )
@@ -1659,6 +1681,41 @@ class ScenarioCoordinator:
                 f"Boundary {device_id} is UNPROVEN; trustworthy fresh evidence is required."
             )
         return None, "All active-fault isolation boundaries are already proven OPEN."
+
+    @staticmethod
+    def _exploration_isolation_action_gate(
+        run: RunContext,
+        topology: TopologyResult,
+        target_device_id: str | None,
+    ) -> tuple[bool, str]:
+        """Evaluate one actual Exploration boundary without ordering dependence."""
+
+        if run.network_state_label is not NetworkStateLabel.N1:
+            return False, "Isolation actions require the post-fault N1 workflow state."
+        proof = topology.isolation_proof
+        if proof is None:
+            return False, "No active-fault isolation proof is available."
+        if target_device_id not in proof.incident_boundary_device_ids:
+            return False, "The target is not an incident boundary of the active fault."
+        evaluation = next(
+            (
+                item
+                for item in proof.boundary_evaluations
+                if item.boundary_device_id == target_device_id
+            ),
+            None,
+        )
+        if evaluation is None:
+            return False, "The derived isolation boundary is absent from configuration incidence."
+        if evaluation.proof_status is BoundaryProofStatus.PROVEN_CLOSED:
+            return True, "Backend-authorised isolation action is available."
+        if evaluation.proof_status is BoundaryProofStatus.PROVEN_OPEN:
+            return False, (
+                f"Boundary {target_device_id} is already proven OPEN; no redundant OPEN action is required."
+            )
+        return False, (
+            f"Boundary {target_device_id} is UNPROVEN; trustworthy fresh evidence is required."
+        )
 
     def _ordered_isolation_boundaries(
         self,
