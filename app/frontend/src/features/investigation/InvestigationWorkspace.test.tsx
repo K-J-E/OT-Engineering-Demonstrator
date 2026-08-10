@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { WorkspaceApi } from '../../api/client'
-import type { InvestigationWorkspace as InvestigationModel } from '../../api/contracts'
+import type { InvestigationWorkspace as InvestigationModel, ValidationExecutionSummary } from '../../api/contracts'
 import { makeProjection } from '../../test-fixtures'
 import { InvestigationWorkspace } from './InvestigationWorkspace'
 
@@ -23,6 +23,40 @@ function model(): InvestigationModel {
   }
 }
 
+function sameBuildModel(includeRegression: boolean): InvestigationModel {
+  const workspace = model()
+  const direct: ValidationExecutionSummary = {
+    execution: {
+      ...workspace.original_failure.execution,
+      validation_execution_id: '30000000-0000-0000-0000-000000000002',
+      configuration_id: 'network-configuration-v1.1',
+      configuration_version: '1.1',
+      observed_result: { affected_customer_count: 850 },
+      verdict: 'PASS',
+    },
+    evidence_snapshots: [],
+  }
+  const regression: ValidationExecutionSummary = {
+    execution: {
+      ...direct.execution,
+      validation_execution_id: '30000000-0000-0000-0000-000000000003',
+      test_id: 'VT-FML-N0-N5-001',
+      status: 'ACTIVE',
+      finalised_scenario_time: null,
+      observed_result: null,
+      verdict: null,
+      verdict_reason: null,
+    },
+    evidence_snapshots: [],
+  }
+  return {
+    ...workspace,
+    direct_repeat: direct,
+    regression: includeRegression ? regression : null,
+    same_build_proven: true,
+  }
+}
+
 describe('I7 investigation presentation', () => {
   it('reveals consequence-to-source evidence progressively before record action', () => {
     render(<InvestigationWorkspace api={{} as WorkspaceApi} failureExecutionId="30000000-0000-0000-0000-000000000001" actor="Reviewer" initial={model()} onUpdate={vi.fn()} />)
@@ -34,5 +68,17 @@ describe('I7 investigation presentation', () => {
     expect(screen.getByText('connectivity_edges.EDGE-SW-A23-1.endpoint_a_id')).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Review next evidence step' }))
     expect(screen.getByRole('button', { name: 'Record DEF-001 after evidence review' })).toBeEnabled()
+  })
+
+  it('limits same-build wording to failure and direct repeat before regression', () => {
+    const rendered = render(<InvestigationWorkspace api={{} as WorkspaceApi} failureExecutionId="30000000-0000-0000-0000-000000000001" actor="Reviewer" initial={sameBuildModel(false)} onUpdate={vi.fn()} />)
+    const proof = within(rendered.container).getByTestId('same-build-proof')
+    expect(proof).toHaveTextContent('Same backend-controlled application build proven across v1.0 failure and v1.1 direct repeat.')
+    expect(proof).not.toHaveTextContent('corrected regression')
+  })
+
+  it('includes corrected regression only after its preserved record exists', () => {
+    const rendered = render(<InvestigationWorkspace api={{} as WorkspaceApi} failureExecutionId="30000000-0000-0000-0000-000000000001" actor="Reviewer" initial={sameBuildModel(true)} onUpdate={vi.fn()} />)
+    expect(within(rendered.container).getByTestId('same-build-proof')).toHaveTextContent('Same backend-controlled application build proven across v1.0 failure, v1.1 direct repeat and corrected regression.')
   })
 })
