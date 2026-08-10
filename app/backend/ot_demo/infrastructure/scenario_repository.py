@@ -26,6 +26,7 @@ from ..domain.enums import (
 )
 from ..modules.events.models import OperationalEvent
 from ..modules.outage.models import OutageResult
+from ..modules.restoration.models import AssessmentInvalidation, RestorationAssessment
 from ..modules.scenario.models import CommandResult, RunContext
 from ..modules.telemetry.models import AlarmRecord, TelemetryPoint
 from ..modules.telemetry.service import epoch_ms_to_instant, instant_to_epoch_ms
@@ -329,8 +330,9 @@ class ScenarioUnitOfWork:
             INSERT INTO operational_events (
                 event_id, scenario_run_id, event_sequence, scenario_time_ms,
                 state_revision, source, event_type, affected_entity_id,
-                description, actor, previous_value, new_value, command_id, alarm_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                description, actor, previous_value, new_value, command_id, alarm_id,
+                assessment_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -348,6 +350,11 @@ class ScenarioUnitOfWork:
                     event.new_value,
                     str(event.command_id) if event.command_id is not None else None,
                     str(event.alarm_id) if event.alarm_id is not None else None,
+                    (
+                        str(event.assessment_id)
+                        if event.assessment_id is not None
+                        else None
+                    ),
                 )
                 for event in events
             ],
@@ -375,6 +382,9 @@ class ScenarioUnitOfWork:
                 new_value=row["new_value"],
                 command_id=(UUID(row["command_id"]) if row["command_id"] else None),
                 alarm_id=(UUID(row["alarm_id"]) if row["alarm_id"] else None),
+                assessment_id=(
+                    UUID(row["assessment_id"]) if row["assessment_id"] else None
+                ),
             )
             for row in rows
         )
@@ -418,3 +428,103 @@ class ScenarioUnitOfWork:
         if row is None:
             raise ScenarioRecordNotFound("outage snapshot not found")
         return OutageResult.model_validate_json(row["payload_json"], strict=True)
+
+    def next_assessment_sequence(self, scenario_run_id: UUID) -> int:
+        row = self.connection.execute(
+            "SELECT COALESCE(MAX(assessment_sequence), 0) + 1 AS next_sequence "
+            "FROM restoration_assessments WHERE scenario_run_id = ?",
+            (str(scenario_run_id),),
+        ).fetchone()
+        return row["next_sequence"]
+
+    def insert_assessment(self, assessment: RestorationAssessment) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO restoration_assessments (
+                assessment_id, scenario_run_id, assessment_sequence,
+                state_revision, scenario_time_ms, configuration_id, candidate_id,
+                outcome, telemetry_snapshot_sha256, source_availability_sha256,
+                payload_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(assessment.assessment_id),
+                str(assessment.scenario_run_id),
+                assessment.assessment_sequence,
+                assessment.state_revision,
+                instant_to_epoch_ms(assessment.scenario_time),
+                assessment.configuration_id,
+                str(assessment.candidate.candidate_id) if assessment.candidate else None,
+                assessment.outcome.value,
+                assessment.telemetry_snapshot_sha256,
+                assessment.source_availability_sha256,
+                assessment.model_dump_json(),
+            ),
+        )
+
+    def list_assessments(
+        self, scenario_run_id: UUID
+    ) -> tuple[RestorationAssessment, ...]:
+        rows = self.connection.execute(
+            "SELECT payload_json FROM restoration_assessments "
+            "WHERE scenario_run_id = ? ORDER BY assessment_sequence",
+            (str(scenario_run_id),),
+        ).fetchall()
+        return tuple(
+            RestorationAssessment.model_validate_json(row["payload_json"], strict=True)
+            for row in rows
+        )
+
+    def get_assessment(self, assessment_id: UUID) -> RestorationAssessment:
+        row = self.connection.execute(
+            "SELECT payload_json FROM restoration_assessments WHERE assessment_id = ?",
+            (str(assessment_id),),
+        ).fetchone()
+        if row is None:
+            raise ScenarioRecordNotFound(f"assessment not found: {assessment_id}")
+        return RestorationAssessment.model_validate_json(row["payload_json"], strict=True)
+
+    def insert_assessment_invalidation(
+        self, invalidation: AssessmentInvalidation
+    ) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO restoration_assessment_invalidations (
+                invalidation_id, assessment_id, scenario_run_id,
+                superseding_state_revision, superseding_scenario_time_ms,
+                reason_code, event_id
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                str(invalidation.invalidation_id),
+                str(invalidation.assessment_id),
+                str(invalidation.scenario_run_id),
+                invalidation.superseding_state_revision,
+                instant_to_epoch_ms(invalidation.superseding_scenario_time),
+                invalidation.reason_code,
+                str(invalidation.event_id),
+            ),
+        )
+
+    def list_assessment_invalidations(
+        self, scenario_run_id: UUID
+    ) -> tuple[AssessmentInvalidation, ...]:
+        rows = self.connection.execute(
+            "SELECT * FROM restoration_assessment_invalidations "
+            "WHERE scenario_run_id = ? ORDER BY rowid",
+            (str(scenario_run_id),),
+        ).fetchall()
+        return tuple(
+            AssessmentInvalidation(
+                invalidation_id=UUID(row["invalidation_id"]),
+                assessment_id=UUID(row["assessment_id"]),
+                scenario_run_id=UUID(row["scenario_run_id"]),
+                superseding_state_revision=row["superseding_state_revision"],
+                superseding_scenario_time=epoch_ms_to_instant(
+                    row["superseding_scenario_time_ms"]
+                ),
+                reason_code=row["reason_code"],
+                event_id=UUID(row["event_id"]),
+            )
+            for row in rows
+        )

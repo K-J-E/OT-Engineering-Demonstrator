@@ -26,6 +26,7 @@ from ...domain.value_objects import (
 )
 from ..events.models import OperationalEvent
 from ..outage.models import OutageResult
+from ..restoration.models import AssessmentInvalidation, RestorationAssessment
 from ..telemetry.models import AlarmRecord, TelemetryPoint, TelemetryValidity
 from ..topology.models import TopologyResult
 
@@ -68,20 +69,24 @@ class ScenarioCommandRequest(FrozenModel):
     target_entity_id: EngineeringId | None = None
     requested_state: SwitchState | None = None
     alarm_id: UUID | None = None
+    assessment_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_target_shape(self) -> Self:
-        switching = self.command_type in {
+        direct_switching = self.command_type in {
             ScenarioCommandType.OPERATE_ISOLATION_DEVICE,
             ScenarioCommandType.RESTORE_NORMAL_SOURCE,
         }
-        if switching != (self.target_entity_id is not None):
+        if direct_switching != (self.target_entity_id is not None):
             raise ValueError("switching commands require one target entity")
-        if switching != (self.requested_state is not None):
+        if direct_switching != (self.requested_state is not None):
             raise ValueError("switching commands require one requested state")
         acknowledging = self.command_type is ScenarioCommandType.ACKNOWLEDGE_ALARM
         if acknowledging != (self.alarm_id is not None):
             raise ValueError("alarm acknowledgement requires one alarm ID")
+        executing = self.command_type is ScenarioCommandType.EXECUTE_RESTORATION
+        if executing != (self.assessment_id is not None):
+            raise ValueError("restoration execution requires one assessment ID")
         return self
 
 
@@ -90,6 +95,7 @@ class AllowedAction(FrozenModel):
     target_entity_id: EngineeringId | None = None
     requested_state: SwitchState | None = None
     alarm_id: UUID | None = None
+    assessment_id: UUID | None = None
     available: bool
     reason_code: str = Field(min_length=1, max_length=120)
     reason: str = Field(min_length=1, max_length=500)
@@ -103,6 +109,8 @@ class ScenarioSnapshot(FrozenModel):
     topology: TopologyResult
     outage: OutageResult
     events: tuple[OperationalEvent, ...]
+    restoration_assessments: tuple[RestorationAssessment, ...] = ()
+    restoration_invalidations: tuple[AssessmentInvalidation, ...] = ()
     allowed_actions: tuple[AllowedAction, ...]
 
 
@@ -115,4 +123,5 @@ class CommandResult(FrozenModel):
     current_revision: int = Field(ge=0)
     run_status: ScenarioRunStatus
     new_event_ids: tuple[UUID, ...]
+    new_assessment_ids: tuple[UUID, ...] = ()
     snapshot: ScenarioSnapshot

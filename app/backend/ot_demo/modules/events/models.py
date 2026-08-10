@@ -24,3 +24,4 @@ class OperationalEvent(FrozenModel):
     new_value: str | None = Field(default=None, max_length=160)
     command_id: UUID | None = None
     alarm_id: UUID | None = None
+    assessment_id: UUID | None = None

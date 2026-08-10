@@ -16,6 +16,7 @@ from ..domain.enums import (
     NetworkStateLabel,
     OperationalEventSource,
     OperationalEventType,
+    RestorationOutcome,
     ScenarioCommandType,
     ScenarioMode,
     ScenarioRunStatus,
@@ -34,6 +35,12 @@ from ..infrastructure.scenario_repository import (
 from ..modules.configuration.models import LoadedConfiguration
 from ..modules.events.models import OperationalEvent
 from ..modules.outage import OutageResult, OutageService
+from ..modules.restoration import (
+    AssessmentInvalidation,
+    RestorationAssessment,
+    RestorationAssessmentInputs,
+    RestorationService,
+)
 from ..modules.scenario.definition import (
     FORMAL_N0_N3_DEFINITION,
     FormalScenarioDefinition,
@@ -71,6 +78,7 @@ class _EventSpec:
     previous_value: str | None = None
     new_value: str | None = None
     alarm_id: UUID | None = None
+    assessment_id: UUID | None = None
 
 
 class ScenarioCoordinator:
@@ -93,6 +101,7 @@ class ScenarioCoordinator:
         self._topology = TopologyService()
         self._outage = OutageService()
         self._telemetry_validity = TelemetryValidityService()
+        self._restoration = RestorationService()
 
     def initialise(self, request: InitialiseRunRequest) -> CommandResult:
         request_sha = self._request_sha(request)
@@ -232,6 +241,14 @@ class ScenarioCoordinator:
                 )
             if request.command_type is ScenarioCommandType.RESTORE_NORMAL_SOURCE:
                 return self._restore_normal_source(
+                    unit, run, loaded, request, request_sha
+                )
+            if request.command_type is ScenarioCommandType.ASSESS_RESTORATION:
+                return self._assess_restoration(
+                    unit, run, loaded, request, request_sha
+                )
+            if request.command_type is ScenarioCommandType.EXECUTE_RESTORATION:
+                return self._execute_restoration(
                     unit, run, loaded, request, request_sha
                 )
             if request.command_type is ScenarioCommandType.RESET_RUN:
@@ -678,21 +695,61 @@ class ScenarioCoordinator:
             }
         )
         unit.update_run(closed_run)
+        current_assessments = unit.list_assessments(run.scenario_run_id)
+        existing_invalidations = {
+            item.assessment_id
+            for item in unit.list_assessment_invalidations(run.scenario_run_id)
+        }
+        current_assessment = current_assessments[-1] if current_assessments else None
+        reset_specs: tuple[_EventSpec, ...] = (
+            *(
+                (
+                    _EventSpec(
+                        OperationalEventSource.ADMS_RESTORATION,
+                        OperationalEventType.RESTORATION_ASSESSMENT_INVALIDATED,
+                        (
+                            current_assessment.candidate.tie_device_id
+                            if current_assessment.candidate is not None
+                            else None
+                        ),
+                        "Current restoration assessment invalidated by controlled reset.",
+                        previous_value=current_assessment.outcome.value,
+                        new_value="INVALIDATED",
+                        assessment_id=current_assessment.assessment_id,
+                    ),
+                )
+                if current_assessment is not None
+                and current_assessment.assessment_id not in existing_invalidations
+                else ()
+            ),
+            _EventSpec(
+                OperationalEventSource.SCENARIO_CONTROL,
+                OperationalEventType.SCENARIO_RESET,
+                None,
+                "Run closed for controlled reset; prior history is preserved.",
+            ),
+        )
         reset_event = self._events_from_specs(
             unit,
             closed_run,
             request.command_id,
             request.actor,
-            (
-                _EventSpec(
-                    OperationalEventSource.SCENARIO_CONTROL,
-                    OperationalEventType.SCENARIO_RESET,
-                    None,
-                    "Run closed for controlled reset; prior history is preserved.",
-                ),
-            ),
+            reset_specs,
         )
         unit.insert_events(reset_event)
+        if current_assessment is not None and current_assessment.assessment_id not in existing_invalidations:
+            invalidation_event = reset_event[0]
+            unit.insert_assessment_invalidation(
+                AssessmentInvalidation(
+                    invalidation_id=uuid4(),
+                    assessment_id=current_assessment.assessment_id,
+                    scenario_run_id=run.scenario_run_id,
+                    superseding_state_revision=run.state_revision,
+                    superseding_scenario_time=request.scenario_time,
+                    reason_code="SCENARIO_RESET",
+                    event_id=invalidation_event.event_id,
+                )
+            )
         self._invoke_failure_hook("AFTER_PRIMARY_MUTATION")
 
         new_run = self._new_run(
@@ -742,6 +799,287 @@ class ScenarioCoordinator:
         )
         return result
 
+    def _assess_restoration(
+        self,
+        unit: ScenarioUnitOfWork,
+        run: RunContext,
+        loaded: LoadedConfiguration,
+        request: ScenarioCommandRequest,
+        request_sha: str,
+    ) -> CommandResult:
+        invalidated_ids = {
+            item.assessment_id
+            for item in unit.list_assessment_invalidations(run.scenario_run_id)
+        }
+        assessments = unit.list_assessments(run.scenario_run_id)
+        reassessment_allowed = bool(
+            assessments and assessments[-1].assessment_id in invalidated_ids
+        )
+        if not (
+            run.network_state_label is NetworkStateLabel.N3
+            or (
+                run.network_state_label is NetworkStateLabel.N4
+                and reassessment_allowed
+            )
+        ):
+            return self._reject(
+                unit,
+                run,
+                loaded,
+                request,
+                request_sha,
+                "RESTORATION_ASSESSMENT_UNAVAILABLE",
+                "Assessment requires N3 or an invalidated assessment at N4.",
+            )
+
+        updated_run = run.model_copy(
+            update={
+                "scenario_time": request.scenario_time,
+                "workflow_stage": WorkflowStage.RESTORATION_ASSESSED,
+                "network_state_label": NetworkStateLabel.N4,
+            }
+        )
+        telemetry = unit.list_telemetry(run.scenario_run_id)
+        topology, outage, validities = self._derive(
+            loaded,
+            updated_run,
+            telemetry,
+            previous_outage=None,
+        )
+        assessment = self._restoration.assess(
+            loaded,
+            RestorationAssessmentInputs(
+                assessment_id=uuid4(),
+                assessment_sequence=unit.next_assessment_sequence(
+                    run.scenario_run_id
+                ),
+                scenario_run_id=run.scenario_run_id,
+                state_revision=run.state_revision,
+                scenario_time=request.scenario_time,
+                fault_section_id=run.fault_section_id,
+                telemetry=telemetry,
+                telemetry_validity=validities,
+                source_availability=run.source_availability,
+                current_topology=topology,
+                current_outage=outage,
+            ),
+        )
+        unit.update_run(updated_run)
+        unit.insert_assessment(assessment)
+        self._invoke_failure_hook("AFTER_PRIMARY_MUTATION")
+        candidate_spec = _EventSpec(
+            OperationalEventSource.ADMS_RESTORATION,
+            (
+                OperationalEventType.RESTORATION_CANDIDATE_IDENTIFIED
+                if assessment.candidate is not None
+                else OperationalEventType.RESTORATION_NO_CANDIDATE
+            ),
+            (
+                assessment.candidate.tie_device_id
+                if assessment.candidate is not None
+                else None
+            ),
+            (
+                "Configuration-driven restoration candidate identified."
+                if assessment.candidate is not None
+                else "No restoration candidate exists for the current topology."
+            ),
+            assessment_id=assessment.assessment_id,
+        )
+        assessed_spec = _EventSpec(
+            OperationalEventSource.ADMS_RESTORATION,
+            OperationalEventType.RESTORATION_ASSESSED,
+            (
+                assessment.candidate.tie_device_id
+                if assessment.candidate is not None
+                else None
+            ),
+            "Restoration permissives evaluated against bound current evidence.",
+            new_value=assessment.outcome.value,
+            assessment_id=assessment.assessment_id,
+        )
+        return self._complete_accepted(
+            unit,
+            prior_run=run,
+            updated_run=updated_run,
+            loaded=loaded,
+            request=request,
+            request_sha=request_sha,
+            reason_code=f"RESTORATION_{assessment.outcome.value}",
+            reason=(
+                "Restoration assessment recorded without changing electrical state."
+            ),
+            event_specs=(candidate_spec, assessed_spec),
+            new_assessment_ids=(assessment.assessment_id,),
+        )
+
+    def _execute_restoration(
+        self,
+        unit: ScenarioUnitOfWork,
+        run: RunContext,
+        loaded: LoadedConfiguration,
+        request: ScenarioCommandRequest,
+        request_sha: str,
+    ) -> CommandResult:
+        assessments = unit.list_assessments(run.scenario_run_id)
+        current = assessments[-1] if assessments else None
+        invalidated_ids = {
+            item.assessment_id
+            for item in unit.list_assessment_invalidations(run.scenario_run_id)
+        }
+        if (
+            current is None
+            or request.assessment_id != current.assessment_id
+            or current.assessment_id in invalidated_ids
+            or current.outcome is not RestorationOutcome.PERMITTED
+            or current.candidate is None
+            or run.network_state_label is not NetworkStateLabel.N4
+        ):
+            return self._reject(
+                unit,
+                run,
+                loaded,
+                request,
+                request_sha,
+                "RESTORATION_EXECUTION_UNAVAILABLE",
+                "Only the current bound PERMITTED assessment may be executed at N4.",
+            )
+
+        current_projection = self._assessment_projection(
+            unit, run, loaded, request.scenario_time
+        )
+        if not self._assessment_binding_matches(current, current_projection):
+            updated_run = run.model_copy(update={"scenario_time": request.scenario_time})
+            unit.update_run(updated_run)
+            event = self._events_from_specs(
+                unit,
+                updated_run,
+                request.command_id,
+                request.actor,
+                (
+                    _EventSpec(
+                        OperationalEventSource.ADMS_RESTORATION,
+                        OperationalEventType.RESTORATION_ASSESSMENT_INVALIDATED,
+                        current.candidate.tie_device_id,
+                        "Bound restoration assessment is no longer current.",
+                        previous_value=current.outcome.value,
+                        new_value="INVALIDATED",
+                        assessment_id=current.assessment_id,
+                    ),
+                ),
+            )[0]
+            unit.insert_events((event,))
+            unit.insert_assessment_invalidation(
+                AssessmentInvalidation(
+                    invalidation_id=uuid4(),
+                    assessment_id=current.assessment_id,
+                    scenario_run_id=run.scenario_run_id,
+                    superseding_state_revision=run.state_revision,
+                    superseding_scenario_time=request.scenario_time,
+                    reason_code="BOUND_EVIDENCE_NO_LONGER_CURRENT",
+                    event_id=event.event_id,
+                )
+            )
+            self._invoke_failure_hook("AFTER_PRIMARY_MUTATION")
+            return self._reject(
+                unit,
+                updated_run,
+                loaded,
+                request,
+                request_sha,
+                "RESTORATION_ASSESSMENT_INVALIDATED",
+                "Assessment binding changed or required evidence is no longer valid.",
+            )
+
+        candidate = current.candidate
+        points = self._telemetry_map(unit, run.scenario_run_id)
+        previous = points[candidate.tie_device_id]
+        if previous.value is not SwitchState.OPEN:
+            return self._reject(
+                unit,
+                run,
+                loaded,
+                request,
+                request_sha,
+                "RESTORATION_TIE_NOT_OPEN",
+                "The approved simulated execution requires the tie to be OPEN.",
+            )
+        next_revision = run.state_revision + 1
+        changed = previous.model_copy(
+            update={
+                "value": SwitchState.CLOSED,
+                "quality": TelemetryQuality.GOOD,
+                "last_update_scenario_time": request.scenario_time,
+                "revision": next_revision,
+            }
+        )
+        points[candidate.tie_device_id] = changed
+        updated_run = run.model_copy(
+            update={
+                "scenario_time": request.scenario_time,
+                "state_revision": next_revision,
+                "workflow_stage": WorkflowStage.RESTORATION_EXECUTED,
+                "network_state_label": NetworkStateLabel.N5,
+                "status": ScenarioRunStatus.RUN_COMPLETE,
+            }
+        )
+        unit.update_run(updated_run)
+        unit.put_telemetry(run.scenario_run_id, changed)
+        self._invoke_failure_hook("AFTER_PRIMARY_MUTATION")
+        topology, outage, _ = self._derive(
+            loaded,
+            updated_run,
+            tuple(points.values()),
+            previous_outage=unit.get_outage_snapshot(
+                run.scenario_run_id, run.state_revision
+            ),
+        )
+        unit.insert_derived_snapshots(
+            run.scenario_run_id, next_revision, topology, outage
+        )
+        return self._complete_accepted(
+            unit,
+            prior_run=run,
+            updated_run=updated_run,
+            loaded=loaded,
+            request=request,
+            request_sha=request_sha,
+            reason_code="RESTORATION_EXECUTED",
+            reason="Permitted simulated restoration executed through the I2 engine.",
+            event_specs=(
+                _EventSpec(
+                    OperationalEventSource.OPERATOR,
+                    OperationalEventType.SWITCHING_ACTION,
+                    candidate.tie_device_id,
+                    "Bound permitted simulated tie-close action accepted.",
+                    previous_value=previous.value.value,
+                    new_value=changed.value.value,
+                    assessment_id=current.assessment_id,
+                ),
+                _EventSpec(
+                    OperationalEventSource.SCADA,
+                    OperationalEventType.TELEMETRY_UPDATED,
+                    candidate.tie_device_id,
+                    "Tie telemetry refreshed after simulated restoration operation.",
+                    previous_value=previous.value.value,
+                    new_value=changed.value.value,
+                    assessment_id=current.assessment_id,
+                ),
+                _EventSpec(
+                    OperationalEventSource.SCADA,
+                    OperationalEventType.DEVICE_STATE_CHANGE,
+                    candidate.tie_device_id,
+                    "Tie device changed state after simulated restoration operation.",
+                    previous_value=previous.value.value,
+                    new_value=changed.value.value,
+                    assessment_id=current.assessment_id,
+                ),
+                *self._derived_event_specs(
+                    topology, outage, assessment_id=current.assessment_id
+                ),
+            ),
+        )
+
     def _complete_accepted(
         self,
         unit: ScenarioUnitOfWork,
@@ -754,6 +1092,7 @@ class ScenarioCoordinator:
         reason_code: str,
         reason: str,
         event_specs: tuple[_EventSpec, ...],
+        new_assessment_ids: tuple[UUID, ...] = (),
     ) -> CommandResult:
         events = self._events_from_specs(
             unit,
@@ -774,6 +1113,7 @@ class ScenarioCoordinator:
             current_revision=updated_run.state_revision,
             run_status=updated_run.status,
             new_event_ids=tuple(event.event_id for event in events),
+            new_assessment_ids=new_assessment_ids,
             snapshot=snapshot,
         )
         unit.insert_command_result(
@@ -836,6 +1176,23 @@ class ScenarioCoordinator:
         )
         outage = unit.get_outage_snapshot(run.scenario_run_id, run.state_revision)
         alarms = unit.list_alarms(run.scenario_run_id)
+        assessments = unit.list_assessments(run.scenario_run_id)
+        invalidations = unit.list_assessment_invalidations(run.scenario_run_id)
+        current_assessment = assessments[-1] if assessments else None
+        current_executable = False
+        if (
+            current_assessment is not None
+            and current_assessment.outcome is RestorationOutcome.PERMITTED
+            and current_assessment.candidate is not None
+            and current_assessment.assessment_id
+            not in {item.assessment_id for item in invalidations}
+        ):
+            projection = self._assessment_projection(
+                unit, run, loaded, run.scenario_time
+            )
+            current_executable = self._assessment_binding_matches(
+                current_assessment, projection
+            )
         return ScenarioSnapshot(
             run=run,
             telemetry=telemetry,
@@ -844,8 +1201,20 @@ class ScenarioCoordinator:
             topology=current_topology,
             outage=outage,
             events=unit.list_events(run.scenario_run_id),
+            restoration_assessments=assessments,
+            restoration_invalidations=invalidations,
             allowed_actions=self._allowed_actions(
-                run, loaded, current_topology, alarms
+                run,
+                loaded,
+                current_topology,
+                alarms,
+                current_assessment,
+                current_executable,
+                bool(
+                    current_assessment
+                    and current_assessment.assessment_id
+                    in {item.assessment_id for item in invalidations}
+                ),
             ),
         )
 
@@ -915,6 +1284,9 @@ class ScenarioCoordinator:
         loaded: LoadedConfiguration,
         gate_topology: TopologyResult,
         alarms: tuple[AlarmRecord, ...],
+        current_assessment: RestorationAssessment | None,
+        current_assessment_executable: bool,
+        current_assessment_invalidated: bool,
     ) -> tuple[AllowedAction, ...]:
         mutable = run.status is not ScenarioRunStatus.CLOSED
         actions: list[AllowedAction] = [
@@ -1007,6 +1379,47 @@ class ScenarioCoordinator:
                     "AVAILABLE" if restore_available else "ISOLATION_NOT_PROVEN_AT_N2"
                 ),
                 reason="Requires current derived isolation proof at N2.",
+            )
+        )
+        assess_available = mutable and (
+            run.network_state_label is NetworkStateLabel.N3
+            or (
+                run.network_state_label is NetworkStateLabel.N4
+                and current_assessment_invalidated
+            )
+        )
+        actions.append(
+            AllowedAction(
+                command_type=ScenarioCommandType.ASSESS_RESTORATION,
+                available=assess_available,
+                reason_code=(
+                    "AVAILABLE"
+                    if assess_available
+                    else "REQUIRES_N3_OR_INVALIDATED_N4_ASSESSMENT"
+                ),
+                reason="Assessment is available at N3 or after N4 invalidation.",
+            )
+        )
+        execute_available = (
+            mutable
+            and run.network_state_label is NetworkStateLabel.N4
+            and current_assessment_executable
+        )
+        actions.append(
+            AllowedAction(
+                command_type=ScenarioCommandType.EXECUTE_RESTORATION,
+                assessment_id=(
+                    current_assessment.assessment_id
+                    if current_assessment is not None
+                    else None
+                ),
+                available=execute_available,
+                reason_code=(
+                    "AVAILABLE"
+                    if execute_available
+                    else "CURRENT_PERMITTED_ASSESSMENT_REQUIRED"
+                ),
+                reason="Execution requires the current bound PERMITTED assessment.",
             )
         )
         actions.append(
@@ -1114,6 +1527,7 @@ class ScenarioCoordinator:
     def _derived_event_specs(
         topology: TopologyResult,
         outage: OutageResult,
+        assessment_id: UUID | None = None,
     ) -> tuple[_EventSpec, _EventSpec]:
         return (
             _EventSpec(
@@ -1124,6 +1538,7 @@ class ScenarioCoordinator:
                     "Topology, source paths, energisation and radiality recalculated "
                     f"for configuration {topology.configuration_id}."
                 ),
+                assessment_id=assessment_id,
             ),
             _EventSpec(
                 OperationalEventSource.OMS,
@@ -1133,6 +1548,7 @@ class ScenarioCoordinator:
                     "Outage/customer consequence recalculated: "
                     f"{outage.affected_customer_count} affected."
                 ),
+                assessment_id=assessment_id,
             ),
         )
 
@@ -1161,6 +1577,7 @@ class ScenarioCoordinator:
                 new_value=spec.new_value,
                 command_id=command_id,
                 alarm_id=spec.alarm_id,
+                assessment_id=spec.assessment_id,
             )
             for offset, spec in enumerate(specs)
         )
@@ -1238,6 +1655,58 @@ class ScenarioCoordinator:
             if item.entity_id == section.feeder_id
         )
         return feeder, feeder.source_breaker_id
+
+    def _assessment_projection(
+        self,
+        unit: ScenarioUnitOfWork,
+        run: RunContext,
+        loaded: LoadedConfiguration,
+        scenario_time: datetime,
+    ) -> RestorationAssessment:
+        projection_run = run.model_copy(update={"scenario_time": scenario_time})
+        telemetry = unit.list_telemetry(run.scenario_run_id)
+        topology, outage, validities = self._derive(
+            loaded,
+            projection_run,
+            telemetry,
+            previous_outage=None,
+        )
+        return self._restoration.assess(
+            loaded,
+            RestorationAssessmentInputs(
+                assessment_id=uuid4(),
+                assessment_sequence=1,
+                scenario_run_id=run.scenario_run_id,
+                state_revision=run.state_revision,
+                scenario_time=scenario_time,
+                fault_section_id=run.fault_section_id,
+                telemetry=telemetry,
+                telemetry_validity=validities,
+                source_availability=run.source_availability,
+                current_topology=topology,
+                current_outage=outage,
+            ),
+        )
+
+    @staticmethod
+    def _assessment_binding_matches(
+        assessment: RestorationAssessment,
+        projection: RestorationAssessment,
+    ) -> bool:
+        return bool(
+            assessment.scenario_run_id == projection.scenario_run_id
+            and assessment.configuration_id == projection.configuration_id
+            and assessment.state_revision == projection.state_revision
+            and assessment.telemetry_snapshot_sha256
+            == projection.telemetry_snapshot_sha256
+            and assessment.source_availability_sha256
+            == projection.source_availability_sha256
+            and assessment.candidate is not None
+            and projection.candidate is not None
+            and assessment.candidate.candidate_id
+            == projection.candidate.candidate_id
+            and projection.outcome is RestorationOutcome.PERMITTED
+        )
 
     def _validate_definition(self, loaded: LoadedConfiguration) -> None:
         section_ids = {section.entity_id for section in loaded.data.sections}
