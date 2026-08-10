@@ -37,8 +37,19 @@ For active-fault isolation work, read all of the following before coding:
 5. Demonstrator Design Section 35 and AD-DD-023 for backend records, interaction and prohibited shortcuts; and
 6. Validation Plan Sections 7–8, 12, 14–18 and AD-VP-012/015/018 for catalogue coverage, package lifecycle and acceptance gates.
 
-The repository currently holds the approved engineering definitions of Network Configuration v1.0 and v1.1; it does **not** yet hold immutable implementation configuration packages. After explicit implementation authorisation, the first implementation baseline must instantiate both definitions as separate schema-valid immutable packages, capture their hashes and verify the single controlled SW-A23 endpoint difference before validation execution.
+Accepted I1 instantiated the approved Network Configuration v1.0 and v1.1 definitions as separate schema-valid, hash-verified immutable implementation packages. Accepted I2–I4 consume those packages through common algorithms without modifying them. Authorised I5 binds validation executions and evidence to the selected package identity and preserves the same-build v1.0 failure / v1.1 corrected comparison.
 
-Current gate: DC-003 is applied/cross-document verified and Validation Plan v1.0 is the accepted Step 9 baseline. **Implementation is still not authorised.** Begin only after the user explicitly authorises a bounded implementation increment, then resolve IMP-001 at I1.
+## I5 validation/evidence implementation reading path
+
+For controlled definition, execution, checkpoint, comparison and evidence work, read all of the following before coding:
+
+1. Requirements Specification `REQ-VAL-001–014`, `REQ-CFG-009–012`, `REQ-EVT-001–011`, `REQ-NFR-003` and `REQ-NFR-008`;
+2. Network Model Sections 16–18 for the approved answer key and DEF-001 basis;
+3. System Architecture Sections 12, 17, 19–20 and 26.4–26.5 for record ownership, provenance and separation;
+4. Workflow Design Sections 5.2–5.3, 14–19, 22 and 27.3–27.4 for lifecycle, checkpoint and evidence flow;
+5. Demonstrator Design Sections 8.7, 9, 10.5, 12, 19, 21–22 and 27–28 for module, persistence and interface decisions; and
+6. Validation Plan Sections 3–15 and 17–18 in full, including all 24 catalogue/procedure rows and the exact 124-row RTM.
+
+Current gate: I4 is the accepted implementation baseline. I5 is implemented at commit `4a5c8e7916a6053a5e149150b032475fa6240a27` on `agent/i5-validation-evidence` and is pending independent review; it is not merged or accepted yet. **I6 has not begun and requires separate user authorisation after I5 acceptance.**
 
 If a required implementation choice is genuinely unspecified, raise it as a design question before coding it.

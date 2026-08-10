@@ -1,6 +1,6 @@
 # OT Graduate Demonstration Project — Authoritative Detailed Baseline
 
-Baseline date: 2026-08-09
+Baseline date: 2026-08-10
 Status: CURRENT DRAFT ENGINEERING WORKING BASELINE
 
 ## Critical working rule
@@ -73,18 +73,19 @@ accepted current validation baseline through Section 18. It defines the 24-test
 catalogue, deterministic scenario-time and telemetry-boundary rules, formal and exploratory
 verification approach, evidence strategy and requirements-to-verification mapping for all 124
 formal requirements. DC-003 was applied and cross-document verified before final Step 9
-acceptance. Substantive behavioural implementation remains **not authorised** until the user
-explicitly authorises the next bounded implementation increment.
+acceptance. Implementation proceeds only through separately authorised increments. I1–I4 are
+accepted implementation baselines; I5 has been implemented on its dedicated review branch and
+remains unmerged pending independent acceptance. I6 has not begun and is not authorised.
 
 The approved Network Model contains the engineering definitions of defective Network
-Configuration v1.0 and corrected v1.1. No implementation configuration packages exist yet because
-implementation has not begun. After explicit authorisation, the first implementation baseline must
-instantiate and hash both definitions as separate immutable packages before validation execution.
+Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,
+schema-valid and hash-verified implementation packages. I5 consumes them through the same approved
+configuration loader and records their identities without modifying either package.
 
-## Future coding gate
+## Implementation gate
 
-Before coding a subsystem—after explicit implementation authorisation—use the relevant detailed
-design sections, System Architecture, Workflow Design, Network Model answer key, accepted
-Validation Plan AND corresponding formal requirements. If
+Before coding an authorised increment, use the relevant detailed design sections, System
+Architecture, Workflow Design, Network Model answer key, accepted Validation Plan and corresponding
+formal requirements. If
 implementation encounters an unresolved choice, do not guess: record it as a design
 question/change and resolve it against the engineering baseline first.

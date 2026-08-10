@@ -1,8 +1,10 @@
-# I1 application scaffold
+# Application implementation through authorised I5
 
-This directory contains the reproducible backend and frontend foundations created by
-Implementation Increment I1. It does not contain topology, outage, scenario,
-restoration, validation-execution or operational-UI behaviour.
+This directory contains the reproducible local application foundations and the
+separately authorised I1–I5 backend increments: controlled inputs, generic
+topology/outage, scenario transactions, restoration, and immutable
+validation/evidence records. It does not contain the I6 operational UI, I7 defect
+investigation presentation, I8 Exploration/export workflow or I9 packaging.
 
 ## Pinned local toolchain
 
@@ -21,3 +23,9 @@ so an editable install is not part of this controlled toolchain.
 The canonical Network Configuration v1.0 and v1.1 packages under `config/network/`
 are read-only runtime inputs. The application loader verifies their manifests and
 SHA-256 hashes before returning typed configuration records.
+
+The accepted 24-test machine catalogue under `validation/test-definitions/` is a
+hash-protected counterpart of Validation Plan v1.0. I5 binds each execution to the
+backend-controlled build, configuration, definition version/hash, run, mode,
+evidence class and controlled scenario time. Captured evidence is distinct from
+the operational-event catalogue and finalised records are immutable.
