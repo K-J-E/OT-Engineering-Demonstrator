@@ -23,6 +23,7 @@ from ..domain.enums import (
     TelemetryQuality,
     WorkflowStage,
 )
+from ..infrastructure.build_identity import ApplicationBuildManifest
 from ..infrastructure.configuration_loader import JsonConfigurationLoader
 from ..infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ..infrastructure.scenario_repository import (
@@ -80,11 +81,13 @@ class ScenarioCoordinator:
         repository: ScenarioRepository,
         configuration_loader: JsonConfigurationLoader,
         *,
+        application_build_manifest: ApplicationBuildManifest,
         definition: FormalScenarioDefinition = FORMAL_N0_N3_DEFINITION,
         failure_hook: FailureHook | None = None,
     ) -> None:
         self._repository = repository
         self._configuration_loader = configuration_loader
+        self._application_build_manifest = application_build_manifest
         self._definition = definition
         self._failure_hook = failure_hook
         self._topology = TopologyService()
@@ -113,7 +116,9 @@ class ScenarioCoordinator:
             run = self._new_run(
                 loaded=loaded,
                 scenario_time=request.scenario_time,
-                application_build_id=request.application_build_id,
+                application_build_id=(
+                    self._application_build_manifest.application_build_id
+                ),
             )
             unit.insert_run(run)
             telemetry = self._normal_telemetry(loaded, run)
@@ -820,27 +825,27 @@ class ScenarioCoordinator:
             self._telemetry_validity.classify(point, run.scenario_time)
             for point in telemetry
         )
-        topology = unit.get_topology_snapshot(
-            run.scenario_run_id, run.state_revision
-        )
-        outage = unit.get_outage_snapshot(run.scenario_run_id, run.state_revision)
-        gate_topology, _, _ = self._derive(
+        # The persisted revision snapshot remains immutable historical evidence.
+        # The current projection must instead evaluate time-sensitive isolation
+        # evidence at the run's current controlled scenario time.
+        current_topology, _, _ = self._derive(
             loaded,
             run,
             telemetry,
             previous_outage=None,
         )
+        outage = unit.get_outage_snapshot(run.scenario_run_id, run.state_revision)
         alarms = unit.list_alarms(run.scenario_run_id)
         return ScenarioSnapshot(
             run=run,
             telemetry=telemetry,
             telemetry_validity=validities,
             alarms=alarms,
-            topology=topology,
+            topology=current_topology,
             outage=outage,
             events=unit.list_events(run.scenario_run_id),
             allowed_actions=self._allowed_actions(
-                run, loaded, gate_topology, alarms
+                run, loaded, current_topology, alarms
             ),
         )
 

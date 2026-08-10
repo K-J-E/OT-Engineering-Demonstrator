@@ -1,10 +1,12 @@
 """I3 atomic formal N0-N3 scenario, command and reset conformance gates."""
 
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from ot_demo.api.main import create_app
 from ot_demo.application.scenario_coordinator import (
@@ -13,6 +15,8 @@ from ot_demo.application.scenario_coordinator import (
 )
 from ot_demo.domain.enums import (
     AlarmAcknowledgementState,
+    BoundaryProofStatus,
+    FreshnessStatus,
     NetworkStateLabel,
     OperationalEventType,
     ScenarioCommandType,
@@ -20,7 +24,12 @@ from ot_demo.domain.enums import (
     ScenarioRunStatus,
     SwitchState,
 )
+from ot_demo.infrastructure.build_identity import (
+    ApplicationBuildManifest,
+    BuildIdentityPayload,
+)
 from ot_demo.infrastructure.configuration_loader import JsonConfigurationLoader
+from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ot_demo.infrastructure.scenario_repository import ScenarioRepository
 from ot_demo.modules.scenario.models import (
     InitialiseRunRequest,
@@ -31,7 +40,26 @@ from ot_demo.modules.scenario.models import (
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 MIGRATIONS = REPOSITORY_ROOT / "app/backend/ot_demo/infrastructure/migrations"
 T0 = datetime(2030, 1, 1, tzinfo=timezone.utc)
-BUILD_ID = "a" * 64
+CONTROLLED_BUILD_IDENTITY = BuildIdentityPayload(
+    git_commit="1" * 40,
+    git_dirty=False,
+    python_version="3.13.15",
+    node_version="24.19.0",
+    npm_version="11.17.0",
+    dependency_lock_sha256={
+        "requirements.lock": "2" * 64,
+        "app/frontend/package-lock.json": "3" * 64,
+    },
+    backend_source_sha256="4" * 64,
+    frontend_bundle_sha256="5" * 64,
+)
+CONTROLLED_BUILD_MANIFEST = ApplicationBuildManifest(
+    application_build_id=sha256_bytes(
+        canonical_json_bytes(CONTROLLED_BUILD_IDENTITY.model_dump(mode="json"))
+    ),
+    identity=CONTROLLED_BUILD_IDENTITY,
+)
+BUILD_ID = CONTROLLED_BUILD_MANIFEST.application_build_id
 
 
 def at(seconds: int) -> datetime:
@@ -46,6 +74,7 @@ def coordinator(
     return ScenarioCoordinator(
         ScenarioRepository(tmp_path / "scenario.sqlite3", MIGRATIONS),
         JsonConfigurationLoader(REPOSITORY_ROOT / "config/network"),
+        application_build_manifest=CONTROLLED_BUILD_MANIFEST,
         failure_hook=failure_hook,
     )
 
@@ -58,7 +87,6 @@ def initialise(service: ScenarioCoordinator, command_number: int = 1):
             mode=ScenarioMode.FORMAL,
             configuration_version="1.1",
             scenario_time=T0,
-            application_build_id=BUILD_ID,
         )
     )
 
@@ -153,6 +181,32 @@ def execute_n0_n3(service: ScenarioCoordinator):
 
 
 @pytest.mark.i3
+def test_backend_controls_run_build_identity_and_rejects_client_override(
+    tmp_path: Path,
+) -> None:
+    service = coordinator(tmp_path)
+    initialised = initialise(service)
+
+    assert initialised.snapshot.run.application_build_id == BUILD_ID
+
+    public_request = InitialiseRunRequest(
+        command_id=UUID(int=99),
+        actor="Graduate Engineer",
+        mode=ScenarioMode.FORMAL,
+        configuration_version="1.1",
+        scenario_time=T0,
+    )
+    caller_payload = json.loads(public_request.model_dump_json())
+    caller_payload["application_build_id"] = "f" * 64
+
+    with pytest.raises(ValidationError, match="application_build_id"):
+        InitialiseRunRequest.model_validate_json(
+            json.dumps(caller_payload),
+            strict=True,
+        )
+
+
+@pytest.mark.i3
 def test_approved_n0_n3_transactions_and_alarm_chronology(tmp_path: Path) -> None:
     service = coordinator(tmp_path)
     n0, n1, acknowledged, isolation_one, n2, n3 = execute_n0_n3(service)
@@ -235,6 +289,77 @@ def test_approved_n0_n3_transactions_and_alarm_chronology(tmp_path: Path) -> Non
         }
         for event in n3.snapshot.events
     )
+
+
+@pytest.mark.i3
+def test_acknowledgement_advances_time_with_coherent_current_projection_only(
+    tmp_path: Path,
+) -> None:
+    service = coordinator(tmp_path)
+    run_id = initialise(service).snapshot.run.scenario_run_id
+    fault = service.execute(
+        run_id,
+        command(
+            number=2,
+            run_id=run_id,
+            revision=0,
+            command_type=ScenarioCommandType.INITIATE_FAULT,
+            scenario_time=at(10),
+        ),
+    )
+    proof_at_revision = fault.snapshot.topology.isolation_proof
+    assert proof_at_revision is not None
+    assert {
+        item.proof_status for item in proof_at_revision.boundary_evaluations
+    } == {BoundaryProofStatus.PROVEN_CLOSED}
+    events_before = service.events(run_id)
+
+    acknowledgement = service.execute(
+        run_id,
+        command(
+            number=3,
+            run_id=run_id,
+            revision=1,
+            command_type=ScenarioCommandType.ACKNOWLEDGE_ALARM,
+            scenario_time=at(71),
+            alarm_id=fault.snapshot.alarms[0].alarm_id,
+        ),
+    )
+
+    assert acknowledgement.snapshot.run.state_revision == 1
+    assert [
+        event.event_type
+        for event in acknowledgement.snapshot.events[len(events_before) :]
+    ] == [OperationalEventType.ALARM_ACKNOWLEDGED]
+    validity_by_point = {
+        item.point_id: item for item in acknowledgement.snapshot.telemetry_validity
+    }
+    assert validity_by_point["SW-A12"].freshness is FreshnessStatus.STALE
+    assert validity_by_point["SW-A23"].freshness is FreshnessStatus.STALE
+
+    current_proof = acknowledgement.snapshot.topology.isolation_proof
+    assert current_proof is not None
+    assert {
+        item.proof_status for item in current_proof.boundary_evaluations
+    } == {BoundaryProofStatus.UNPROVEN}
+    isolation_actions = tuple(
+        action
+        for action in acknowledgement.snapshot.allowed_actions
+        if action.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+    )
+    assert isolation_actions
+    assert all(not action.available for action in isolation_actions)
+    assert all("UNPROVEN" in action.reason for action in isolation_actions)
+
+    with ScenarioRepository(
+        tmp_path / "scenario.sqlite3", MIGRATIONS
+    ).transaction() as unit:
+        persisted_revision = unit.get_topology_snapshot(run_id, 1)
+    assert persisted_revision == fault.snapshot.topology
+    assert {
+        item.proof_status
+        for item in persisted_revision.isolation_proof.boundary_evaluations
+    } == {BoundaryProofStatus.PROVEN_CLOSED}
 
 
 @pytest.mark.i3
@@ -422,6 +547,7 @@ def test_reset_creates_new_run_and_repeat_is_deterministic(tmp_path: Path) -> No
     assert reset.snapshot.run.state_revision == 0
     assert reset.snapshot.run.network_state_label is NetworkStateLabel.N0
     assert reset.snapshot.run.scenario_time == T0
+    assert reset.snapshot.run.application_build_id == BUILD_ID
     assert reset.snapshot.events[0].event_sequence == 1
     assert len(reset.snapshot.events) == 4
     old = service.snapshot(old_run_id)

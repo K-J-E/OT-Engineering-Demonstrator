@@ -56,7 +56,6 @@ class InitialiseRunRequest(FrozenModel):
     mode: ScenarioMode
     configuration_version: SemanticVersion
     scenario_time: UtcMillisecondInstant
-    application_build_id: Sha256Digest
 
 
 class ScenarioCommandRequest(FrozenModel):
