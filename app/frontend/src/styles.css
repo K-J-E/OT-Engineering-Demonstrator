@@ -167,6 +167,20 @@ pre { max-height: 18rem; overflow: auto; white-space: pre-wrap; overflow-wrap: a
 .validation-actions article { display: grid; grid-template-columns: minmax(12rem, auto) 1fr auto; align-items: center; gap: 0.8rem; padding: 0.7rem; border-top: 1px solid var(--line); }
 .validation-actions p { margin: 0; font-size: 0.8rem; }
 
+.investigation-layout { display: grid; gap: 1rem; }
+.investigation-lead { border-left: 4px solid #d58920; }
+.investigation-steps { display: grid; gap: 0.8rem; }
+.investigation-step { position: relative; padding-left: 1.4rem; }
+.investigation-step .step-id { color: #5c7084; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; }
+.investigation-step dl, .comparison-grid { display: grid; gap: 0.55rem; margin: 0.8rem 0; }
+.investigation-step dl div, .comparison-grid div { border-left: 3px solid var(--line); padding-left: 0.75rem; }
+.investigation-step dt, .comparison-grid dt { color: #5c7084; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
+.investigation-step dd, .comparison-grid dd { margin: 0.2rem 0 0; overflow-wrap: anywhere; }
+.record-card { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; margin: 0.75rem 0; padding: 0.9rem; }
+.record-card p { margin-bottom: 0.45rem; }
+.record-card small { color: #5c7084; overflow-wrap: anywhere; }
+.status-fail { color: var(--red); font-weight: 800; }
+
 @media (max-width: 1100px) {
   .summary-grid { grid-template-columns: repeat(3, 1fr); }
   .authority-columns, .progress-grid { grid-template-columns: repeat(2, 1fr); }

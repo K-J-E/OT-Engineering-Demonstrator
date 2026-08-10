@@ -185,3 +185,8 @@ class ValidationVerdict(StrEnum):
     FAIL = "FAIL"
     NOT_RUN = "NOT_RUN"
     BLOCKED_TEST = "BLOCKED-TEST"
+
+
+class RepeatRelationshipType(StrEnum):
+    DIRECT_REPEAT = "DIRECT_REPEAT"
+    REGRESSION = "REGRESSION"

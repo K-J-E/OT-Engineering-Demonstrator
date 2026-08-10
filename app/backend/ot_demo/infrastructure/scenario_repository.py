@@ -78,6 +78,13 @@ class ScenarioUnitOfWork:
         ).fetchone()
         return row is not None
 
+    def get_mutable_run(self) -> RunContext | None:
+        row = self.connection.execute(
+            "SELECT scenario_run_id FROM scenario_runs "
+            "WHERE status != 'CLOSED' ORDER BY rowid DESC LIMIT 1"
+        ).fetchone()
+        return None if row is None else self.get_run(UUID(row["scenario_run_id"]))
+
     def get_command_result(self, command_id: UUID) -> tuple[str, CommandResult] | None:
         row = self.connection.execute(
             "SELECT request_sha256, result_json FROM scenario_command_results "

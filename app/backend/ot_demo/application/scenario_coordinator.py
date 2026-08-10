@@ -174,6 +174,104 @@ class ScenarioCoordinator:
             )
             return result
 
+    def initialise_replacement_run(
+        self, request: InitialiseRunRequest
+    ) -> CommandResult:
+        """Close the current run and initialise a separately identified test run.
+
+        This is the approved reset/new-run boundary used by I7 when the next
+        controlled test requires a different immutable configuration package.
+        It preserves the old run and emits only existing operational event types.
+        """
+
+        request_sha = self._request_sha(request)
+        with self._repository.transaction() as unit:
+            duplicate = self._return_duplicate(unit, request.command_id, request_sha)
+            if duplicate is not None:
+                return duplicate
+            prior_run = unit.get_mutable_run()
+            if prior_run is None:
+                raise ScenarioBoundaryError(
+                    "replacement initialisation requires a current mutable run"
+                )
+            if request.mode is not ScenarioMode.FORMAL:
+                raise ScenarioBoundaryError(
+                    "Exploration Mode orchestration is reserved for I8"
+                )
+            loaded = self._configuration_loader.load(
+                f"v{request.configuration_version}"
+            )
+            self._validate_definition(loaded)
+
+            closed_run = prior_run.model_copy(
+                update={"status": ScenarioRunStatus.CLOSED}
+            )
+            unit.update_run(closed_run)
+            reset_events = self._events_from_specs(
+                unit,
+                closed_run,
+                request.command_id,
+                request.actor,
+                (
+                    _EventSpec(
+                        OperationalEventSource.SCENARIO_CONTROL,
+                        OperationalEventType.SCENARIO_RESET,
+                        None,
+                        "Run closed for a controlled linked test; prior history is preserved.",
+                    ),
+                ),
+            )
+            unit.insert_events(reset_events)
+
+            new_run = self._new_run(
+                loaded=loaded,
+                scenario_time=request.scenario_time,
+                application_build_id=prior_run.application_build_id,
+            )
+            unit.insert_run(new_run)
+            telemetry = self._normal_telemetry(loaded, new_run)
+            for point in telemetry:
+                unit.put_telemetry(new_run.scenario_run_id, point)
+            topology, outage, _ = self._derive(
+                loaded,
+                new_run,
+                telemetry,
+                previous_outage=None,
+            )
+            unit.insert_derived_snapshots(new_run.scenario_run_id, 0, topology, outage)
+            initial_events = self._initial_events(
+                unit, new_run, request.command_id, request.actor
+            )
+            unit.insert_events(initial_events)
+            self._invoke_failure_hook("BEFORE_COMMIT")
+            snapshot = self._assemble_snapshot(unit, new_run, loaded)
+            all_events = (*reset_events, *initial_events)
+            result = CommandResult(
+                command_id=request.command_id,
+                accepted=True,
+                reason_code="LINKED_RUN_INITIALISED",
+                reason=(
+                    "Prior run closed and a controlled linked run initialised "
+                    "without rewriting history."
+                ),
+                prior_revision=prior_run.state_revision,
+                current_revision=0,
+                run_status=new_run.status,
+                new_event_ids=tuple(event.event_id for event in all_events),
+                snapshot=snapshot,
+            )
+            unit.insert_command_result(
+                command_id=request.command_id,
+                scenario_run_id=prior_run.scenario_run_id,
+                request_sha256=request_sha,
+                result=result,
+            )
+            return result
+
+    def has_mutable_run(self) -> bool:
+        with self._repository.transaction() as unit:
+            return unit.has_mutable_run()
+
     def execute(
         self,
         scenario_run_id: UUID,

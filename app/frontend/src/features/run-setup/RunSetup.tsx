@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { WorkspaceBootstrap } from '../../api/contracts'
 import { shortId } from '../../components/format'
 
-export function RunSetup({ bootstrap, busy, onStart }: { bootstrap: WorkspaceBootstrap; busy: boolean; onStart: (actor: string) => void }) {
+export function RunSetup({ bootstrap, busy, onStart, onStartInvestigation }: { bootstrap: WorkspaceBootstrap; busy: boolean; onStart: (actor: string) => void; onStartInvestigation: (actor: string) => void }) {
   const [actor, setActor] = useState(bootstrap.default_actor)
   return <main className="start-page">
     <section className="start-hero">
@@ -15,6 +15,11 @@ export function RunSetup({ bootstrap, busy, onStart }: { bootstrap: WorkspaceBoo
         <p>The formal path is fixed to corrected Network Configuration v1.1 and the controlled SEC-A2 scenario. Exploration selection is reserved for I8.</p>
         <label>Actor / reviewer<input value={actor} onChange={(event) => setActor(event.target.value)} maxLength={120} /></label>
         <button type="button" className="primary-action" disabled={busy || actor.trim().length === 0} onClick={() => onStart(actor.trim())}>{busy ? 'Creating controlled run…' : 'Start formal v1.1 run'}</button>
+      </article>
+      <article className="panel setup-card">
+        <span className="eyebrow">Controlled defect workflow</span><h2>Begin DEF-001 investigation</h2>
+        <p>Execute the preserved v1.0 post-trip test first, then investigate its real topology and outage consequence before recording any root-cause judgement.</p>
+        <button type="button" className="secondary-action" disabled={busy || actor.trim().length === 0} onClick={() => onStartInvestigation(actor.trim())}>{busy ? 'Creating controlled run…' : 'Run v1.0 test and investigate'}</button>
       </article>
       <article className="panel setup-preview">
         <span className="eyebrow">Backend-controlled identity</span><h2>Run-start context</h2>

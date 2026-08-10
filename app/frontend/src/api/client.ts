@@ -1,5 +1,6 @@
 import type {
   CommandResult,
+  InvestigationWorkspace,
   ValidationWorkspaceAction,
   WorkspaceAction,
   WorkspaceBootstrap,
@@ -30,6 +31,12 @@ export interface WorkspaceApi {
   projection(runId: string): Promise<WorkspaceProjection>
   execute(runId: string, actor: string, action: WorkspaceAction): Promise<CommandResult>
   validationAction(action: ValidationWorkspaceAction, runId: string): Promise<void>
+  startInvestigation(actor: string): Promise<InvestigationWorkspace>
+  investigation(failureExecutionId: string): Promise<InvestigationWorkspace>
+  recordDefect(failureExecutionId: string, reviewer: string, reviewedStepIds: string[]): Promise<InvestigationWorkspace>
+  recordCorrection(failureExecutionId: string, reviewer: string): Promise<InvestigationWorkspace>
+  runDirectRepeat(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
+  runRegression(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
 }
 
 export const workspaceApi: WorkspaceApi = {
@@ -89,4 +96,11 @@ export const workspaceApi: WorkspaceApi = {
       },
     )
   },
+
+  startInvestigation: (actor) => request<InvestigationWorkspace>('/api/v1/investigations/start', { method: 'POST', body: JSON.stringify({ actor }) }),
+  investigation: (failureExecutionId) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}`),
+  recordDefect: (failureExecutionId, reviewer, reviewedStepIds) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/defect`, { method: 'POST', body: JSON.stringify({ reviewer, reviewed_step_ids: reviewedStepIds }) }),
+  recordCorrection: (failureExecutionId, reviewer) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/correction`, { method: 'POST', body: JSON.stringify({ reviewer }) }),
+  runDirectRepeat: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/direct-repeat`, { method: 'POST', body: JSON.stringify({ actor }) }),
+  runRegression: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/regression`, { method: 'POST', body: JSON.stringify({ actor }) }),
 }

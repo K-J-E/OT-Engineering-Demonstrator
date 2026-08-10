@@ -6,12 +6,14 @@ import os
 from pathlib import Path
 
 from ..application.scenario_coordinator import ScenarioCoordinator
+from ..application.investigation_service import InvestigationService
 from ..application.workspace_service import WorkspaceService
 from ..infrastructure.build_identity import (
     ApplicationBuildManifest,
     create_build_manifest,
 )
 from ..infrastructure.configuration_loader import JsonConfigurationLoader
+from ..infrastructure.investigation_repository import InvestigationRepository
 from ..infrastructure.scenario_repository import ScenarioRepository
 from ..infrastructure.validation_repository import ValidationRepository
 from ..modules.validation.catalogue import ValidationCatalogueLoader
@@ -52,6 +54,13 @@ def create_local_app(
         coordinator,
         application_build_manifest=build_manifest,
     )
+    investigation_service = InvestigationService(
+        InvestigationRepository(runtime_data / "validation.sqlite3", migrations),
+        configuration_loader,
+        coordinator,
+        validation_service,
+        application_build_manifest=build_manifest,
+    )
     workspace_service = WorkspaceService(
         configuration_loader,
         coordinator,
@@ -62,4 +71,9 @@ def create_local_app(
             repository_root / "config/presentation/network-one-line.v1.json"
         ),
     )
-    return create_app(coordinator, validation_service, workspace_service)
+    return create_app(
+        coordinator,
+        validation_service,
+        workspace_service,
+        investigation_service,
+    )

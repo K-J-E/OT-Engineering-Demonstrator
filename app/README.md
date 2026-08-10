@@ -1,11 +1,12 @@
-# Application implementation through authorised I6
+# Application implementation through authorised I7
 
 This directory contains the reproducible local application foundations and the
-separately authorised I1–I5 backend increments plus the I6 operational review
-workspace. I6 presents backend-owned topology/outage, telemetry, event,
-restoration and validation records without moving engineering authority into the
-browser. It does not contain the I7 defect-investigation presentation, I8
-Exploration/export workflow or I9 packaging.
+separately authorised I1–I7 increments. I6 presents backend-owned
+topology/outage, telemetry, event, restoration and validation records without
+moving engineering authority into the browser. I7 adds the controlled DEF-001
+consequence-to-source investigation, immutable defect/correction records,
+same-build corrected repeat and full corrected regression presentation. It does
+not contain the I8 Exploration/export workflow or I9 packaging.
 
 ## Pinned local toolchain
 
@@ -31,16 +32,16 @@ backend-controlled build, configuration, definition version/hash, run, mode,
 evidence class and controlled scenario time. Captured evidence is distinct from
 the operational-event catalogue and finalised records are immutable.
 
-## I6 verification state
+## I7 verification state
 
-I6 is implemented at bounded commit
-`b7993d9bc2ca224df8f5721e372c0d4e39d69366`; QA-034/QA-035 corrections are at
-`09622018d8bbd57adf8da818d3d0d5c253f49a0b` and remain pending independent
-re-review. Verification passed with 100 backend tests, 9 React/Cytoscape component
-tests, one real-browser formal N0–N5 workflow, a clean exact-toolchain install and
-the pinned TypeScript/Vite production build. The clean corrected implementation
-build ID is
-`c424327a404608c817ec34c749dbcbfce671044e99a195d6168a828d2c2c640c`.
+I7 is implemented on its dedicated review branch and remains pending independent
+review. Verification covers the real v1.0 400-customer failure, the ordered
+seven-step investigation, the exact immutable package difference, separate
+DEF-001/COR-001 records, the same-build v1.1 850-customer PASS and all six
+corrected N0–N5 regression checkpoints. Backend, React/Cytoscape and Chromium
+workflows, the clean exact-toolchain install and pinned TypeScript/Vite production
+build pass. The final reviewed commit and build identity are recorded in the I7
+increment closeout.
 
 The canonical network packages, validation catalogue, dependency versions and
-lockfiles are unchanged. I7 has not begun.
+lockfiles are unchanged. I8 has not begun.

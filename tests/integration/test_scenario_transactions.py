@@ -601,7 +601,7 @@ def test_reset_creates_new_run_and_repeat_is_deterministic(tmp_path: Path) -> No
 
 
 @pytest.mark.i3
-def test_api_factory_exposes_run_validation_and_i6_workspace_foundations(
+def test_api_factory_exposes_run_validation_workspace_and_i7_investigation_foundations(
     tmp_path: Path,
 ) -> None:
     application = create_app(coordinator(tmp_path))
@@ -618,9 +618,15 @@ def test_api_factory_exposes_run_validation_and_i6_workspace_foundations(
         "/api/v1/validation/executions/{execution_id}/finalise",
         "/api/v1/workspace/bootstrap",
         "/api/v1/workspace/runs/{scenario_run_id}",
+        "/api/v1/investigations/start",
+        "/api/v1/investigations/{failure_execution_id}",
+        "/api/v1/investigations/{failure_execution_id}/defect",
+        "/api/v1/investigations/{failure_execution_id}/correction",
+        "/api/v1/investigations/{failure_execution_id}/direct-repeat",
+        "/api/v1/investigations/{failure_execution_id}/regression",
     }
     assert all(
         token not in path
         for path in paths
-        for token in ("defect", "exploration", "export", "dashboard")
+        for token in ("exploration", "export", "dashboard")
     )

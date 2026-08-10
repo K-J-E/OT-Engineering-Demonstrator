@@ -21,6 +21,7 @@ from ..infrastructure.build_identity import ApplicationBuildManifest
 from ..infrastructure.configuration_loader import JsonConfigurationLoader
 from ..modules.configuration.models import LoadedConfiguration
 from ..modules.scenario.models import AllowedAction, ScenarioSnapshot
+from ..modules.scenario.definition import formal_action_offset_seconds
 from ..modules.validation.catalogue import ValidationCatalogueLoader
 from ..modules.validation.models import LoadedValidationDefinition, ValidationExecutionSummary
 from ..modules.validation.service import ValidationService
@@ -517,17 +518,9 @@ class WorkspaceService:
     def _workspace_action(
         snapshot: ScenarioSnapshot, action: AllowedAction
     ) -> WorkspaceAction:
-        offset_seconds = {
-            ScenarioCommandType.INITIATE_FAULT: 10,
-            ScenarioCommandType.ACKNOWLEDGE_ALARM: 11,
-            ScenarioCommandType.RESTORE_NORMAL_SOURCE: 40,
-            ScenarioCommandType.ASSESS_RESTORATION: 50,
-            ScenarioCommandType.EXECUTE_RESTORATION: 55,
-        }.get(action.command_type)
-        if action.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE:
-            offset_seconds = {"SW-A12": 20, "SW-A23": 30}.get(
-                action.target_entity_id
-            )
+        offset_seconds = formal_action_offset_seconds(
+            action.command_type, action.target_entity_id
+        )
         proposed = (
             snapshot.run.initial_scenario_time + timedelta(seconds=offset_seconds)
             if offset_seconds is not None

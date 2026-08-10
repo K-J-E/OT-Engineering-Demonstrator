@@ -374,3 +374,49 @@ export interface CommandResult {
   reason: string
   snapshot: { run: RunContext }
 }
+
+export interface InvestigationFact {
+  label: string
+  value: string
+}
+
+export interface InvestigationStep {
+  step_id: string
+  title: string
+  facts: InvestigationFact[]
+  source_record_references: string[]
+}
+
+export interface InvestigationWorkspace {
+  original_failure: ValidationExecutionSummary
+  steps: InvestigationStep[]
+  configuration_comparison: {
+    defective: { configuration_id: string; version: string; package_sha256: string; data_sha256: string; schema_sha256: string }
+    corrected: { configuration_id: string; version: string; package_sha256: string; data_sha256: string; schema_sha256: string }
+    differences: Array<{ path: string; before: string; after: string }>
+    unchanged_information_classes: string[]
+  }
+  defect_record: null | {
+    defect_record_id: string
+    defect_id: string
+    original_failed_execution_id: string
+    root_cause: string
+    engineering_propagation: string[]
+    recorded_by: string
+    investigation_snapshot_sha256: string
+  }
+  correction_record: null | {
+    correction_record_id: string
+    correction_id: string
+    defect_id: string
+    engineering_effect: string
+    verification_basis: string[]
+    reviewed_by: string
+  }
+  direct_repeat: ValidationExecutionSummary | null
+  regression: ValidationExecutionSummary | null
+  repeat_links: Array<{ repeat_link_id: string; relationship_type: 'DIRECT_REPEAT' | 'REGRESSION'; original_execution_id: string; new_execution_id: string; application_build_id: string }>
+  actions: Array<{ action_type: 'RECORD_DEFECT' | 'RECORD_CORRECTION' | 'RUN_DIRECT_REPEAT' | 'RUN_REGRESSION'; available: boolean; reason_code: string; reason: string }>
+  same_build_proven: boolean
+  conceptual_boundary_notice: string
+}

@@ -13,6 +13,10 @@ from ..application.scenario_coordinator import (
     ScenarioCoordinator,
     ScenarioRecordNotFound,
 )
+from ..application.investigation_service import (
+    InvestigationBoundaryError,
+    InvestigationService,
+)
 from ..application.workspace_service import WorkspaceProjectionError, WorkspaceService
 from ..modules.events.models import OperationalEvent
 from ..modules.scenario.models import (
@@ -23,6 +27,8 @@ from ..modules.scenario.models import (
 )
 from ..domain.enums import EvidenceClass, ScenarioCommandType, ScenarioMode, SwitchState
 from ..infrastructure.validation_repository import ValidationRecordNotFound
+from ..infrastructure.investigation_repository import InvestigationRecordNotFound
+from ..modules.investigation.models import InvestigationWorkspace
 from ..modules.validation.models import (
     CaptureValidationCheckpointRequest,
     EvidenceSnapshot,
@@ -89,16 +95,34 @@ class StartValidationExecutionPayload(_ApiRequest):
         )
 
 
+class StartInvestigationPayload(_ApiRequest):
+    actor: str = Field(min_length=1, max_length=120)
+
+
+class RecordDefectPayload(_ApiRequest):
+    reviewer: str = Field(min_length=1, max_length=120)
+    reviewed_step_ids: tuple[str, ...]
+
+
+class RecordCorrectionPayload(_ApiRequest):
+    reviewer: str = Field(min_length=1, max_length=120)
+
+
+class RunLinkedValidationPayload(_ApiRequest):
+    actor: str = Field(min_length=1, max_length=120)
+
+
 def create_app(
     coordinator: ScenarioCoordinator | None = None,
     validation_service: ValidationService | None = None,
     workspace_service: WorkspaceService | None = None,
+    investigation_service: InvestigationService | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="OT Graduate Demonstrator",
-        version="0.6.0",
+        version="0.7.0",
         description=(
-            "Fictional local engineering demonstrator — scenario, evidence and I6 workspace API"
+            "Fictional local engineering demonstrator — scenario, evidence and I7 investigation API"
         ),
     )
 
@@ -125,6 +149,94 @@ def create_app(
                 detail="Operational workspace service is not configured for this process.",
             )
         return workspace_service
+
+    def investigation() -> InvestigationService:
+        if investigation_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Investigation service is not configured for this process.",
+            )
+        return investigation_service
+
+    @app.post(
+        "/api/v1/investigations/start",
+        response_model=InvestigationWorkspace,
+    )
+    def start_investigation(request: StartInvestigationPayload) -> InvestigationWorkspace:
+        try:
+            return investigation().start_failure(request.actor)
+        except (InvestigationBoundaryError, ScenarioBoundaryError) as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/investigations/{failure_execution_id}",
+        response_model=InvestigationWorkspace,
+    )
+    def get_investigation(failure_execution_id: UUID) -> InvestigationWorkspace:
+        try:
+            return investigation().workspace(failure_execution_id)
+        except (ValidationRecordNotFound, InvestigationRecordNotFound) as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except InvestigationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/investigations/{failure_execution_id}/defect",
+        response_model=InvestigationWorkspace,
+    )
+    def record_defect(
+        failure_execution_id: UUID, request: RecordDefectPayload
+    ) -> InvestigationWorkspace:
+        try:
+            return investigation().record_defect(
+                failure_execution_id,
+                request.reviewer,
+                request.reviewed_step_ids,
+            )
+        except InvestigationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/investigations/{failure_execution_id}/correction",
+        response_model=InvestigationWorkspace,
+    )
+    def record_correction(
+        failure_execution_id: UUID, request: RecordCorrectionPayload
+    ) -> InvestigationWorkspace:
+        try:
+            return investigation().record_correction(
+                failure_execution_id, request.reviewer
+            )
+        except InvestigationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/investigations/{failure_execution_id}/direct-repeat",
+        response_model=InvestigationWorkspace,
+    )
+    def run_direct_repeat(
+        failure_execution_id: UUID, request: RunLinkedValidationPayload
+    ) -> InvestigationWorkspace:
+        try:
+            return investigation().run_direct_repeat(
+                failure_execution_id, request.actor
+            )
+        except InvestigationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/investigations/{failure_execution_id}/regression",
+        response_model=InvestigationWorkspace,
+    )
+    def run_regression(
+        failure_execution_id: UUID, request: RunLinkedValidationPayload
+    ) -> InvestigationWorkspace:
+        try:
+            return investigation().run_regression(
+                failure_execution_id, request.actor
+            )
+        except InvestigationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.get("/api/v1/workspace/bootstrap", response_model=WorkspaceBootstrap)
     def get_workspace_bootstrap() -> WorkspaceBootstrap:
