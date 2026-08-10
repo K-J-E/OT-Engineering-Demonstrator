@@ -1,5 +1,5 @@
 ---
-Status: Complete — pending independent review
+Status: Assurance corrections complete — pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -19,6 +19,11 @@ The bounded implementation commit is
 candidate discovery, required-evidence capture, permissive evaluation, decision
 precedence, immutable assessments, invalidation/current-binding controls and the
 approved formal N3→N4→N5 assessment/execution path.
+
+Independent review accepted I4 in substance and requested two bounded assurance
+corrections. Commit `f30c55daccb6262cb5d885cb6c94ec7dff4a7d5e` implements
+QA-029 and QA-030 without changing the accepted formal outcome, configuration,
+dependencies or engineering behaviour.
 
 I2 remains authoritative for topology, energisation, source attribution,
 radiality, isolation proof and outage/customer calculations. I3 remains
@@ -130,17 +135,32 @@ transaction path advances to revision 5/N5, derives A3/A4 from FDR-B, leaves
 faulted SEC-A2 de-energised, remains radial, restores 450 customers and leaves 220
 affected. No assessment can directly write section energisation or outage results.
 
+### 4.5 QA-029 and QA-030 assurance treatment
+
+An I2 feeder load with `currently_supplied_load_kw = None` or
+`load_attribution_complete = false` now produces no `RestorationCalculation` and
+no existing, resulting or percentage value. The capacity permissive is
+`INSUFFICIENT` with `CURRENT_FEEDER_LOAD_UNATTRIBUTABLE`; the approved insufficient
+information precedence makes the assessment `BLOCKED`, including when another
+trustworthy engineering criterion also fails. No value is converted to zero.
+
+A rejected stale/mismatched execution that creates the controlled
+`RESTORATION_ASSESSMENT_INVALIDATED` event now includes that exact event ID in its
+immutable `CommandResult.new_event_ids`. Ordinary rejected commands still report
+no events. Identical replay returns the stored result and creates no second event
+or invalidation.
+
 ## 5. Requirements and conformance-gate traceability
 
 | Requirement / gate | I4 implementation evidence | I4 status |
 |---|---|---|
-| `REQ-RST-001–003` | Generic structural candidate discovery and typed source/tie/section/path/load record; candidate remains distinct from permission. | Implemented; pending review. |
-| `REQ-RST-004–011` | I2 isolation proof, source/breaker/path, I2 radiality and all required quality/freshness states feed explicit permissives. | Implemented; pending review. |
-| `REQ-RST-012–017` | Section-load sum, I2 current receiving load, exact resulting load/percentage and 6,000/6,001 kW fixtures. | Implemented; pending review. |
-| `REQ-RST-018–022` | Explicit precedence, outcome/reason codes, evidence points and immutable assessment contents. | Implemented; pending review. |
-| `REQ-RST-023–029` | Current permitted binding only; simulated tie close; I2 topology/outage recalculation; A3/A4 restored; A2 remains out; customers recalculate to 220. | Implemented; pending review. |
-| Applicable topology/telemetry/outage/event requirements | Earlier services remain authoritative; exact approved 15-event catalogue is unchanged and restoration events link to assessment/command/run/revision. | I4 integration implemented; pending review. |
-| `REQ-NFR-006` | Commands alter simulation state only; no external interface or control output exists. | Implemented; pending review. |
+| `REQ-RST-001–003` | Generic structural candidate discovery and typed source/tie/section/path/load record; candidate remains distinct from permission. | Implemented; pending re-review. |
+| `REQ-RST-004–011` | I2 isolation proof, source/breaker/path, I2 radiality and all required quality/freshness states feed explicit permissives. | Implemented; pending re-review. |
+| `REQ-RST-012–017` | Section-load sum, I2 current receiving load, exact resulting load/percentage and 6,000/6,001 kW fixtures. | Implemented; pending re-review. |
+| `REQ-RST-018–022` | Explicit precedence, outcome/reason codes, evidence points and immutable assessment contents. | Implemented; pending re-review. |
+| `REQ-RST-023–029` | Current permitted binding only; simulated tie close; I2 topology/outage recalculation; A3/A4 restored; A2 remains out; customers recalculate to 220. | Implemented; pending re-review. |
+| Applicable topology/telemetry/outage/event requirements | Earlier services remain authoritative; exact approved 15-event catalogue is unchanged and restoration events link to assessment/command/run/revision. | I4 integration implemented; pending re-review. |
+| `REQ-NFR-006` | Commands alter simulation state only; no external interface or control output exists. | Implemented; pending re-review. |
 | `VT-FML-N0-N5-001` | Complete N0→N5 backend fixture proves the approved N4/N5 answer key. | Implementation conformance PASS only. |
 | Five telemetry catalogue cases | Exact 60,000 ms permits; 60,001 ms, UNCERTAIN, BAD and future timestamp block. | Implementation conformance PASS only. |
 | Six restoration catalogue cases | Isolation/source/radial negatives, exact capacity boundaries and stale binding are covered. | Implementation conformance PASS only. |
@@ -153,8 +173,8 @@ PASS/FAIL evidence verdicts.
 
 | Verification | Result |
 |---|---|
-| I4 marked backend suite | PASS — 16 tests |
-| Complete backend unit/integration suite | PASS — 81 tests |
+| I4 marked backend suite | PASS — 17 tests |
+| Complete backend unit/integration suite | PASS — 82 tests |
 | I3 regression | PASS — 20 tests |
 | I2 regression | PASS — 31 tests |
 | I1 regression | PASS — 11 tests |
@@ -168,14 +188,15 @@ PASS/FAIL evidence verdicts.
 | Dependency/lock files | PASS — dependency definitions and locks unchanged; only the pytest `i4` marker was added |
 | Authoritative engineering artefacts | PASS — unchanged |
 
-The clean application build identity captured at the I4 implementation commit is:
+The clean application build identity captured at the QA-029/QA-030 correction
+commit is:
 
-`c3643df6131d78efedbbb7d4ee8053e18e5c7882dbf2ac9f63b2d62978c82ff4`
+`300338fdf43018da75bde81b668028162e6430a3463427d451ee61c60f332b3d`
 
 Its identity records `git_dirty = false`, commit
-`55eb2c80ef734b5efc6e66dbd0da8a8c9a0ea708`, Python 3.13.15, Node.js
+`f30c55daccb6262cb5d885cb6c94ec7dff4a7d5e`, Python 3.13.15, Node.js
 24.19.0, npm 11.17.0, accepted dependency-lock hashes, backend source hash
-`2e3ee53919e251b18c76c1ca30818e6170f60dd919386656bd3d54920f44476c`
+`7e55527e587e23d180ec7ac6f86bbaf83198b45baf91dd49c6913a6d547c3cc6`
 and unchanged frontend bundle hash
 `1e6d5ebc33a8e11a06fcb929603af00386a471b13e381e25f3cc3dfb9bde4305`.
 
@@ -195,10 +216,19 @@ dependency or engineering change.
 
 ## 7. QA findings and controlled artefacts
 
-No new engineering contradiction or implementation defect requiring a new QA item
-was found. Existing QA-007, QA-014 and QA-017 implementation watches now have I4
-conformance evidence but remain subject to independent increment review. No closed
-item was reopened.
+- QA-029 records that the first I4 assessment converted an unattributable current
+  feeder load to zero through `or 0`. The corrected service emits no fabricated
+  calculation, uses the existing `INSUFFICIENT` permissive state and applies the
+  approved `BLOCKED` precedence. The focused test also proves that insufficient
+  load evidence remains blocking when another criterion conclusively fails.
+- QA-030 records that a rejected stale-binding command created an invalidation event
+  but its result reported no new event IDs. The correction carries the event ID
+  into the returned and stored immutable result; replay proves I3 idempotency and
+  creates no duplicate event/invalidation.
+
+Both corrections are complete and pending independent re-review. Existing QA-007,
+QA-014 and QA-017 implementation watches retain their I4 evidence. No previously
+closed item was reopened.
 
 The configuration packages, dependency locks, governing documents, detailed
 engineering DOCX/PDF artefacts, accepted design-change records, current baseline
@@ -223,7 +253,7 @@ engineer review without changing V1 decisions or switching authority.
 
 ## 9. Review and progression gate
 
-I4 is complete on `agent/i4-restoration` and is pending independent review. The
-branch must be pushed and reviewed; it must not be merged until accepted. I5 has not
-started and requires separate user authorisation after the reviewed I4 baseline is
-incorporated into `main`.
+I4 assurance corrections are complete on `agent/i4-restoration` and are pending
+independent re-review. The branch must be pushed and reviewed; it must not be merged
+until accepted. I5 has not started and requires separate user authorisation after
+the reviewed I4 baseline is incorporated into `main`.
