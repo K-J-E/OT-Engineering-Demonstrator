@@ -147,3 +147,67 @@ def test_complete_evidence_with_failed_isolation_is_rejected() -> None:
     )
     assert isolation.status is PermissiveStatus.FAIL
     assert assessment.outcome is RestorationOutcome.REJECTED
+
+
+@pytest.mark.i4
+def test_incomplete_current_load_attribution_never_fabricates_zero_capacity_input() -> None:
+    loaded, inputs = formal_n3_inputs()
+    feeder_loads = tuple(
+        item.model_copy(
+            update={
+                "currently_supplied_load_kw": None,
+                "multiply_supplied_section_ids": ("SEC-B4",),
+                "load_attribution_complete": False,
+            }
+        )
+        if item.feeder_id == "FDR-B"
+        else item
+        for item in inputs.current_topology.feeder_loads
+    )
+    changed_topology = inputs.current_topology.model_copy(
+        update={"feeder_loads": feeder_loads}
+    )
+    assessment = RestorationService().assess(
+        loaded,
+        RestorationAssessmentInputs(
+            **{
+                **inputs.__dict__,
+                "current_topology": changed_topology,
+            }
+        ),
+    )
+    capacity = next(
+        item
+        for item in assessment.permissives
+        if item.criterion is RestorationCriterion.CAPACITY
+    )
+    assert capacity.status is PermissiveStatus.INSUFFICIENT
+    assert capacity.reason_codes == ("CURRENT_FEEDER_LOAD_UNATTRIBUTABLE",)
+    assert assessment.calculation is None
+    assert assessment.outcome is RestorationOutcome.BLOCKED
+    assert "CURRENT_FEEDER_LOAD_UNATTRIBUTABLE" in assessment.reason_codes
+
+    source_open_telemetry = tuple(
+        point.model_copy(update={"value": SwitchState.OPEN})
+        if point.entity_id == "BRK-B"
+        else point
+        for point in inputs.telemetry
+    )
+    simultaneous_failure = RestorationService().assess(
+        loaded,
+        RestorationAssessmentInputs(
+            **{
+                **inputs.__dict__,
+                "telemetry": source_open_telemetry,
+                "current_topology": changed_topology,
+            }
+        ),
+    )
+    alternate_source = next(
+        item
+        for item in simultaneous_failure.permissives
+        if item.criterion is RestorationCriterion.ALTERNATE_SOURCE
+    )
+    assert alternate_source.status is PermissiveStatus.FAIL
+    assert simultaneous_failure.calculation is None
+    assert simultaneous_failure.outcome is RestorationOutcome.BLOCKED

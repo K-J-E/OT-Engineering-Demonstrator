@@ -989,6 +989,7 @@ class ScenarioCoordinator:
                 request_sha,
                 "RESTORATION_ASSESSMENT_INVALIDATED",
                 "Assessment binding changed or required evidence is no longer valid.",
+                new_event_ids=(event.event_id,),
             )
 
         candidate = current.candidate
@@ -1133,6 +1134,8 @@ class ScenarioCoordinator:
         request_sha: str,
         reason_code: str,
         reason: str,
+        *,
+        new_event_ids: tuple[UUID, ...] = (),
     ) -> CommandResult:
         snapshot = self._assemble_snapshot(unit, run, loaded)
         result = CommandResult(
@@ -1143,7 +1146,7 @@ class ScenarioCoordinator:
             prior_revision=run.state_revision,
             current_revision=run.state_revision,
             run_status=run.status,
-            new_event_ids=(),
+            new_event_ids=new_event_ids,
             snapshot=snapshot,
         )
         unit.insert_command_result(

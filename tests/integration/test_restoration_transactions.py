@@ -371,6 +371,31 @@ def test_time_only_binding_change_invalidates_old_assessment_without_revision(
     assert len(result.snapshot.restoration_assessments) == 1
     assert result.snapshot.restoration_invalidations[-1].assessment_id == assessment.assessment_id
     assert result.snapshot.events[-1].event_type is OperationalEventType.RESTORATION_ASSESSMENT_INVALIDATED
+    invalidation_event = result.snapshot.events[-1]
+    assert result.new_event_ids == (invalidation_event.event_id,)
+    assert invalidation_event.assessment_id == assessment.assessment_id
+    repository = ScenarioRepository(tmp_path / "scenario.sqlite3", MIGRATIONS)
+    with repository.transaction() as unit:
+        stored = unit.get_command_result(result.command_id)
+    assert stored is not None
+    assert stored[1].new_event_ids == (invalidation_event.event_id,)
+    event_count = len(result.snapshot.events)
+    invalidation_count = len(result.snapshot.restoration_invalidations)
+    replay = coordinator.execute(
+        run_id,
+        request(
+            8,
+            run_id,
+            4,
+            ScenarioCommandType.EXECUTE_RESTORATION,
+            at(61),
+            assessment_id=assessment.assessment_id,
+        ),
+    )
+    assert replay == result
+    current = coordinator.snapshot(run_id)
+    assert len(current.events) == event_count
+    assert len(current.restoration_invalidations) == invalidation_count
     execution = next(
         item
         for item in result.snapshot.allowed_actions

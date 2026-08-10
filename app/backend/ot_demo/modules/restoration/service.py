@@ -167,29 +167,52 @@ class RestorationService:
             if item.feeder_id == candidate.alternate_feeder_id
         )
         feeder = self._feeder(loaded, candidate.alternate_feeder_id)
-        calculation = self.calculate_capacity(
-            alternate_feeder_id=feeder.entity_id,
-            existing_load_kw=load.currently_supplied_load_kw or 0,
-            transferable_load_kw=candidate.transferable_load_kw,
-            capacity_kw=feeder.capacity_kw,
-        )
-        capacity = PermissiveResult(
-            criterion=RestorationCriterion.CAPACITY,
-            status=(
-                PermissiveStatus.PASS
-                if calculation.capacity_pass
-                else PermissiveStatus.FAIL
-            ),
-            reason_codes=(
-                ("RESULTING_LOAD_WITHIN_CAPACITY",)
-                if calculation.capacity_pass
-                else ("RESULTING_LOAD_EXCEEDS_CAPACITY",)
-            ),
-        )
+        if (
+            not load.load_attribution_complete
+            or load.currently_supplied_load_kw is None
+        ):
+            calculation = None
+            capacity = PermissiveResult(
+                criterion=RestorationCriterion.CAPACITY,
+                status=PermissiveStatus.INSUFFICIENT,
+                reason_codes=("CURRENT_FEEDER_LOAD_UNATTRIBUTABLE",),
+            )
+        else:
+            calculation = self.calculate_capacity(
+                alternate_feeder_id=feeder.entity_id,
+                existing_load_kw=load.currently_supplied_load_kw,
+                transferable_load_kw=candidate.transferable_load_kw,
+                capacity_kw=feeder.capacity_kw,
+            )
+            capacity = PermissiveResult(
+                criterion=RestorationCriterion.CAPACITY,
+                status=(
+                    PermissiveStatus.PASS
+                    if calculation.capacity_pass
+                    else PermissiveStatus.FAIL
+                ),
+                reason_codes=(
+                    ("RESULTING_LOAD_WITHIN_CAPACITY",)
+                    if calculation.capacity_pass
+                    else ("RESULTING_LOAD_EXCEEDS_CAPACITY",)
+                ),
+            )
         permissives = (isolation, alternate, radial, telemetry_result, capacity)
-        if invalid_ids:
+        insufficient = tuple(
+            item
+            for item in permissives
+            if item.status is PermissiveStatus.INSUFFICIENT
+        )
+        if insufficient:
             outcome = RestorationOutcome.BLOCKED
-            reasons = ("INSUFFICIENT_OR_UNRELIABLE_INFORMATION",)
+            reasons = (
+                "INSUFFICIENT_OR_UNRELIABLE_INFORMATION",
+                *tuple(
+                    reason
+                    for item in insufficient
+                    for reason in item.reason_codes
+                ),
+            )
         elif any(item.status is PermissiveStatus.FAIL for item in permissives):
             outcome = RestorationOutcome.REJECTED
             reasons = tuple(
