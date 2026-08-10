@@ -1,5 +1,5 @@
 ---
-Status: I1 implementation and assurance corrections complete — pending independent re-review
+Status: Accepted I1 implementation baseline — independently verified
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-10
@@ -112,9 +112,12 @@ zero vulnerabilities.
 
 The initial clean I1 branch-tip build was
 `6170691daf62e986acec83a6841cce768cdc75f57368e04e88669040f2b6d1d6` at commit
-`6a70663294bb722a0a3d4b415d9846bb7f84fd02`. The assurance-corrected clean
-branch-tip identity is generated after its commit and reported in the independent
-re-review handoff without modifying tracked files.
+`6a70663294bb722a0a3d4b415d9846bb7f84fd02`. The independently accepted
+assurance-corrected branch-tip build was
+`758ae3a7d62b56b9e5cc907b8646426b9522d2226e1933153bc9ea4ff6aba7ae` at reviewed
+implementation commit `ed8ba219caaf23ff5d32dd07893ddcc5ab0163e7`. The clean
+post-merge `main` identity is generated after the administrative acceptance commit
+and reported in the acceptance handoff without modifying tracked files.
 
 ## 7. Verification results
 
@@ -144,11 +147,12 @@ affected tests were repeated. No engineering rule, requirement, network value,
 workflow or expected result changed.
 
 Independent review identified deterministic-checkout and manifest-internal-
-identity assurance gaps, recorded as QA-019 and QA-020. Both are closed by the
-targeted I1 corrections and complete repeated verification above. The recommended
-build-identity assurance improvement was also applied: the test now verifies Git
-commit/dirty state, Python/Node/npm identity, both dependency-lock hashes, backend
-source hash and frontend-bundle hash in the assembled controlled identity.
+identity assurance gaps, recorded as QA-019 and QA-020. Both were corrected,
+reverified and independently accepted as closed under the I1 baseline. The
+recommended build-identity assurance improvement was also applied: the test now
+verifies Git commit/dirty state, Python/Node/npm identity, both dependency-lock
+hashes, backend source hash and frontend-bundle hash in the assembled controlled
+identity.
 
 No I1 stop condition remains open. Future increments must treat the two canonical
 configuration packages and lock files as controlled inputs. Any dependency,
@@ -161,12 +165,15 @@ traceability reconciliation and closeout collation is time-consuming and
 evidence-heavy; a future assurance workflow could assemble and flag this material
 for engineer acceptance without changing V1 behaviour.
 
-## 9. Review handoff and progression gate
+## 9. Acceptance and progression gate
 
-The assurance-correction commit hash and pushed branch are recorded in the final
-task handoff and Git history because a commit cannot contain its own final hash.
-This closeout is not an acceptance or merge decision.
+Independent engineering/implementation review accepted I1 at implementation commit
+`ed8ba219caaf23ff5d32dd07893ddcc5ab0163e7`. QA-019 and QA-020 are independently
+verified closed, and IMP-001 is closed by this accepted baseline. The subsequent
+administrative acceptance commit changes only this closeout and the derived QA
+register; its hash and the reviewed `main` state are recorded in the final task
+handoff and Git history.
 
-I1 must now be independently re-reviewed and accepted before merge to `main`. I2
-has not started and requires separate user authorisation after accepted I1 is
-merged.
+I1 is the accepted implementation baseline. I2 has not started and remains
+unauthorised; it requires separate user authorisation from the reviewed merged
+`main` baseline.
