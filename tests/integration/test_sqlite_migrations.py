@@ -17,7 +17,7 @@ MIGRATIONS = REPOSITORY_ROOT / "app/backend/ot_demo/infrastructure/migrations"
 def test_initial_migration_applies_once_and_is_repeatable(tmp_path: Path) -> None:
     database_path = tmp_path / "i1.sqlite3"
     with sqlite3.connect(database_path) as connection:
-        assert apply_migrations(connection, MIGRATIONS) == (1,)
+        assert apply_migrations(connection, MIGRATIONS) == (1, 2)
         assert apply_migrations(connection, MIGRATIONS) == ()
         tables = {
             row[0]
@@ -29,10 +29,25 @@ def test_initial_migration_applies_once_and_is_repeatable(tmp_path: Path) -> Non
             "schema_migrations",
             "configuration_catalog",
             "application_builds",
+            "scenario_runs",
+            "scenario_telemetry_points",
+            "scenario_alarms",
+            "topology_snapshots",
+            "outage_snapshots",
+            "operational_events",
+            "scenario_command_results",
         } <= tables
 
 
 @pytest.mark.i1
 def test_initial_migration_is_included_in_the_python_package() -> None:
     migration = files("ot_demo.infrastructure").joinpath("migrations/001_initial.sql")
+    assert migration.is_file()
+
+
+@pytest.mark.i3
+def test_i3_migration_is_included_in_the_python_package() -> None:
+    migration = files("ot_demo.infrastructure").joinpath(
+        "migrations/002_scenario_transactions.sql"
+    )
     assert migration.is_file()

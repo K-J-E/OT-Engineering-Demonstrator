@@ -35,4 +35,5 @@ testpaths = ["tests/unit", "tests/integration"]
 markers = [
   "i1: Implementation Increment I1 contracts and inputs",
   "i2: Implementation Increment I2 topology and outage core",
+  "i3: Implementation Increment I3 scenario transactions",
 ]

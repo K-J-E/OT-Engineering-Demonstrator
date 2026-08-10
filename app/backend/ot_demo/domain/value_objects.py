@@ -1,8 +1,15 @@
 """Validated scalar value objects for stable identifiers and quantities."""
 
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from pydantic import Field, StringConstraints
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    Field,
+    PlainSerializer,
+    StringConstraints,
+)
 
 
 EngineeringId = Annotated[
@@ -31,3 +38,26 @@ Sha256Digest = Annotated[
 ]
 NonNegativeKilowatts = Annotated[int, Field(ge=0)]
 PositiveCustomerCount = Annotated[int, Field(gt=0)]
+
+
+def _validate_utc_millisecond_instant(value: datetime) -> datetime:
+    if value.utcoffset() != timedelta(0):
+        raise ValueError("scenario timestamps must use UTC")
+    if value.microsecond % 1000:
+        raise ValueError("scenario timestamps must have millisecond precision")
+    return value.astimezone(timezone.utc)
+
+
+UtcMillisecondInstant = Annotated[
+    datetime,
+    AwareDatetime,
+    AfterValidator(_validate_utc_millisecond_instant),
+    PlainSerializer(
+        lambda value: (
+            value.strftime("%Y-%m-%dT%H:%M:%S.")
+            + f"{value.microsecond // 1000:03d}Z"
+        ),
+        return_type=str,
+        when_used="json",
+    ),
+]
