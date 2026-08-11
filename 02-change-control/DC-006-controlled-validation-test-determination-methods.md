@@ -1,6 +1,6 @@
 # DC-006 — Controlled Validation Test Determination Methods
 
-Status: **Proposed — architecture accepted in principle; bounded DR-01–DR-07 corrections applied pending final independent engineering acceptance review; not accepted, not applied**
+Status: **Design decision independently accepted; authoritative document application pending independent review**
 
 Date raised: 2026-08-11
 
@@ -24,9 +24,9 @@ The accepted Validation Plan defines 24 catalogue tests, their objectives, metho
 
 The remaining 21 definitions cannot yet create an `ExecutedValidationResult` because the accepted baseline does not define a typed determination context, exact criterion set, authoritative observation source or engineering-review finding contract. I9 stopped rather than converting implementation-conformance test success into catalogue verdicts or using a false DC-005 suspension.
 
-DC-006 proposes one common criteria-based determination method for all catalogue tests and constituents. It changes validation-assurance design only. It does not change any network configuration, electrical state, topology, outage, customer, telemetry, DC-003 isolation, restoration, event, defect/correction, DC-004 aggregate or DC-005 suspension outcome.
+DC-006 establishes one common criteria-based determination method for all non-composite catalogue tests and exact DC-004 constituents. It changes validation-assurance design only. It does not change any network configuration, electrical state, topology, outage, customer, telemetry, DC-003 isolation, restoration, event, defect/correction, DC-004 aggregate or DC-005 suspension outcome.
 
-This proposal does not apply authoritative Word-document changes, alter the machine catalogue, create a schema/migration/API/frontend change, resume I9 or authorise implementation.
+The design decision and DR-01–DR-07 are independently accepted. The proposed Validation Plan v1.3, System Architecture v0.4, Workflow Design v0.4 and Demonstrator Design v0.5 Word-document revisions apply that decision and remain pending independent authoritative-document review. No machine catalogue, schema/migration/API/frontend change, I9 resumption or implementation authority is granted.
 
 ## 2. Existing authoritative meaning retained
 
@@ -412,11 +412,11 @@ Future design/application verification shall prove at minimum:
 
 ## 12. Proposal gate
 
-Current disposition: **Architecture accepted in principle; DR-01–DR-07 corrected; proposed pending final independent engineering design acceptance review.**
+Current disposition: **Design decision independently accepted; authoritative document application pending independent review.**
 
-Independent review has accepted, in principle, the four-context/common-criteria architecture, deterministic backend aggregate, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles subject to version-namespace clarification. Final design acceptance review is requested only to confirm the bounded composite-coverage correction in Sections 3.1, 3.3.1 and 5 and the corresponding supporting coverage analysis; DR-01–DR-06 remain unchanged.
+Final independent engineering design review accepted the four-context/common-criteria architecture, deterministic backend aggregate, DR-01–DR-07, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles. The four proposed authoritative DOCX revisions have been produced from that accepted decision and now require independent application review before they may be accepted or treated as the current baseline.
 
-No acceptance, document application, catalogue promotion, code/schema/migration/UI change, I9 resumption or merge is authorised by this proposal.
+No machine Validation Catalogue promotion, code/schema/migration/UI change, I9 resumption or merge is authorised by this authoritative-document application phase.
 
 ## V2 Automation Candidate
 
