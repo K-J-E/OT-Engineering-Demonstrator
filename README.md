@@ -1,6 +1,6 @@
 # OT Graduate Demonstration Project — Authoritative Detailed Baseline
 
-Baseline date: 2026-08-10
+Baseline date: 2026-08-11
 Status: CURRENT DRAFT ENGINEERING WORKING BASELINE
 
 ## Critical working rule
@@ -37,9 +37,9 @@ The original uploaded pre-change files were copied byte-for-byte into the initia
 historical hashes are preserved in `BASELINE-MANIFEST.json` and remain recoverable through Git
 history.
 
-The canonical files in `01-engineering-source-documents/` now contain the accepted working
-baseline after DC-001, DC-002, DC-003 and authoritative design baselining of DC-004. Their current
-hashes and structural metadata are recorded in `CURRENT-BASELINE-MANIFEST.json`.
+The accepted working baseline after DC-001 through DC-005 is preserved on reviewed `main`. DC-005
+promotes five reviewed authoritative revisions while preserving both their superseded identities
+and the independently reviewed proposal identities in `CURRENT-BASELINE-MANIFEST.json`.
 
 ## Change status
 
@@ -57,27 +57,40 @@ DC-004 — Multi-Run Exploratory Validation Determination — is accepted as the
 validation/design treatment. It defines constituent cases, immutable composite determination,
 historical catalogue/test-definition resolution and provenance boundaries without changing the
 24-test catalogue, 124 requirements, 286 RTM relationships, 15 event types or electrical behaviour.
-Its separate machine/application phase is applied and verified on the dedicated review branch,
-but remains pending independent review and incorporation into `main`; I9 remains stopped.
+Its original machine/application phase is preserved on draft PR #10 and was accepted in substance,
+but remains outside the accepted implementation baseline. Reconciliation with accepted DC-005 and
+the authorised QA-041 + QA-042/DC-005 corrections are required before independent re-review; I9
+remains stopped.
 
-The current detailed Design Brief and Network Model are revision 0.4; the Requirements
-Specification remains revision 0.3 with 124 unique requirements. System Architecture and
-Workflow Design remain revision 0.2; Demonstrator Design is revision 0.3. They
-remain working Draft engineering documents because subsequent controlled design development
-may require further revision before final client-facing packaging.
+DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination — is accepted as the
+authoritative validation-suspension design baseline. It defines the exact five accepted suspension
+condition identities, a distinct attempt/result lifecycle, deterministic non-overlapping classifier,
+trusted target/provenance anchor, bounded reviewer-authority control, immutable history and DC-004
+composite relationship. It introduces no machine implementation, electrical, restoration, catalogue,
+RTM or event-type change. Requirements Specification v0.4 clarifies only
+`REQ-VAL-007`–`REQ-VAL-009`, retaining their IDs, 124 total requirements and 286 mappings. PR #10 remains
+unchanged, QA-041 is not applied and I9 remains stopped.
+
+The accepted detailed Design Brief and Network Model are revision 0.4; accepted Requirements
+Specification is revision 0.4 with 124 unique requirements. Accepted System Architecture and
+Workflow Design are revision 0.3; accepted Demonstrator Design is revision 0.4 and accepted
+Validation Plan is revision 1.2. The DC-005 sections are Requirements Specification clarification
+at REQ-VAL-007–009, System Architecture Section 27, Workflow Design Section 28, Demonstrator Design
+Section 37 and Validation Plan Section 20. The documents remain working Draft engineering artefacts because further controlled
+development may require revision before final client-facing packaging.
 
 The Simplified Network Model v0.4 is complete through Section 18.7 and constitutes the Step 5
-engineering answer key. Step 6 — System Architecture v0.2 is established through Section 26.5 and
+engineering answer key. Step 6 — System Architecture v0.3 is established through Section 27.4 and
 defines the logical component, information-ownership, interface, scenario, restoration,
-configuration and evidence boundaries for downstream design. Step 7 — Workflow Design v0.2 is
-established through Section 27.4 and defines the controlled actor, command, processing, formal,
+configuration and evidence boundaries for downstream design. Step 7 — Workflow Design v0.3 is
+established through Section 28.5 and defines the controlled actor, command, processing, formal,
 exploratory, restoration, defect-investigation, repeat-validation and evidence workflows.
-Step 8 — Demonstrator Design v0.3 is established through Section 36.8 and defines the practical local
+Step 8 — Demonstrator Design v0.4 is established through Section 37.6 and defines the practical local
 application, module and data-ownership boundaries, storage and identifier decisions, API and
 transaction model, screen/navigation structure, exploration/evidence/investigation presentation,
-technology stack, implementation increments, coding gate and accepted DC-004 multi-run
-validation-assurance design. Step 9 — Validation Plan v1.1 is the
-accepted current validation-design baseline through Section 19.9. It defines the 24-test
+technology stack, implementation increments, coding gate and accepted DC-004/DC-005 validation-
+assurance design. Step 9 — Validation Plan v1.2 is the accepted current validation-design baseline
+through Section 20.7. It defines the 24-test
 catalogue, deterministic scenario-time and telemetry-boundary rules, formal and exploratory
 verification approach, evidence strategy and requirements-to-verification mapping for all 124
 formal requirements. DC-003 was applied and cross-document verified before final Step 9
@@ -85,11 +98,11 @@ acceptance. Implementation proceeds only through separately authorised increment
 accepted implementation baselines. I8 — Exploration and Export passed final independent
 engineering/implementation review, including accepted QA-008 evidence export and independently
 verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 is accepted as
-the authoritative design change. Its machine/application phase is applied and verified on
-`agent/dc-004-application`, preserving historical catalogue v1.0 while promoting controlled
-catalogue v1.1; it is not yet an accepted implementation baseline. I9 was authorised and then
-stopped before implementation and cannot resume until the DC-004 application passes independent
-review and is incorporated into `main`.
+the authoritative design change. Its separate application branch/PR #10 remains draft and
+unmerged; its original reviewed application commit remains preserved. QA-041 and the accepted
+QA-042/DC-005 application are authorised together on that branch and require full independent
+application re-review. I9 cannot resume until the corrected reviewed baseline is accepted and
+incorporated into `main`.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

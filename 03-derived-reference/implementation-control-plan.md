@@ -1,5 +1,5 @@
 ---
-Status: Active implementation control plan — DC-004 application verification passed pending review; I8 accepted; I9 stopped
+Status: Active implementation control plan — DC-005 accepted; PR #10 reconciliation/correction authorised; I8 accepted; I9 stopped
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
 Updated: 2026-08-11
@@ -17,14 +17,16 @@ If this plan conflicts with an authoritative artefact, the authoritative artefac
 The current baseline is:
 
 - Network Model v0.4 through Section 18.7;
-- System Architecture v0.2 through Section 26.5;
-- Workflow Design v0.2 through Section 27.4;
-- Demonstrator Design v0.3 through Section 36.8, including accepted DC-004;
-- Validation Plan v1.1 through Section 19.9, accepted as the current validation-design baseline;
-- 124 unchanged formal requirements; and
-- DC-001, DC-002, DC-003 and DC-004 accepted and applied to their authoritative design artefacts.
+- Requirements Specification v0.4 with 124 unchanged formal requirements;
+- System Architecture v0.3 through Section 27.4;
+- Workflow Design v0.3 through Section 28.5;
+- Demonstrator Design v0.4 through Section 37.6, including accepted DC-004 and DC-005;
+- Validation Plan v1.2 through Section 20.7, accepted as the current validation-design baseline;
+- DC-001 through DC-005 accepted and applied to their authoritative design artefacts.
 
-Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section 19 authoritative. Its machine-readable catalogue, contract, persistence and application treatment has been applied and verified on the dedicated `agent/dc-004-application` branch from the accepted design baseline. It still requires independent review and incorporation into `main`. The stopped `agent/i9-packaging-review` branch was not reused, and I9 remains stopped until the application baseline is accepted.
+Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section 19 authoritative. Its original machine-readable catalogue, contract, persistence and application treatment remains preserved on `agent/dc-004-application` / draft PR #10. Independent review accepted that implementation in substance, left QA-041 pending and accepted QA-042 as a genuine design-control stop.
+
+Accepted DC-005 makes Requirements Specification v0.4 `REQ-VAL-007`–`REQ-VAL-009`, Validation Plan v1.2 Section 20, Demonstrator Design v0.4 Section 37, System Architecture v0.3 Section 27 and Workflow Design v0.3 Section 28 controlling. Reconciliation plus combined QA-041 + QA-042/DC-005 application is authorised only on the existing draft PR #10 branch. It requires full testing, independent re-review and reviewed-main incorporation before I9 can be considered for separate authorisation. The stopped `agent/i9-packaging-review` branch is not reused.
 
 The detailed source documents remain authoritative. Requirement ranges and catalogue-test references below are navigation and delivery controls, not substitutes for reading the exact rows and test definitions.
 
@@ -42,7 +44,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I6 | Operational UI | **Accepted implementation baseline** |
 | I7 | Investigation/correction | **Accepted implementation baseline** |
 | I8 | Exploration and export | **Accepted implementation baseline** |
-| I9 | Packaging/review | **Authorised, then stopped before implementation — DC-004 application applied/verified but pending independent review and incorporation** |
+| I9 | Packaging/review | **Authorised, then stopped — PR #10 reconciliation/correction is separately authorised; no I9 resumption authority** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 
