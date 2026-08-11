@@ -1,10 +1,14 @@
 # DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination
 
-Status: Proposed / pending independent engineering review
+Status: Accepted / authoritative design baseline; application not authorised
 
 Date raised: 2026-08-11
 
 Proposal date: 2026-08-11
+
+Acceptance date: 2026-08-11
+
+Accepted reviewed design tip: `974c39ac044b1af1342389f531f65281d93db114`
 
 Change class: Validation-assurance lifecycle and record-model clarification
 
@@ -24,15 +28,15 @@ positions, authority, condition-specific evidence or immutable record needed
 to establish that determination. QA-042 therefore stopped rather than allowing
 a client to submit arbitrary prose and a verdict.
 
-DC-005 proposes that missing contract. It changes validation assurance only.
+DC-005 defines that missing contract. It changes validation assurance only.
 It does not change network configuration, topology, outage, telemetry validity,
 DC-003 isolation, restoration, scenario electrical behaviour or expected
-engineering outcomes. It proposes a controlled terminology clarification to
+engineering outcomes. It applies a controlled terminology clarification to
 `REQ-VAL-007`, `REQ-VAL-008` and `REQ-VAL-009` while retaining those IDs, the
 124-requirement total, all 286 requirement-to-test relationships, the 24-test
 catalogue and the 15 operational-event types.
 
-This proposal does not implement QA-041 or QA-042, alter PR #10, resume I9 or
+This accepted design does not implement QA-041 or QA-042, alter PR #10, resume I9 or
 authorise application work.
 
 ## 2. Existing authoritative meaning retained
@@ -529,43 +533,43 @@ Future controlled application shall prove at minimum:
 
 ## 16. Authoritative artefact impact assessment
 
-| Artefact | Proposed impact | Basis |
+| Artefact | Accepted DC-005 impact | Basis |
 |---|---|---|
-| Validation Plan v1.1 | Proposed v1.2 Section 20 | Makes the existing five-condition suspension/BLOCKED-TEST meaning executable and testable. |
-| Demonstrator Design v0.3 | Proposed v0.4 Section 37 | Defines record/API/persistence/review/export implementation boundary without applying it. |
-| System Architecture v0.2 | Proposed v0.3 Section 27 | SA-CMP-08 currently describes execution-based PASS/FAIL only and needs the separate suspension assurance record plus optional execution relationship. |
-| Workflow Design v0.2 | Proposed v0.3 Section 28 | Existing completion flow records PASS/FAIL only and needs pre-entry, post-entry and finalisation suspension sequences and authority roles. |
-| Requirements Specification v0.3 | Proposed v0.4 controlled wording clarification to `REQ-VAL-007`–`REQ-VAL-009` | Defines ValidationAttempt versus ExecutedValidationResult in the requirements themselves. IDs, verification intent, 124 total and exact 286 RTM relationships remain unchanged. |
+| Validation Plan v1.1 | Accepted v1.2 Section 20 | Makes the existing five-condition suspension/BLOCKED-TEST meaning executable and testable. |
+| Demonstrator Design v0.3 | Accepted v0.4 Section 37 | Defines record/API/persistence/review/export implementation boundary without applying it. |
+| System Architecture v0.2 | Accepted v0.3 Section 27 | SA-CMP-08 currently describes execution-based PASS/FAIL only and needs the separate suspension assurance record plus optional execution relationship. |
+| Workflow Design v0.2 | Accepted v0.3 Section 28 | Existing completion flow records PASS/FAIL only and needs pre-entry, post-entry and finalisation suspension sequences and authority roles. |
+| Requirements Specification v0.3 | Accepted v0.4 controlled wording clarification to `REQ-VAL-007`–`REQ-VAL-009` | Defines ValidationAttempt versus ExecutedValidationResult in the requirements themselves. IDs, verification intent, 124 total and exact 286 RTM relationships remain unchanged. |
 | Engineering Design Brief | No change | The change clarifies validation assurance, not operational engineering behaviour. |
 | Network Model | No change | No electrical state, value, topology or validation answer key changes. |
 | DC-004 | Bounded relationship clarification | Composite membership accepts a verified suspension source for `BLOCKED-TEST` without weakening one-execution/one-run provenance for actual executions. |
 
-### 16.1 Accepted and proposed authoritative identities
+### 16.1 Preserved and accepted authoritative identities
 
-The accepted identities below remain authoritative while DC-005 is under
-independent review. The proposed identities are the exact working files on
-`agent/dc-005-validation-suspension`; they do not supersede the accepted files
-unless DC-005 is separately accepted and applied.
+The superseded accepted identities and the exact independently reviewed proposal identities remain
+preserved. The accepted DC-005 identities differ only because the internal proposal/status gate text
+was administratively promoted after review; they are the controlling current files.
 
-| Artefact | Accepted identity | Proposed DC-005 identity |
-|---|---|---|
-| Requirements Specification | v0.3; SHA-256 `7d5522e53dd99e505b9853d6b0b0255c8b4585964909f5659e1ab13d7d1eaeea`; 38,838 bytes; 1,261 paragraphs; 1 table; 124 requirements | v0.4 proposed clarification; SHA-256 `11c8760aa3ed9b745853c6b6e9ab7363c0b6c1c64f7d26755e8ff57f465f352d`; 39,533 bytes; 1,266 paragraphs; 1 table; 124 requirements |
-| Validation Plan | v1.1; SHA-256 `c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c`; 842,611 bytes; 145 paragraphs; 27 tables; through Section 19.9 | v1.2 proposed; SHA-256 `85dddab031aab7d2a5600fc844396474f042fa6dc2cbe5af243a23ebb504ca7d`; 847,644 bytes; 171 paragraphs; 31 tables; through Section 20.7 |
-| Demonstrator Design | v0.3; SHA-256 `f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5`; 849,329 bytes; 360 paragraphs; 33 tables; through Section 36.8 | v0.4 proposed; SHA-256 `b30323b93fcbc23f0f6cd76feb9a1646314051d177a8f94c54b6aac0813771e8`; 851,645 bytes; 379 paragraphs; 35 tables; through Section 37.6 |
-| System Architecture | v0.2; SHA-256 `249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77`; 546,251 bytes; 311 paragraphs; 12 tables; through Section 26.5 | v0.3 proposed; SHA-256 `83bb1b5f1e224943a76e0f91ea4cc37b4e71e95016b2fbae7e668c9068e17c21`; 548,273 bytes; 325 paragraphs; 13 tables; through Section 27.4 |
-| Workflow Design | v0.2; SHA-256 `f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547`; 620,162 bytes; 252 paragraphs; 31 tables; through Section 27.4 | v0.3 proposed; SHA-256 `8c0ea11d595c1b1d719f927918894797ada3cccdad15c9a36764857c7642423e`; 622,805 bytes; 266 paragraphs; 34 tables; through Section 28.5 |
+| Artefact | Superseded accepted identity | Independently reviewed proposal identity | Accepted DC-005 identity |
+|---|---|---|---|
+| Requirements Specification | v0.3; SHA-256 `7d5522e53dd99e505b9853d6b0b0255c8b4585964909f5659e1ab13d7d1eaeea`; 38,838 bytes; 1,261 paragraphs; 1 table | v0.4 proposal; SHA-256 `11c8760aa3ed9b745853c6b6e9ab7363c0b6c1c64f7d26755e8ff57f465f352d`; 39,533 bytes; 1,266 paragraphs; 1 table | v0.4 accepted; SHA-256 `ff4d2507e86178214d73c7f2ef19b5aaa9b9821ca1d5e04d8eeeec1ac896e3d4`; 39,488 bytes; 1,266 paragraphs; 1 table; 124 requirements |
+| Validation Plan | v1.1; SHA-256 `c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c`; 842,611 bytes; 145 paragraphs; 27 tables | v1.2 proposal; SHA-256 `85dddab031aab7d2a5600fc844396474f042fa6dc2cbe5af243a23ebb504ca7d`; 847,644 bytes; 171 paragraphs; 31 tables | v1.2 accepted; SHA-256 `8cde791aae359a7a3d8f335bbb385aba24ef9e75a4fb9f019e14799f4c3db14b`; 847,666 bytes; 171 paragraphs; 31 tables; through Section 20.7 |
+| Demonstrator Design | v0.3; SHA-256 `f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5`; 849,329 bytes; 360 paragraphs; 33 tables | v0.4 proposal; SHA-256 `b30323b93fcbc23f0f6cd76feb9a1646314051d177a8f94c54b6aac0813771e8`; 851,645 bytes; 379 paragraphs; 35 tables | v0.4 accepted; SHA-256 `f3cbe66b1080096509796e35f62247b5c18f813c4facab68b38bdbeb70fb4c62`; 851,657 bytes; 379 paragraphs; 35 tables; through Section 37.6 |
+| System Architecture | v0.2; SHA-256 `249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77`; 546,251 bytes; 311 paragraphs; 12 tables | v0.3 proposal; SHA-256 `83bb1b5f1e224943a76e0f91ea4cc37b4e71e95016b2fbae7e668c9068e17c21`; 548,273 bytes; 325 paragraphs; 13 tables | v0.3 accepted; SHA-256 `1e1ca4a2b8a054fcfa998bf33f809a6bcfdaf5e9647ffd285c9fe61a783aeb7d`; 548,281 bytes; 325 paragraphs; 13 tables; through Section 27.4 |
+| Workflow Design | v0.2; SHA-256 `f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547`; 620,162 bytes; 252 paragraphs; 31 tables | v0.3 proposal; SHA-256 `8c0ea11d595c1b1d719f927918894797ada3cccdad15c9a36764857c7642423e`; 622,805 bytes; 266 paragraphs; 34 tables | v0.3 accepted; SHA-256 `3b7250fa802f5cd4e0c8c224f17e51af10a1e6d0f1a323b28bbd19cedfedd2a8`; 622,810 bytes; 266 paragraphs; 34 tables; through Section 28.5 |
 
-## 17. Proposed design gate
+## 17. Accepted design gate
 
-DC-005 and all associated authoritative revisions remain proposed until
-independent engineering review accepts them. This proposal authorises no
-machine catalogue, contract, schema, database, API, frontend or test change.
+Final independent engineering review accepted DC-005 at reviewed tip
+`974c39ac044b1af1342389f531f65281d93db114`. The five affected authoritative
+artefacts are promoted as the accepted design baseline and cross-document verification is required
+before incorporation into reviewed `main`.
 
-If accepted, DC-005 must be applied to the five affected authoritative
-artefacts, cross-document verified and incorporated into reviewed `main` before
-QA-042 application resumes. QA-041 remains pending on the unchanged DC-004
-application branch. PR #10 remains draft/unmerged, and I9 remains stopped until
-the corrected DC-004 application is independently accepted and incorporated.
+This acceptance authorises no machine catalogue, contract, schema, database, API, frontend or test
+change. QA-041 remains pending on the unchanged DC-004 application branch; QA-042 is resolved only at
+design level. PR #10 remains draft/unmerged and unchanged. The next separately controlled action is
+to reconcile that branch with accepted DC-005 and implement QA-041 + QA-042/DC-005 together, followed
+by full independent application re-review. I9 remains stopped.
 
 **V2 Automation Candidate — suspension evidence assessment.** Condition-specific
 binding, source/hash verification, authority checks and evidence-package
