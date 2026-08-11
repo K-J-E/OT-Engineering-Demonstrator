@@ -97,7 +97,7 @@ Before the separately authorised DC-004 application phase on a fresh `agent/dc-0
 4. accepted I5 validation/evidence and I8 exploration/export closeouts; and
 5. the unchanged catalogue rows for `VT-EXP-ALL-001` and `VT-EXP-ROLE-001` as the pre-change identity, plus the accepted I8 export service's current-catalogue equality boundary that DC-004 must correct during later controlled application.
 
-Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263`. **DC-004 and DC-005 are accepted authoritative design baselines. The original DC-004 application commit remains preserved on draft PR #10; reconciliation plus QA-041 + QA-042/DC-005 application is authorised there and requires independent re-review. I9 must not resume.**
+Current gate: I8 is the accepted implementation baseline after final independent review of tip `111df44a425731dc7f44c437c1d675e5dac85263`. **DC-004 and DC-005 are accepted authoritative design baselines. The original DC-004 application commit remains preserved on draft PR #10; accepted main is reconciled and QA-041 + QA-042/DC-005 application is corrected/verified pending independent re-review. I9 must not resume.**
 
 Do not reuse the stopped `agent/i9-packaging-review` branch for DC-004 application work.
 

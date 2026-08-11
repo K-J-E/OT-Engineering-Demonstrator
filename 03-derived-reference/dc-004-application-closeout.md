@@ -58,12 +58,16 @@ input under `validation/test-definitions/history/v1.0/`:
 - historical `VT-EXP-ROLE-001` definition v1.0 SHA-256
   `29dc26956048db3b6db8a6d84b4a6de4428edeb3226f139a384b2022727fd802`.
 
-The promoted active machine catalogue is revision v1.1:
+The promoted active machine catalogue remains revision v1.1. Its first-application identity is preserved above; QA-041 legitimately corrects the active identity without changing the 24 definitions or 286 RTM relationships:
 
-- catalogue v1.1 SHA-256
+- superseded first-application catalogue v1.1 SHA-256
   `354284d1f119b76edd545eaf35330e4f3bf05379852f4c6676f4494d07fb713f`;
-- manifest v1.1 SHA-256
+- superseded first-application manifest v1.1 SHA-256
   `dadb890ae2ddd9224d2b809b6cdffe1a523faecb40010a5a7b053d815a2be0d3`;
+- corrected active catalogue v1.1 SHA-256
+  `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865`;
+- corrected active manifest v1.1 SHA-256
+  `45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3`;
 - `VT-EXP-ALL-001` definition v1.1 SHA-256
   `869e020f010db68e973228d72c6f5dfe2500590f0ba94260dd7773ada6469c35`;
   and
@@ -148,7 +152,7 @@ EXPLORATORY constituent and composite records.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 126 tests |
+| Complete backend unit/integration suite | PASS — 130 tests |
 | React/Cytoscape component suite | PASS — 17 tests |
 | Chromium formal, investigation and Exploration/export workflows | PASS — 3 tests |
 | Pinned TypeScript/Vite production build | PASS |
@@ -220,3 +224,11 @@ acceptance to the reviewer.
 DC-004 machine/application work stops at the pushed draft-review boundary.
 The branch must remain unmerged until independent engineering/implementation
 review accepts it. I9 remains stopped and separately unauthorised.
+
+## 11. Reconciled QA-041/DC-005 application addendum
+
+Accepted main `195e21ac0f2e0641f17c0307c0a095591623d7bd` is an ancestor of this branch and original reviewed DC-004 application commit `a22d428483b8afcbcbaa5309d327c2ac3709f7fa` remains in history. Reconciliation itself changed no application behaviour and the five accepted DC-005 DOCX packages remain byte-identical to main.
+
+QA-041 now captures and compares TS-01 `age_ms = 60001` at controlled time `T0 + 60,001 ms`. Actual case executions prove exactly 60,001 ms PASSes the accepted STALE expectation, 61,000 ms FAILs the exact field while retaining STALE categorical evidence, and 60,000 ms remains FRESH.
+
+Accepted DC-005 is applied through migration 008 and the validation module: hashed trusted target selection, ValidationAttempt, PASS/FAIL-only ExecutedValidationResult, exactly VSC-001–005 with accepted failure-code/evidence contracts, bounded local authority separation, immutable deterministic suspension records, PRE_EXECUTION_ENTRY / EXECUTION_IN_PROGRESS / EVIDENCE_FINALISATION positions, and the DC-004 EXECUTION_RESULT / SUSPENSION_RESULT union. Suspension-source ZIPs are assembled from preserved records and retain source versus generation-build provenance. No authoritative engineering document, network package, dependency or I9 behaviour changed.

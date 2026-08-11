@@ -297,22 +297,22 @@
   "implementation_baseline": {
     "accepted_through_increment": "I8",
     "accepted_reviewed_implementation_tip": "111df44a425731dc7f44c437c1d675e5dac85263",
-    "next_increment": "Separately authorised PR #10 reconciliation and combined QA-041 + QA-042/DC-005 application; I9 remains stopped",
+    "next_increment": "Independent re-review of reconciled QA-041 + QA-042/DC-005 application on draft PR #10; I9 remains stopped",
     "next_increment_authorised": false,
-    "dc004_application_status": "ORIGINAL APPLICATION PRESERVED ON DRAFT PR #10 — RECONCILIATION AND QA-041 + QA-042/DC-005 CORRECTION AUTHORISED; INDEPENDENT RE-REVIEW REQUIRED",
+    "dc004_application_status": "ORIGINAL APPLICATION PRESERVED; ACCEPTED MAIN RECONCILED; QA-041 + QA-042/DC-005 CORRECTED AND VERIFIED ON DRAFT PR #10; INDEPENDENT RE-REVIEW REQUIRED",
     "dc004_application_pr": {
       "number": 10,
       "state": "OPEN/DRAFT",
       "head_branch": "agent/dc-004-application",
-      "observed_head_commit": "a22d428483b8afcbcbaa5309d327c2ac3709f7fa",
-      "treatment": "Original reviewed implementation commit preserved; accepted main reconciliation and bounded assurance corrections authorised"
+      "observed_head_commit": "708c9814fe307a849c7a011e5bfae65d52f5ceca",
+      "treatment": "Original reviewed implementation commit preserved; accepted main reconciled; bounded assurance corrections verified pending independent re-review"
     },
     "i9_status": "STOPPED — no resumption authority; reconciled QA-041 + QA-042/DC-005 application requires separate authorisation, implementation and independent acceptance first"
   },
   "validation_catalogue_baseline": {
     "active_version": "1.1",
-    "active_catalogue_sha256": "354284d1f119b76edd545eaf35330e4f3bf05379852f4c6676f4494d07fb713f",
-    "active_manifest_sha256": "dadb890ae2ddd9224d2b809b6cdffe1a523faecb40010a5a7b053d815a2be0d3",
+    "active_catalogue_sha256": "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865",
+    "active_manifest_sha256": "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3",
     "historical_version": "1.0",
     "historical_catalogue_sha256": "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1",
     "historical_manifest_sha256": "8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714",
@@ -333,7 +333,7 @@
     "Demonstrator Design v0.4 establishes the Step 8 practical local application and accepted DC-004/DC-005 validation-assurance design without changing approved engineering behaviour.",
     "Validation Plan v1.2 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, accepted DC-005 suspension determination, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The original DC-004 application commit is preserved on draft PR #10; reconciliation plus QA-041 + QA-042/DC-005 application is authorised and requires independent re-review. I9 remains stopped.",
+    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The original DC-004 application commit is preserved on draft PR #10; accepted main is reconciled and QA-041 + QA-042/DC-005 application is corrected/verified pending independent re-review. I9 remains stopped.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
     "The five independently reviewed DC-005 proposal identities are preserved separately from their accepted authoritative identities; the accepted versions supersede the prior DC-004-era identities without erasing either history.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."
