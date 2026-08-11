@@ -638,6 +638,15 @@ def test_api_factory_exposes_authorised_run_validation_investigation_and_i8_expo
         "/api/v1/composite-evidence-packages",
         "/api/v1/composite-evidence-packages/{package_id}/download",
     }
+    suspension_schema = application.openapi()["components"]["schemas"]["SuspendValidationAttemptPayload"]
+    properties = set(suspension_schema["properties"])
+    assert "evaluation_type" in properties
+    assert "reference_id" in properties
+    assert not properties.intersection({
+        "evidence_payload", "evidence_corruption_failure_code",
+        "input_identity_failure_code", "inconsistent_baseline_failure_code",
+        "unspecified_behaviour_failure_code", "wall_clock_dependency_failure_code",
+    })
     assert all(
         token not in path
         for path in paths

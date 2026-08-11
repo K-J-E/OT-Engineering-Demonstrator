@@ -30,6 +30,7 @@ from ot_demo.domain.enums import (
     ValidationAttemptStatus,
     ValidationSuspensionCondition,
     CompositeConstituentSourceKind,
+    SuspensionEvaluationType,
 )
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
@@ -48,7 +49,12 @@ from ot_demo.modules.evidence_export.service import EvidenceExportService
 from ot_demo.modules.scenario.models import InitialiseRunRequest, ScenarioCommandRequest
 from ot_demo.modules.validation.catalogue import ValidationCatalogueLoader
 from ot_demo.modules.validation.service import ValidationBoundaryError, ValidationService
-from ot_demo.modules.validation.models import SuspensionClassifierFacts
+from ot_demo.modules.validation.assurance import (
+    ControlledArtifact, ControlledConflictReview, ControlledDesignQuestion,
+    ControlledEngineeringRegistry, ControlledSourceAssertion, ControlledTimeReview,
+    EngineeringAssuranceRegistryData, IdentityResolutionAuthority,
+    IntegrityVerificationAuthority, RuntimeTimeAuthority,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -968,41 +974,18 @@ def test_qa041_exact_stale_age_is_compared_and_61000_ms_substitution_fails(
     assert boundary_at_limit.verdict is ValidationVerdict.FAIL
 
 
-def suspension_facts(target_id: UUID, condition: str) -> SuspensionClassifierFacts:
-    facts = {
-        "VSC-001": (
-            "unspecified_behaviour_failure_code",
-            "UNSPECIFIED_ENGINEERING_BEHAVIOUR",
-            {"authoritative_sources_checked": ["Validation Plan v1.2 §20"], "missing_field_or_step": "comparison_expected_values", "open_design_question_id": "DQ-TEST-001", "review_record_id": "REV-001"},
-        ),
-        "VSC-002": (
-            "inconsistent_baseline_failure_code",
-            "INCONSISTENT_BASELINE",
-            {"trusted_source_assertions": [{"identity": "Requirements v0.4", "hash": "1" * 64, "location": "REQ-VAL-007"}, {"identity": "Validation Plan v1.2", "hash": "2" * 64, "location": "§20"}], "conflict_review_item": "CR-001", "review_disposition": "Unresolved contradiction."},
-        ),
-        "VSC-003": (
-            "input_identity_failure_code",
-            "UNKNOWN_IDENTITY",
-            {"input_name": "network configuration", "presented_identity_evidence": {"version": "unknown"}, "resolution_failure": "No immutable hash match."},
-        ),
-        "VSC-004": (
-            "wall_clock_dependency_failure_code",
-            "UNCONTROLLED_WALL_CLOCK_DEPENDENCY",
-            {"dependency_name": "external clock", "wall_clock_reference": "host-now", "controlled_replacement_unavailable": True},
-        ),
-        "VSC-005": (
-            "evidence_corruption_failure_code",
-            "HASH_MISMATCH",
-            {"examined_source": "records/evidence.json", "expected_integrity": "1" * 64, "observed_failure": "2" * 64, "quarantine_record": "QUAR-001"},
-        ),
-    }
-    field, code, payload = facts[condition]
-    return SuspensionClassifierFacts(
-        trusted_target_selection_id=target_id,
-        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
-        evidence_payload=payload,
-        **{field: code},
+def assurance_registry() -> ControlledEngineeringRegistry:
+    sources = (
+        ControlledSourceAssertion(assertion_id="SRC-VP", source_id="VP", path="01-engineering-source-documents/OT Project Validation Plan.docx", version="1.2", sha256=sha256_file(ROOT / "01-engineering-source-documents/OT Project Validation Plan.docx"), location="Section 20"),
+        ControlledSourceAssertion(assertion_id="SRC-DD", source_id="DD", path="01-engineering-source-documents/OT Project Demonstrator Design.docx", version="0.4", sha256=sha256_file(ROOT / "01-engineering-source-documents/OT Project Demonstrator Design.docx"), location="Section 37"),
     )
+    return ControlledEngineeringRegistry(EngineeringAssuranceRegistryData(
+        authority="test-only controlled assurance fixture",
+        source_assertions=sources,
+        design_questions=(ControlledDesignQuestion(record_id="DQ-TEST-OPEN", status="OPEN", test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", field_id="comparison_expected_values", source_assertion_ids=("SRC-VP",), review_record_id="TEST-REVIEW"),),
+        conflict_reviews=(ControlledConflictReview(record_id="CR-TEST-OPEN", status="UNRESOLVED", test_id="VT-EXP-ALL-001", case_id="EXP-ALL-A1", field_id="expected_customer_impact", source_assertion_ids=("SRC-VP", "SRC-DD"), review_record_id="TEST-REVIEW"),),
+        time_reviews=(ControlledTimeReview(record_id="TR-TEST-OPEN", status="OPEN", test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", step_reference="pre-entry-clock", source_assertion_ids=("SRC-VP",), review_record_id="TEST-REVIEW"),),
+    ), ROOT)
 
 
 @pytest.mark.i8
@@ -1016,27 +999,29 @@ def test_dc005_exact_conditions_authority_immutability_and_composite_union(
         ValidationCatalogueLoader(CATALOGUE),
         scenarios,
         application_build_manifest=MANIFEST,
+        engineering_registry=assurance_registry(),
     )
     assert {item.value for item in ValidationSuspensionCondition} == {
         "VSC-001", "VSC-002", "VSC-003", "VSC-004", "VSC-005"
     }
     cases = ("EXP-ROLE-A2", "EXP-ROLE-B2", "EXP-ROLE-A1", "EXP-ROLE-A4")
-    conditions = ("VSC-001", "VSC-003", "VSC-004", "VSC-005")
     records = []
-    for index, (case_id, condition) in enumerate(zip(cases, conditions, strict=True)):
+    for index, case_id in enumerate(cases):
         target, attempt = validation.create_target_selection(
-            "VT-EXP-ROLE-001", case_id=case_id, created_at=at(2000 + index)
+            "VT-EXP-ROLE-001", case_id=case_id, created_at=at(2000 + index),
+            requested_fixture_identity="unknown-fixture",
         )
-        backend = condition in {"VSC-003", "VSC-005"}
-        record = validation.suspend_attempt(
+        record = validation.evaluate_suspension(
             attempt.validation_attempt_id,
-            suspension_facts(target.target_selection_id, condition),
-            proposer_actor_id=("backend-integrity-monitor" if backend else "graduate-engineer"),
-            reviewer_actor_id=("backend-assurance-reviewer" if backend else "independent-reviewer"),
+            trusted_target_selection_id=target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="fixture", field_id=None, source_assertion_ids=(),
+            proposer_actor_id=None, reviewer_actor_id=None,
             finalised_at=at(2100 + index),
         )
-        assert record.condition_id.value == condition
-        assert record.reason_code == f"BLOCKED-TEST/{condition}/PRE_EXECUTION_ENTRY"
+        assert record.condition_id.value == "VSC-003"
+        assert record.reason_code == "BLOCKED-TEST/VSC-003/PRE_EXECUTION_ENTRY"
         assert record.scenario_run_id is None
         assert record.validation_execution_id is None
         assert repository.get_attempt(attempt.validation_attempt_id).status is ValidationAttemptStatus.SUSPENDED
@@ -1046,20 +1031,18 @@ def test_dc005_exact_conditions_authority_immutability_and_composite_union(
     target, attempt = validation.create_target_selection(
         "VT-EXP-ALL-001", case_id="EXP-ALL-A1", created_at=at(2200)
     )
-    inconsistent = validation.suspend_attempt(
+    inconsistent = validation.evaluate_suspension(
         attempt.validation_attempt_id,
-        suspension_facts(target.target_selection_id, "VSC-002"),
+        trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.BASELINE_CONFLICT,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="CR-TEST-OPEN", field_id="expected_customer_impact",
+        source_assertion_ids=("SRC-VP", "SRC-DD"),
         proposer_actor_id="graduate-engineer",
         reviewer_actor_id="independent-reviewer",
         finalised_at=at(2201),
     )
     assert inconsistent.condition_id.value == "VSC-002"
-
-    overlap = suspension_facts(target.target_selection_id, "VSC-001").model_copy(
-        update={"evidence_corruption_failure_code": "HASH_MISMATCH"}
-    )
-    with pytest.raises(ValidationBoundaryError, match="exactly one"):
-        ValidationService._classify_suspension(overlap)
 
     composite = validation.assemble_composite(
         "VT-EXP-ROLE-001",
@@ -1179,22 +1162,30 @@ def test_dc005_three_lifecycle_positions_and_missing_evidence_boundary(
 ) -> None:
     scenarios = scenario(tmp_path, "dc005-lifecycle")
     repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    controlled_artifact = tmp_path / "controlled.json"
+    controlled_artifact.write_text('{"status":"healthy"}\n', encoding="utf-8")
     validation = ValidationService(
         repository,
         ValidationCatalogueLoader(CATALOGUE),
         scenarios,
         application_build_manifest=MANIFEST,
+        engineering_registry=assurance_registry(),
+        integrity_authority=IntegrityVerificationAuthority((ControlledArtifact(
+            artifact_reference="test-evidence", path=controlled_artifact,
+            expected_sha256=sha256_file(controlled_artifact),
+        ),)),
     )
     run2 = initialise_exploration(scenarios, "SEC-A2", 12000).snapshot.run
     execution = validation.start_execution(
         "VT-EXP-ROLE-001", run2.scenario_run_id, case_id="EXP-ROLE-A2"
     )
-    progress_facts = suspension_facts(execution.target_selection_id, "VSC-001").model_copy(
-        update={"lifecycle_position": SuspensionLifecyclePosition.EXECUTION_IN_PROGRESS}
-    )
-    in_progress = validation.suspend_attempt(
+    in_progress = validation.evaluate_suspension(
         execution.validation_attempt_id,
-        progress_facts,
+        trusted_target_selection_id=execution.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
+        lifecycle_position=SuspensionLifecyclePosition.EXECUTION_IN_PROGRESS,
+        reference_id="DQ-TEST-OPEN", field_id="comparison_expected_values",
+        source_assertion_ids=("SRC-VP",),
         proposer_actor_id="graduate-engineer",
         reviewer_actor_id="independent-reviewer",
         scenario_run_id=run2.scenario_run_id,
@@ -1215,14 +1206,14 @@ def test_dc005_three_lifecycle_positions_and_missing_evidence_boundary(
         "VT-EXP-ROLE-001", run2.scenario_run_id, case_id="EXP-ROLE-A2"
     )
     validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
-    mid_facts = suspension_facts(execution.target_selection_id, "VSC-005").model_copy(
-        update={"lifecycle_position": SuspensionLifecyclePosition.EVIDENCE_FINALISATION}
-    )
-    mid = validation.suspend_attempt(
+    controlled_artifact.write_text('{"status":"tampered"}\n', encoding="utf-8")
+    mid = validation.evaluate_suspension(
         execution.validation_attempt_id,
-        mid_facts,
-        proposer_actor_id="backend-integrity-monitor",
-        reviewer_actor_id="backend-assurance-reviewer",
+        trusted_target_selection_id=execution.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.INTEGRITY,
+        lifecycle_position=SuspensionLifecyclePosition.EVIDENCE_FINALISATION,
+        reference_id="test-evidence", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None,
         scenario_run_id=run2.scenario_run_id,
         validation_execution_id=execution.validation_execution_id,
         finalised_at=at(3),
@@ -1246,6 +1237,153 @@ def test_dc005_three_lifecycle_positions_and_missing_evidence_boundary(
         validation.finalise_execution(incomplete.validation_execution_id, "CONTROLLED_RESULT")
     assert repository.get_attempt(incomplete.validation_attempt_id).status is ValidationAttemptStatus.ACTIVE
     assert len(validation.list_suspensions()) == 2
+
+
+@pytest.mark.i8
+def test_qa043_qa044_backend_facts_and_controlled_record_resolution(tmp_path: Path) -> None:
+    scenarios = scenario(tmp_path, "qa043-044")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    artifact = tmp_path / "controlled.json"
+    artifact.write_text('{"identity":"controlled"}\n', encoding="utf-8")
+    expected_hash = sha256_file(artifact)
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST,
+        integrity_authority=IntegrityVerificationAuthority((ControlledArtifact(
+            artifact_reference="controlled-fixture", path=artifact,
+            expected_sha256=expected_hash,
+        ),)),
+        time_authority=RuntimeTimeAuthority({"runtime-clock": {"wall_clock_reference": "backend-observed-host-now"}}),
+    )
+
+    healthy_target, healthy_attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(3000)
+    )
+    with pytest.raises(ValidationBoundaryError, match="resolves uniquely"):
+        validation.evaluate_suspension(
+            healthy_attempt.validation_attempt_id,
+            trusted_target_selection_id=healthy_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="fixture", field_id=None, source_assertion_ids=(),
+            proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(3001),
+        )
+    with pytest.raises(ValidationBoundaryError, match="passed integrity"):
+        validation.evaluate_suspension(
+            healthy_attempt.validation_attempt_id,
+            trusted_target_selection_id=healthy_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.INTEGRITY,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="controlled-fixture", field_id=None, source_assertion_ids=(),
+            proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(3001),
+        )
+    with pytest.raises(ValidationBoundaryError, match="does not exist"):
+        validation.evaluate_suspension(
+            healthy_attempt.validation_attempt_id,
+            trusted_target_selection_id=healthy_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="DQ-MADE-UP", field_id="anything", source_assertion_ids=(),
+            proposer_actor_id="graduate-engineer", reviewer_actor_id="independent-reviewer",
+            finalised_at=at(3001),
+        )
+    with pytest.raises(ValidationBoundaryError, match="not open"):
+        validation.evaluate_suspension(
+            healthy_attempt.validation_attempt_id,
+            trusted_target_selection_id=healthy_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="DQ-001", field_id="exploration_fault_isolation_action_derivation",
+            source_assertion_ids=("SRC-NETWORK-MODEL-18", "SRC-DEMONSTRATOR-DESIGN-37"),
+            proposer_actor_id="graduate-engineer", reviewer_actor_id="independent-reviewer",
+            finalised_at=at(3001),
+        )
+
+    unknown_target, unknown_attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(3010),
+        requested_fixture_identity="not-registered",
+    )
+    with pytest.raises(ValidationBoundaryError, match="cannot supply backend"):
+        validation.evaluate_suspension(
+            unknown_attempt.validation_attempt_id,
+            trusted_target_selection_id=unknown_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="fixture", field_id=None, source_assertion_ids=(),
+            proposer_actor_id="backend-integrity-monitor",
+            reviewer_actor_id="backend-assurance-reviewer", finalised_at=at(3011),
+        )
+    identity_record = validation.evaluate_suspension(
+        unknown_attempt.validation_attempt_id,
+        trusted_target_selection_id=unknown_target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="fixture", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(3011),
+    )
+    assert identity_record.evidence[0].failure_code == "UNKNOWN_IDENTITY"
+    assert identity_record.authority.proposer_actor_id == "backend-integrity-monitor"
+    missing_target = healthy_target.model_copy(update={
+        "canonical_selection_payload": {**healthy_target.canonical_selection_payload, "requested_fixture_identity": None}
+    })
+    assert IdentityResolutionAuthority().evaluate(missing_target, "fixture")[0] == "MISSING_IDENTITY"
+    ambiguous_target = healthy_target.model_copy(update={
+        "canonical_selection_payload": {**healthy_target.canonical_selection_payload, "requested_fixture_identity": "duplicate"}
+    })
+    assert IdentityResolutionAuthority(("duplicate", "duplicate")).evaluate(ambiguous_target, "fixture")[0] == "AMBIGUOUS_IDENTITY"
+
+    runtime_run = initialise_exploration(scenarios, "SEC-A2", 3050).snapshot.run
+    runtime_execution = validation.start_execution(
+        "VT-EXP-ROLE-001", runtime_run.scenario_run_id, case_id="EXP-ROLE-A2"
+    )
+    time_record = validation.evaluate_suspension(
+        runtime_execution.validation_attempt_id,
+        trusted_target_selection_id=runtime_execution.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.TIME_AUTHORITY,
+        lifecycle_position=SuspensionLifecyclePosition.EXECUTION_IN_PROGRESS,
+        reference_id="runtime-clock", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None,
+        scenario_run_id=runtime_run.scenario_run_id,
+        validation_execution_id=runtime_execution.validation_execution_id,
+        finalised_at=at(3051),
+    )
+    assert time_record.condition_id is ValidationSuspensionCondition.VSC_004
+    assert time_record.authority.proposer_role == "BACKEND_ASSURANCE_PROPOSER"
+
+    artifact.write_text('{"identity":"tampered"}\n', encoding="utf-8")
+    tamper_target, tamper_attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-B2", created_at=at(3020)
+    )
+    integrity_record = validation.evaluate_suspension(
+        tamper_attempt.validation_attempt_id,
+        trusted_target_selection_id=tamper_target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.INTEGRITY,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="controlled-fixture", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(3021),
+    )
+    assert integrity_record.evidence[0].failure_code == "HASH_MISMATCH"
+    assert integrity_record.evidence[0].payload["evidence"]["observed_failure"] == sha256_file(artifact)
+
+    invalid_json = tmp_path / "invalid.json"
+    invalid_json.write_text("{not-json}\n", encoding="utf-8")
+    schema_authority = IntegrityVerificationAuthority((ControlledArtifact(
+        artifact_reference="invalid-json", path=invalid_json,
+        expected_sha256=sha256_file(invalid_json),
+    ),))
+    assert schema_authority.evaluate("invalid-json")[0] == "SCHEMA_INVALID"
+    canonical_json = tmp_path / "canonical.json"
+    canonical_json.write_text('{ "value": 1 }\n', encoding="utf-8")
+    canonical_authority = IntegrityVerificationAuthority((ControlledArtifact(
+        artifact_reference="canonical-json", path=canonical_json,
+        expected_sha256=sha256_file(canonical_json), expected_canonical_sha256="0" * 64,
+    ),))
+    assert canonical_authority.evaluate("canonical-json")[0] == "CANONICAL_PAYLOAD_MISMATCH"
+    unreadable_authority = IntegrityVerificationAuthority((ControlledArtifact(
+        artifact_reference="missing", path=tmp_path / "not-present.json",
+        expected_sha256="0" * 64,
+    ),))
+    assert unreadable_authority.evaluate("missing")[0] == "UNREADABLE"
 
 
 @pytest.mark.i8

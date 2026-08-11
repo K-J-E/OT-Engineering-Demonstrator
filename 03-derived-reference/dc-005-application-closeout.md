@@ -1,5 +1,5 @@
 ---
-Status: Applied and verified; pending independent review
+Status: QA-043/QA-044 corrected and verified; pending independent re-review
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-11
@@ -16,8 +16,9 @@ The accepted DC-005 authoritative baseline was reconciled from main commit `195e
 
 - `ValidationTargetSelection` is a backend-resolved, canonical-hashed pre-entry anchor for test, case, catalogue, definition, configuration, evidence class, selection authority and target build.
 - `ValidationAttempt` owns incomplete, active, suspended and executed lifecycle state. An `ExecutedValidationResult` is created only by the controlled expected-versus-observed comparison and permits PASS or FAIL only.
-- Exactly VSC-001 through VSC-005 exist. The classifier rejects absent, unsupported or simultaneous claims and applies accepted integrity, identity, baseline, behaviour and controlled-time gates.
-- Condition evidence uses accepted bounded failure-code registries. Engineering-judgement records require distinct registered graduate-engineer and independent-reviewer identities; backend conditions require distinct registered integrity-proposer and assurance-reviewer identities. This is a local audit control, not real-person authentication.
+- Exactly VSC-001 through VSC-005 exist. The public boundary no longer accepts a caller-declared condition, failure code, evidence payload or backend actor identity. It accepts only an evaluation type and controlled reference for an authority to verify.
+- VSC-003 is derived from trusted target identities; VSC-005 from actual registered artefact bytes/schema/canonical content; runtime/finalisation VSC-004 from the backend time verifier. Healthy inputs are rejected and backend proposer/reviewer identities are assigned internally.
+- VSC-001/VSC-002 resolve exact OPEN DQ or UNRESOLVED conflict records and exact controlled source locations/hashes. Missing, closed, unrelated, mismatched and hash-invalid records are rejected; positive tests use test-only controlled records rather than inventing a production issue.
 - Finalised `ValidationSuspensionRecord` preserves schema/classifier versions, evaluated gates, target hash, intended/resolved/failed identities, target and verifier builds, evidence hashes, authority, lifecycle, generated reason and deterministic fingerprint.
 - PRE_EXECUTION_ENTRY creates no scenario run, execution or result. EXECUTION_IN_PROGRESS and EVIDENCE_FINALISATION bind actual run/execution records; suspension prevents later evidence/result continuation. Ordinary missing evidence remains incomplete.
 - Composite membership is an immutable union of EXECUTION_RESULT (PASS/FAIL only) and SUSPENSION_RESULT (genuine finalised BLOCKED-TEST only). Exact completeness and FAIL > BLOCKED-TEST > PASS precedence remain unchanged.
@@ -27,11 +28,11 @@ The accepted DC-005 authoritative baseline was reconciled from main commit `195e
 
 ## QA-041 and controlled catalogue identity
 
-QA-041 is corrected pending independent re-review. Historical v1.0 catalogue/manifest hashes remain exactly `e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1` / `8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714`. The superseded first-application v1.1 hashes remain recorded as `354284d1…713f` / `dadb890a…e0d3`; corrected active v1.1 hashes are `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865` / `45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3`.
+QA-041 is independently accepted. Historical v1.0 catalogue/manifest hashes remain exactly `e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1` / `8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714`. The superseded first-application v1.1 hashes remain recorded as `354284d1…713f` / `dadb890a…e0d3`; corrected active v1.1 hashes are `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865` / `45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3`.
 
 ## Verification
 
-- backend: 130 passed;
+- backend: 131 passed, including focused QA-043/QA-044 authority and negative-resolution coverage;
 - focused QA-041/DC-005 actual service, persistence, composite and ZIP paths: passed;
 - frontend components: 17 passed;
 - Chromium formal, investigation and Exploration/export workflows: 3 passed;
@@ -42,7 +43,7 @@ QA-041 is corrected pending independent re-review. Historical v1.0 catalogue/man
 
 ## Gate
 
-QA-041 and QA-042 are corrected and verified pending independent application re-review. Draft PR #10 must remain unmerged. I9 has not resumed and requires a later separate authorisation only after this application is independently accepted and incorporated into reviewed main.
+QA-041 is independently accepted. QA-043 and QA-044 are corrected and verified but pending independent re-review; QA-042/DC-005 application therefore remains not accepted. Draft PR #10 must remain unmerged. I9 has not resumed and requires later separate authorisation only after the complete application is independently accepted and incorporated into reviewed main.
 
 The separately reviewable machine-application commit is `708c9814fe307a849c7a011e5bfae65d52f5ceca` (`Apply QA-041 and DC-005 validation assurance`). The following derived closeout/status commit does not change implementation behaviour.
 

@@ -319,17 +319,6 @@ class ValidationSuspensionRecord(FrozenModel):
         return self
 
 
-class SuspensionClassifierFacts(FrozenModel):
-    trusted_target_selection_id: UUID
-    lifecycle_position: SuspensionLifecyclePosition
-    evidence_corruption_failure_code: str | None = None
-    input_identity_failure_code: str | None = None
-    inconsistent_baseline_failure_code: str | None = None
-    unspecified_behaviour_failure_code: str | None = None
-    wall_clock_dependency_failure_code: str | None = None
-    evidence_payload: dict[str, Any]
-
-
 class EvidenceSnapshot(FrozenModel):
     evidence_snapshot_id: UUID
     validation_execution_id: UUID

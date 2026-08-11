@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "authority": "Deterministic machine-resolvable mirror of accepted controlled source identities and current DQ/conflict status; derived assurance aid only",
+  "source_assertions": [
+    {
+      "assertion_id": "SRC-REQ-VAL-007",
+      "source_id": "OT-PROJECT-REQUIREMENTS-SPECIFICATION",
+      "path": "01-engineering-source-documents/OT Project Requirements Specification.docx",
+      "version": "0.4",
+      "sha256": "ff4d2507e86178214d73c7f2ef19b5aaa9b9821ca1d5e04d8eeeec1ac896e3d4",
+      "location": "REQ-VAL-007"
+    },
+    {
+      "assertion_id": "SRC-VALIDATION-PLAN-20",
+      "source_id": "OT-PROJECT-VALIDATION-PLAN",
+      "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
+      "version": "1.2",
+      "sha256": "8cde791aae359a7a3d8f335bbb385aba24ef9e75a4fb9f019e14799f4c3db14b",
+      "location": "Section 20"
+    },
+    {
+      "assertion_id": "SRC-DEMONSTRATOR-DESIGN-37",
+      "source_id": "OT-PROJECT-DEMONSTRATOR-DESIGN",
+      "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
+      "version": "0.4",
+      "sha256": "f3cbe66b1080096509796e35f62247b5c18f813c4facab68b38bdbeb70fb4c62",
+      "location": "Section 37"
+    },
+    {
+      "assertion_id": "SRC-NETWORK-MODEL-18",
+      "source_id": "OT-PROJECT-NETWORK-MODEL",
+      "path": "01-engineering-source-documents/OT Project Network Model.docx",
+      "version": "0.4",
+      "sha256": "824a0a03d7bd2d58d7d1be1408bddce75b700aad7d5345bbf49b79e3d029b8c9",
+      "location": "Section 18"
+    }
+  ],
+  "design_questions": [
+    {
+      "record_id": "DQ-001",
+      "status": "CLOSED",
+      "test_id": "VT-EXP-ALL-001",
+      "case_id": null,
+      "field_id": "exploration_fault_isolation_action_derivation",
+      "source_assertion_ids": ["SRC-NETWORK-MODEL-18", "SRC-DEMONSTRATOR-DESIGN-37"],
+      "review_record_id": "DC-003-ACCEPTED-APPLIED"
+    },
+    {
+      "record_id": "DQ-002",
+      "status": "RESOLVED",
+      "test_id": "VT-EXP-ALL-001",
+      "case_id": null,
+      "field_id": "multi_run_composite_determination",
+      "source_assertion_ids": ["SRC-VALIDATION-PLAN-20", "SRC-DEMONSTRATOR-DESIGN-37"],
+      "review_record_id": "DC-004-ACCEPTED-APPLIED"
+    }
+  ],
+  "conflict_reviews": [],
+  "time_reviews": []
+}

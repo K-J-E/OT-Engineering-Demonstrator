@@ -152,7 +152,7 @@ EXPLORATORY constituent and composite records.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 130 tests |
+| Complete backend unit/integration suite | PASS — 131 tests including QA-043/QA-044 corrections; application acceptance remains pending independent re-review |
 | React/Cytoscape component suite | PASS — 17 tests |
 | Chromium formal, investigation and Exploration/export workflows | PASS — 3 tests |
 | Pinned TypeScript/Vite production build | PASS |
@@ -232,3 +232,7 @@ Accepted main `195e21ac0f2e0641f17c0307c0a095591623d7bd` is an ancestor of this 
 QA-041 now captures and compares TS-01 `age_ms = 60001` at controlled time `T0 + 60,001 ms`. Actual case executions prove exactly 60,001 ms PASSes the accepted STALE expectation, 61,000 ms FAILs the exact field while retaining STALE categorical evidence, and 60,000 ms remains FRESH.
 
 Accepted DC-005 is applied through migration 008 and the validation module: hashed trusted target selection, ValidationAttempt, PASS/FAIL-only ExecutedValidationResult, exactly VSC-001–005 with accepted failure-code/evidence contracts, bounded local authority separation, immutable deterministic suspension records, PRE_EXECUTION_ENTRY / EXECUTION_IN_PROGRESS / EVIDENCE_FINALISATION positions, and the DC-004 EXECUTION_RESULT / SUSPENSION_RESULT union. Suspension-source ZIPs are assembled from preserved records and retain source versus generation-build provenance. No authoritative engineering document, network package, dependency or I9 behaviour changed.
+
+## 12. QA-043/QA-044 assurance correction
+
+Independent re-review accepted QA-041 but held QA-042 application acceptance pending stronger condition authority. The corrected public boundary no longer accepts caller-declared failure codes, evidence payloads or backend actor identities. Backend identity, integrity and runtime-time verifiers establish VSC-003/VSC-005/runtime VSC-004 facts from trusted state, while a deterministic controlled-record mirror resolves VSC-001/VSC-002 DQ/conflict/source identities and actual hashes. The corrections are verified but remain pending independent re-review; PR #10 stays draft/unmerged and I9 remains stopped.

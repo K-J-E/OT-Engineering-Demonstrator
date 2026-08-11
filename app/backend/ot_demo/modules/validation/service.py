@@ -21,6 +21,7 @@ from ...domain.enums import (
     SuspensionAuthorityKind,
     SuspensionLifecyclePosition,
     SuspensionRecordStatus,
+    SuspensionEvaluationType,
     ValidationVerdict,
 )
 from ...infrastructure.build_identity import ApplicationBuildManifest
@@ -52,7 +53,14 @@ from .models import (
     ValidationSuspensionEvidence,
     ValidationSuspensionAuthority,
     ValidationSuspensionRecord,
-    SuspensionClassifierFacts,
+)
+from .assurance import (
+    AssuranceAuthorityError,
+    ControlledArtifact,
+    ControlledEngineeringRegistry,
+    IdentityResolutionAuthority,
+    IntegrityVerificationAuthority,
+    RuntimeTimeAuthority,
 )
 
 
@@ -67,33 +75,6 @@ class ValidationService:
         "backend-integrity-monitor": "BACKEND_ASSURANCE_PROPOSER",
         "backend-assurance-reviewer": "BACKEND_ASSURANCE_REVIEWER",
     }
-    _CONDITION_CONTRACTS = {
-        ValidationSuspensionCondition.VSC_001: (
-            {"UNSPECIFIED_ENGINEERING_BEHAVIOUR"},
-            {"authoritative_sources_checked", "missing_field_or_step", "open_design_question_id", "review_record_id"},
-            SuspensionAuthorityKind.ENGINEERING_REVIEW,
-        ),
-        ValidationSuspensionCondition.VSC_002: (
-            {"INCONSISTENT_BASELINE"},
-            {"trusted_source_assertions", "conflict_review_item", "review_disposition"},
-            SuspensionAuthorityKind.ENGINEERING_REVIEW,
-        ),
-        ValidationSuspensionCondition.VSC_003: (
-            {"MISSING_IDENTITY", "UNKNOWN_IDENTITY", "AMBIGUOUS_IDENTITY"},
-            {"input_name", "presented_identity_evidence", "resolution_failure"},
-            SuspensionAuthorityKind.BACKEND_ASSURANCE,
-        ),
-        ValidationSuspensionCondition.VSC_004: (
-            {"UNCONTROLLED_WALL_CLOCK_DEPENDENCY"},
-            {"dependency_name", "wall_clock_reference", "controlled_replacement_unavailable"},
-            SuspensionAuthorityKind.ENGINEERING_REVIEW,
-        ),
-        ValidationSuspensionCondition.VSC_005: (
-            {"HASH_MISMATCH", "UNREADABLE", "SCHEMA_INVALID", "CANONICAL_PAYLOAD_MISMATCH"},
-            {"examined_source", "expected_integrity", "observed_failure", "quarantine_record"},
-            SuspensionAuthorityKind.BACKEND_ASSURANCE,
-        ),
-    }
     def __init__(
         self,
         repository: ValidationRepository,
@@ -102,6 +83,10 @@ class ValidationService:
         configurations: JsonConfigurationLoader | None = None,
         *,
         application_build_manifest: ApplicationBuildManifest,
+        engineering_registry: ControlledEngineeringRegistry | None = None,
+        identity_authority: IdentityResolutionAuthority | None = None,
+        integrity_authority: IntegrityVerificationAuthority | None = None,
+        time_authority: RuntimeTimeAuthority | None = None,
     ) -> None:
         self._repository = repository
         if isinstance(catalogue, ValidationCatalogueResolver):
@@ -121,6 +106,20 @@ class ValidationService:
             Path(__file__).resolve().parents[5] / "config/network"
         )
         self._application_build_manifest = application_build_manifest
+        root = Path(__file__).resolve().parents[5]
+        self._engineering_registry = engineering_registry or ControlledEngineeringRegistry.load(
+            root / "validation/assurance/engineering-records.json", root
+        )
+        self._identity_authority = identity_authority or IdentityResolutionAuthority()
+        if integrity_authority is None:
+            active = self._catalogue.get("VT-EXP-ALL-001")
+            integrity_authority = IntegrityVerificationAuthority((ControlledArtifact(
+                artifact_reference="active-validation-catalogue",
+                path=root / "validation/test-definitions/catalogue.json",
+                expected_sha256=active.catalogue_sha256,
+            ),))
+        self._integrity_authority = integrity_authority
+        self._time_authority = time_authority or RuntimeTimeAuthority()
 
     def start_execution(
         self,
@@ -204,6 +203,7 @@ class ValidationService:
         created_at,
         actor_id: str = "graduate-engineer",
         configuration_version: str = "1.1",
+        requested_fixture_identity: str | None = "network-one-line.v1",
     ) -> tuple[ValidationTargetSelection, ValidationAttempt]:
         role = self._ACTOR_ROLES.get(actor_id)
         if role is None:
@@ -224,6 +224,7 @@ class ValidationService:
             "requested_configuration_id": configuration.configuration_id,
             "requested_configuration_version": str(configuration.version),
             "requested_application_build_id": self._application_build_manifest.application_build_id,
+            "requested_fixture_identity": requested_fixture_identity,
             "evidence_class": loaded.definition.evidence_class.value,
             "selection_authority_actor_id": actor_id,
             "selection_authority_role": role,
@@ -430,57 +431,90 @@ class ValidationService:
         self._repository.finalise_execution_result(finalised, completed_attempt, result)
         return finalised
 
-    def suspend_attempt(
+    def evaluate_suspension(
         self,
         attempt_id: UUID,
-        facts: SuspensionClassifierFacts,
         *,
-        proposer_actor_id: str,
-        reviewer_actor_id: str,
+        trusted_target_selection_id: UUID,
+        evaluation_type: SuspensionEvaluationType,
+        lifecycle_position: SuspensionLifecyclePosition,
+        reference_id: str,
+        field_id: str | None,
+        source_assertion_ids: tuple[str, ...],
+        proposer_actor_id: str | None,
+        reviewer_actor_id: str | None,
         finalised_at,
         scenario_run_id: UUID | None = None,
         validation_execution_id: UUID | None = None,
     ) -> ValidationSuspensionRecord:
         attempt = self._repository.get_attempt(attempt_id)
         target = self._repository.get_target(attempt.target_selection_id)
-        if facts.trusted_target_selection_id != target.target_selection_id:
-            raise ValidationBoundaryError("suspension facts are not bound to the trusted target selection")
+        if trusted_target_selection_id != target.target_selection_id:
+            raise ValidationBoundaryError("suspension evaluation is not bound to the trusted target selection")
         if attempt.status in {ValidationAttemptStatus.EXECUTED, ValidationAttemptStatus.SUSPENDED}:
             raise ValidationBoundaryError("completed validation attempt cannot be suspended")
-        condition = self._classify_suspension(facts)
-        allowed_failure_codes, required_keys, authority_kind = self._CONDITION_CONTRACTS[condition]
-        failure_code = next(
-            code for code in (
-                facts.evidence_corruption_failure_code,
-                facts.input_identity_failure_code,
-                facts.inconsistent_baseline_failure_code,
-                facts.unspecified_behaviour_failure_code,
-                facts.wall_clock_dependency_failure_code,
-            ) if code is not None
-        )
-        if failure_code not in allowed_failure_codes:
-            raise ValidationBoundaryError("condition failure code is outside the accepted registry")
-        if set(facts.evidence_payload) != required_keys:
-            raise ValidationBoundaryError(
-                f"{condition.value} evidence contract requires exactly {sorted(required_keys)}"
-            )
+        try:
+            if evaluation_type is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR:
+                condition = ValidationSuspensionCondition.VSC_001
+                failure_code = "UNSPECIFIED_ENGINEERING_BEHAVIOUR"
+                evidence_payload = self._engineering_registry.verify_design_question(
+                    target, reference_id, field_id or "", source_assertion_ids
+                )
+                authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
+            elif evaluation_type is SuspensionEvaluationType.BASELINE_CONFLICT:
+                condition = ValidationSuspensionCondition.VSC_002
+                failure_code = "INCONSISTENT_BASELINE"
+                evidence_payload = self._engineering_registry.verify_conflict(
+                    target, reference_id, field_id or "", source_assertion_ids
+                )
+                authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
+            elif evaluation_type is SuspensionEvaluationType.IDENTITY_RESOLUTION:
+                condition = ValidationSuspensionCondition.VSC_003
+                result = self._identity_authority.evaluate(target, reference_id)
+                if result is None:
+                    raise AssuranceAuthorityError("required identity resolves uniquely")
+                failure_code, evidence_payload = result
+                authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
+            elif evaluation_type is SuspensionEvaluationType.INTEGRITY:
+                condition = ValidationSuspensionCondition.VSC_005
+                result = self._integrity_authority.evaluate(reference_id)
+                if result is None:
+                    raise AssuranceAuthorityError("controlled artefact passed integrity verification")
+                failure_code, evidence_payload = result
+                authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
+            else:
+                condition = ValidationSuspensionCondition.VSC_004
+                failure_code = "UNCONTROLLED_WALL_CLOCK_DEPENDENCY"
+                if lifecycle_position is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
+                    evidence_payload = self._engineering_registry.verify_preentry_time(
+                        target, reference_id, field_id or "", source_assertion_ids
+                    )
+                    authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
+                else:
+                    result = self._time_authority.evaluate(
+                        lifecycle_position, reference_id,
+                        str(validation_execution_id) if validation_execution_id else None,
+                    )
+                    if result is None:
+                        raise AssuranceAuthorityError("controlled runtime time verification passed")
+                    failure_code, evidence_payload = result
+                    authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
+        except AssuranceAuthorityError as error:
+            raise ValidationBoundaryError(str(error)) from error
+        if authority_kind is SuspensionAuthorityKind.BACKEND_ASSURANCE:
+            if proposer_actor_id is not None or reviewer_actor_id is not None:
+                raise ValidationBoundaryError("caller cannot supply backend assurance actor identities")
+            proposer_actor_id, reviewer_actor_id = "backend-integrity-monitor", "backend-assurance-reviewer"
+        if proposer_actor_id is None or reviewer_actor_id is None:
+            raise ValidationBoundaryError("engineering suspension requires proposer and reviewer identities")
         proposer_role = self._ACTOR_ROLES.get(proposer_actor_id)
         reviewer_role = self._ACTOR_ROLES.get(reviewer_actor_id)
-        if proposer_role is None or reviewer_role is None:
-            raise ValidationBoundaryError("suspension authority actor is outside the local role registry")
-        if proposer_actor_id == reviewer_actor_id:
-            raise ValidationBoundaryError("suspension proposer and reviewer must be distinct actors")
-        if authority_kind is SuspensionAuthorityKind.ENGINEERING_REVIEW:
-            if (
-                proposer_role != "GRADUATE_ENGINEER"
-                or reviewer_role != "INDEPENDENT_ENGINEERING_REVIEWER"
-            ):
-                raise ValidationBoundaryError("engineering suspension requires independent reviewer authority")
-        elif (
-            proposer_role != "BACKEND_ASSURANCE_PROPOSER"
-            or reviewer_role != "BACKEND_ASSURANCE_REVIEWER"
+        if proposer_actor_id == reviewer_actor_id or proposer_role is None or reviewer_role is None:
+            raise ValidationBoundaryError("invalid suspension authority actors")
+        if authority_kind is SuspensionAuthorityKind.ENGINEERING_REVIEW and (
+            proposer_role != "GRADUATE_ENGINEER" or reviewer_role != "INDEPENDENT_ENGINEERING_REVIEWER"
         ):
-            raise ValidationBoundaryError("backend suspension requires backend assurance reviewer authority")
+            raise ValidationBoundaryError("engineering suspension requires independent reviewer authority")
         authority = ValidationSuspensionAuthority(
             authority_kind=authority_kind,
             proposer_actor_id=proposer_actor_id,
@@ -488,7 +522,7 @@ class ValidationService:
             reviewer_actor_id=reviewer_actor_id,
             reviewer_role=reviewer_role,
         )
-        lifecycle = facts.lifecycle_position
+        lifecycle = lifecycle_position
         if lifecycle is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
             scenario_run_id = None
             validation_execution_id = None
@@ -497,18 +531,19 @@ class ValidationService:
                 raise ValidationBoundaryError("suspension must bind the attempt's actual run")
             if validation_execution_id != attempt.validation_execution_id:
                 raise ValidationBoundaryError("suspension must bind the attempt's actual execution")
+        condition_evidence = evidence_payload
         evidence_payload = {
             "target_selection_id": str(target.target_selection_id),
             "condition_id": condition.value,
             "failure_code": failure_code,
-            "evidence": facts.evidence_payload,
+            "evidence": condition_evidence,
         }
         evidence = ValidationSuspensionEvidence(
             evidence_id=uuid4(),
             condition_id=condition,
             evidence_type=f"{condition.value}_CONDITION_EVIDENCE",
             failure_code=failure_code,
-            payload=facts.evidence_payload,
+            payload=evidence_payload,
             payload_sha256=sha256_bytes(canonical_json_bytes(evidence_payload)),
         )
         reason_code = f"BLOCKED-TEST/{condition.value}/{lifecycle.value}"
@@ -530,8 +565,8 @@ class ValidationService:
             "configuration_id": target.configuration_id,
             "configuration_version": str(target.configuration_version),
         }
-        failed_role = facts.evidence_payload.get("input_name") if condition is ValidationSuspensionCondition.VSC_003 else None
-        presented_identity = facts.evidence_payload.get("presented_identity_evidence", {})
+        failed_role = condition_evidence.get("input_name") if condition is ValidationSuspensionCondition.VSC_003 else None
+        presented_identity = condition_evidence.get("presented_identity_evidence", {})
         reason_parameters = {
             "condition_id": condition.value,
             "failure_code": failure_code,
@@ -618,24 +653,6 @@ class ValidationService:
         )
         self._repository.bind_attempt_run(entered)
         return entered
-
-    @staticmethod
-    def _classify_suspension(facts: SuspensionClassifierFacts) -> ValidationSuspensionCondition:
-        ordered = (
-            (facts.evidence_corruption_failure_code, ValidationSuspensionCondition.VSC_005),
-            (facts.input_identity_failure_code, ValidationSuspensionCondition.VSC_003),
-            (facts.inconsistent_baseline_failure_code, ValidationSuspensionCondition.VSC_002),
-            (facts.unspecified_behaviour_failure_code, ValidationSuspensionCondition.VSC_001),
-            (facts.wall_clock_dependency_failure_code, ValidationSuspensionCondition.VSC_004),
-        )
-        applicable = [(code, condition) for code, condition in ordered if code is not None]
-        if len(applicable) != 1:
-            raise ValidationBoundaryError("suspension classifier requires exactly one supported condition fact")
-        code, condition = applicable[0]
-        allowed_codes = ValidationService._CONDITION_CONTRACTS[condition][0]
-        if code not in allowed_codes:
-            raise ValidationBoundaryError("condition fact failure code is not controlled")
-        return condition
 
     def get_suspension(self, record_id: UUID) -> ValidationSuspensionRecord:
         return self._repository.get_suspension(record_id)

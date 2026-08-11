@@ -31,6 +31,7 @@ from ..domain.enums import (
     ScenarioCommandType,
     ScenarioMode,
     SwitchState,
+    SuspensionEvaluationType,
     SuspensionLifecyclePosition,
 )
 from ..infrastructure.validation_repository import ValidationRecordNotFound
@@ -59,7 +60,6 @@ from ..modules.validation.models import (
     ValidationAttempt,
     ValidationTargetSelection,
     ValidationSuspensionRecord,
-    SuspensionClassifierFacts,
 )
 from ..modules.validation.service import ValidationBoundaryError, ValidationService
 from ..modules.workspace.models import WorkspaceBootstrap, WorkspaceProjection
@@ -168,20 +168,19 @@ class PrepareValidationAttemptPayload(_ApiRequest):
     case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
     configuration_version: str = "1.1"
     actor_id: str = "graduate-engineer"
+    requested_fixture_identity: str | None = "network-one-line.v1"
     created_at: datetime
 
 
 class SuspendValidationAttemptPayload(_ApiRequest):
     trusted_target_selection_id: UUID
+    evaluation_type: SuspensionEvaluationType
     lifecycle_position: SuspensionLifecyclePosition
-    evidence_corruption_failure_code: str | None = None
-    input_identity_failure_code: str | None = None
-    inconsistent_baseline_failure_code: str | None = None
-    unspecified_behaviour_failure_code: str | None = None
-    wall_clock_dependency_failure_code: str | None = None
-    evidence_payload: dict
-    proposer_actor_id: str
-    reviewer_actor_id: str
+    reference_id: str
+    field_id: str | None = None
+    source_assertion_ids: tuple[str, ...] = ()
+    proposer_actor_id: str | None = None
+    reviewer_actor_id: str | None = None
     finalised_at: datetime
     scenario_run_id: UUID | None = None
     validation_execution_id: UUID | None = None
@@ -502,6 +501,7 @@ def create_app(
                 case_id=request.case_id,
                 configuration_version=request.configuration_version,
                 actor_id=request.actor_id,
+                requested_fixture_identity=request.requested_fixture_identity,
                 created_at=request.created_at,
             )
             return attempt
@@ -517,17 +517,14 @@ def create_app(
         request: SuspendValidationAttemptPayload,
     ) -> ValidationSuspensionRecord:
         try:
-            facts = SuspensionClassifierFacts.model_validate(
-                request.model_dump(
-                    exclude={
-                        "proposer_actor_id", "reviewer_actor_id", "finalised_at",
-                        "scenario_run_id", "validation_execution_id",
-                    }
-                )
-            )
-            return validation().suspend_attempt(
+            return validation().evaluate_suspension(
                 attempt_id,
-                facts,
+                trusted_target_selection_id=request.trusted_target_selection_id,
+                evaluation_type=request.evaluation_type,
+                lifecycle_position=request.lifecycle_position,
+                reference_id=request.reference_id,
+                field_id=request.field_id,
+                source_assertion_ids=request.source_assertion_ids,
                 proposer_actor_id=request.proposer_actor_id,
                 reviewer_actor_id=request.reviewer_actor_id,
                 finalised_at=request.finalised_at,
