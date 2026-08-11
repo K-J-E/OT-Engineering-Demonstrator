@@ -42,6 +42,7 @@ from ..modules.evidence_export.models import (
     CompositeEvidencePackage,
     EvidenceExportCandidate,
     EvidencePackage,
+    SuspensionEvidencePackage,
 )
 from ..modules.evidence_export.service import (
     EvidenceExportBoundaryError,
@@ -145,6 +146,10 @@ class GenerateEvidencePackagePayload(_ApiRequest):
 
 class GenerateCompositeEvidencePackagePayload(_ApiRequest):
     composite_result_id: UUID
+
+
+class GenerateSuspensionEvidencePackagePayload(_ApiRequest):
+    suspension_record_id: UUID
 
 
 class AssembleCompositePayload(_ApiRequest):
@@ -311,6 +316,40 @@ def create_app(
     def download_composite_evidence_package(package_id: str) -> FileResponse:
         try:
             path = evidence_export().composite_archive_file(package_id)
+        except EvidencePackageNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceExportBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+        return FileResponse(path, media_type="application/zip", filename=path.name)
+
+    @app.post(
+        "/api/v1/suspension-evidence-packages",
+        response_model=SuspensionEvidencePackage,
+    )
+    def generate_suspension_evidence_package(
+        request: GenerateSuspensionEvidencePackagePayload,
+    ) -> SuspensionEvidencePackage:
+        try:
+            return evidence_export().generate_suspension(request.suspension_record_id)
+        except (ValidationRecordNotFound, EvidencePackageNotFound) as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except EvidenceExportBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/suspension-evidence-packages",
+        response_model=tuple[SuspensionEvidencePackage, ...],
+    )
+    def list_suspension_evidence_packages() -> tuple[SuspensionEvidencePackage, ...]:
+        return evidence_export().list_suspension_packages()
+
+    @app.get(
+        "/api/v1/suspension-evidence-packages/{package_id}/download",
+        response_class=FileResponse,
+    )
+    def download_suspension_evidence_package(package_id: str) -> FileResponse:
+        try:
+            path = evidence_export().suspension_archive_file(package_id)
         except EvidencePackageNotFound as error:
             raise HTTPException(status_code=404, detail=str(error)) from error
         except EvidenceExportBoundaryError as error:

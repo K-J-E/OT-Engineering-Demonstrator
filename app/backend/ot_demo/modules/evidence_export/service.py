@@ -30,7 +30,17 @@ from ..validation.catalogue import (
     ValidationCatalogueResolver,
 )
 from ..validation.models import ValidationExecutionSummary
-from .models import CompositeEvidencePackage, EvidenceExportCandidate, EvidencePackage
+from ..validation.suspension_provenance import (
+    ResolvedSuspensionSource,
+    SuspensionProvenanceError,
+    resolve_suspension_source,
+)
+from .models import (
+    CompositeEvidencePackage,
+    EvidenceExportCandidate,
+    EvidencePackage,
+    SuspensionEvidencePackage,
+)
 
 
 class EvidenceExportBoundaryError(ValueError):
@@ -149,6 +159,111 @@ class EvidenceExportService:
     def get(self, package_id: str) -> EvidencePackage:
         return self._packages.get(package_id)
 
+    def generate_suspension(self, suspension_record_id: UUID) -> SuspensionEvidencePackage:
+        suspension = self._validation.get_suspension(suspension_record_id)
+        try:
+            source = resolve_suspension_source(
+                self._validation, self._scenarios, suspension
+            )
+        except SuspensionProvenanceError as error:
+            raise EvidenceExportBoundaryError(str(error)) from error
+        package_id = f"SPKG-{uuid4().hex[:12]}"
+        archive_name = f"{package_id}-{suspension.inherited_evidence_class.value}.zip"
+        archive_path = self._output_directory / archive_name
+        if archive_path.exists():
+            raise EvidenceExportBoundaryError(
+                "new suspension evidence package path unexpectedly already exists"
+            )
+        records, source_references = self._suspension_record_set(
+            source, prefix="records"
+        )
+        files = {path: canonical_json_bytes(value) for path, value in records.items()}
+        files["README.txt"] = self._readme(suspension.inherited_evidence_class)
+        source_build = (
+            source.execution.application_build_id
+            if source.execution is not None
+            else source.target.target_application_build_id
+        )
+        manifest = {
+            "package_id": package_id,
+            "package_kind": "FINALISED_VALIDATION_SUSPENSION",
+            "evidence_class": suspension.inherited_evidence_class.value,
+            "evidence_notice": (
+                "FORMAL VALIDATION ASSURANCE EVIDENCE — BLOCKED-TEST"
+                if suspension.inherited_evidence_class is EvidenceClass.FORMAL
+                else "NOT FORMAL VALIDATION EVIDENCE — BLOCKED-TEST"
+            ),
+            "source_suspension_record_id": str(suspension.suspension_record_id),
+            "source_validation_attempt_id": str(suspension.validation_attempt_id),
+            "source_validation_execution_id": (
+                str(suspension.validation_execution_id)
+                if suspension.validation_execution_id else None
+            ),
+            "source_scenario_run_id": (
+                str(suspension.scenario_run_id) if suspension.scenario_run_id else None
+            ),
+            "source_application_build_id": source_build,
+            "verifier_application_build_id": suspension.verifier_application_build_id,
+            "generation_application_build_id": self._application_build_manifest.application_build_id,
+            "source_catalogue_version": source.target.catalogue_version,
+            "source_catalogue_sha256": source.target.catalogue_sha256,
+            "test_id": source.target.test_id,
+            "source_test_definition_version": source.target.test_definition_version,
+            "source_test_definition_sha256": source.target.test_definition_sha256,
+            "case_id": source.target.case_id,
+            "source_case_definition_version": source.target.case_definition_version,
+            "source_case_definition_sha256": source.target.case_definition_sha256,
+            "source_configuration_id": source.target.configuration_id,
+            "source_configuration_version": source.target.configuration_version,
+            "condition_id": suspension.condition_id.value,
+            "classifier_version": suspension.classifier_version,
+            "evidence_contract_version": suspension.evidence_contract_version,
+            "source_record_references": list(source_references),
+            "files": [
+                {"path": path, "byte_size": len(content), "sha256": sha256_bytes(content)}
+                for path, content in sorted(files.items())
+            ],
+        }
+        manifest_bytes = canonical_json_bytes(manifest)
+        manifest_sha = sha256_bytes(manifest_bytes)
+        self._write_archive(archive_path, files, manifest_bytes)
+        try:
+            self._verify_archive(archive_path, manifest)
+            package = SuspensionEvidencePackage(
+                package_id=package_id,
+                suspension_record_id=suspension.suspension_record_id,
+                validation_attempt_id=suspension.validation_attempt_id,
+                test_id=source.target.test_id,
+                case_id=source.target.case_id,
+                evidence_class=suspension.inherited_evidence_class,
+                source_catalogue_version=source.target.catalogue_version,
+                source_catalogue_sha256=source.target.catalogue_sha256,
+                source_test_definition_version=source.target.test_definition_version,
+                source_test_definition_sha256=source.target.test_definition_sha256,
+                source_case_definition_version=source.target.case_definition_version,
+                source_case_definition_sha256=source.target.case_definition_sha256,
+                source_configuration_id=source.target.configuration_id,
+                source_configuration_version=source.target.configuration_version,
+                source_application_build_id=source_build,
+                verifier_application_build_id=suspension.verifier_application_build_id,
+                generation_application_build_id=self._application_build_manifest.application_build_id,
+                validation_execution_id=suspension.validation_execution_id,
+                scenario_run_id=suspension.scenario_run_id,
+                evidence_snapshot_ids=tuple(
+                    item.evidence_snapshot_id for item in source.evidence_snapshots
+                ),
+                manifest_sha256=manifest_sha,
+                archive_sha256=sha256_file(archive_path),
+                archive_path=f"evidence/exports/{archive_name}",
+                verification_status="VERIFIED",
+                source_record_references=source_references,
+            )
+            self._packages.insert_suspension(package)
+            return package
+        except Exception:
+            archive_path.unlink(missing_ok=True)
+            raise
+
     def generate_composite(self, composite_id: UUID) -> CompositeEvidencePackage:
         composite = self._validation.get_composite(composite_id)
         if (
@@ -225,19 +340,29 @@ class EvidenceExportService:
                 ] = evidence.model_dump(mode="json")
         for suspension in suspensions:
             suspension_id = suspension.suspension_record_id
-            records[
-                f"records/constituents/{suspension_id}/validation-suspension.json"
-            ] = suspension.model_dump(mode="json")
-            records[
-                f"records/constituents/{suspension_id}/validation-target-selection.json"
-            ] = self._validation.get_target(
-                suspension.target_selection_id
-            ).model_dump(mode="json")
-            records[
-                f"records/constituents/{suspension_id}/validation-attempt.json"
-            ] = self._validation.get_attempt(
-                suspension.validation_attempt_id
-            ).model_dump(mode="json")
+            try:
+                source = resolve_suspension_source(
+                    self._validation, self._scenarios, suspension
+                )
+            except SuspensionProvenanceError as error:
+                raise EvidenceExportBoundaryError(str(error)) from error
+            link = next(
+                item for item in composite.constituent_links
+                if item.suspension_record_id == suspension_id
+            )
+            if (
+                link.scenario_run_id != suspension.scenario_run_id
+                or link.evidence_snapshot_ids != tuple(
+                    item.evidence_snapshot_id for item in source.evidence_snapshots
+                )
+            ):
+                raise EvidenceExportBoundaryError(
+                    "composite suspension link differs from its preserved source set"
+                )
+            suspension_records, _ = self._suspension_record_set(
+                source, prefix=f"records/constituents/{suspension_id}"
+            )
+            records.update(suspension_records)
         files = {path: canonical_json_bytes(value) for path, value in records.items()}
         files["README.txt"] = self._readme(EvidenceClass.EXPLORATORY)
         source_references = tuple(
@@ -320,6 +445,12 @@ class EvidenceExportService:
     def list_composite_packages(self) -> tuple[CompositeEvidencePackage, ...]:
         return self._packages.list_composites()
 
+    def get_suspension_package(self, package_id: str) -> SuspensionEvidencePackage:
+        return self._packages.get_suspension(package_id)
+
+    def list_suspension_packages(self) -> tuple[SuspensionEvidencePackage, ...]:
+        return self._packages.list_suspensions()
+
     def list(self) -> tuple[EvidencePackage, ...]:
         return self._packages.list()
 
@@ -378,6 +509,62 @@ class EvidenceExportService:
                 "stored composite package archive hash no longer matches its record"
             )
         return candidate
+
+    def suspension_archive_file(self, package_id: str) -> Path:
+        package = self.get_suspension_package(package_id)
+        candidate = (self._output_directory / Path(package.archive_path).name).resolve()
+        if candidate.parent != self._output_directory or not candidate.is_file():
+            raise EvidenceExportBoundaryError(
+                "stored suspension package path is outside the controlled export directory"
+            )
+        if sha256_file(candidate) != package.archive_sha256:
+            raise EvidenceExportBoundaryError(
+                "stored suspension package archive hash no longer matches its record"
+            )
+        return candidate
+
+    @staticmethod
+    def _suspension_record_set(
+        source: ResolvedSuspensionSource,
+        *,
+        prefix: str,
+    ) -> tuple[dict[str, Any], tuple[str, ...]]:
+        suspension = source.suspension
+        records: dict[str, Any] = {
+            f"{prefix}/validation-suspension.json": suspension.model_dump(mode="json"),
+            f"{prefix}/validation-target-selection.json": source.target.model_dump(mode="json"),
+            f"{prefix}/validation-attempt.json": source.attempt.model_dump(mode="json"),
+            f"{prefix}/condition-definition.json": {
+                "condition_id": suspension.condition_id.value,
+                "record_schema_version": suspension.record_schema_version,
+                "classifier_version": suspension.classifier_version,
+                "evidence_contract_version": suspension.evidence_contract_version,
+                "lifecycle_position": suspension.lifecycle_position.value,
+                "reason_code": suspension.reason_code,
+            },
+        }
+        references = {
+            f"validation-suspension:{suspension.suspension_record_id}",
+            f"validation-target-selection:{source.target.target_selection_id}",
+            f"validation-attempt:{source.attempt.validation_attempt_id}",
+            f"validation-condition:{suspension.condition_id.value}:{suspension.evidence_contract_version}",
+        }
+        for item in suspension.evidence:
+            records[f"{prefix}/suspension-evidence/{item.evidence_id}.json"] = (
+                item.model_dump(mode="json")
+            )
+            references.add(f"validation-suspension-evidence:{item.evidence_id}")
+        if source.execution is not None and source.run is not None:
+            records[f"{prefix}/validation-execution.json"] = source.execution.model_dump(mode="json")
+            records[f"{prefix}/scenario-run.json"] = source.run.model_dump(mode="json")
+            references.add(f"validation-execution:{source.execution.validation_execution_id}")
+            references.add(f"scenario-run:{source.run.scenario_run_id}")
+            for item in source.evidence_snapshots:
+                records[f"{prefix}/evidence/{item.evidence_snapshot_id}.json"] = (
+                    item.model_dump(mode="json")
+                )
+                references.add(f"evidence-snapshot:{item.evidence_snapshot_id}")
+        return records, tuple(sorted(references))
 
     @staticmethod
     def _verify_export_boundary(

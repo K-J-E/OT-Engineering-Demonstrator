@@ -5,7 +5,11 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from ..modules.evidence_export.models import CompositeEvidencePackage, EvidencePackage
+from ..modules.evidence_export.models import (
+    CompositeEvidencePackage,
+    EvidencePackage,
+    SuspensionEvidencePackage,
+)
 from .sqlite_migrations import apply_migrations
 
 
@@ -117,5 +121,51 @@ class EvidencePackageRepository:
             CompositeEvidencePackage.model_validate_json(
                 row["payload_json"], strict=True
             )
+            for row in rows
+        )
+
+    def insert_suspension(self, package: SuspensionEvidencePackage) -> None:
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO suspension_evidence_packages VALUES (?,?,?,?,?,?,?,?,?)",
+                    (
+                        package.package_id,
+                        str(package.suspension_record_id),
+                        package.evidence_class.value,
+                        package.verifier_application_build_id,
+                        package.generation_application_build_id,
+                        package.manifest_sha256,
+                        package.archive_sha256,
+                        package.archive_path,
+                        package.model_dump_json(),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise EvidencePackageConflict(
+                "suspension evidence package identity/path already exists"
+            ) from error
+
+    def get_suspension(self, package_id: str) -> SuspensionEvidencePackage:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT payload_json FROM suspension_evidence_packages WHERE package_id=?",
+                (package_id,),
+            ).fetchone()
+        if row is None:
+            raise EvidencePackageNotFound(
+                f"suspension evidence package not found: {package_id}"
+            )
+        return SuspensionEvidencePackage.model_validate_json(
+            row["payload_json"], strict=True
+        )
+
+    def list_suspensions(self) -> tuple[SuspensionEvidencePackage, ...]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT payload_json FROM suspension_evidence_packages ORDER BY rowid"
+            ).fetchall()
+        return tuple(
+            SuspensionEvidencePackage.model_validate_json(row["payload_json"], strict=True)
             for row in rows
         )

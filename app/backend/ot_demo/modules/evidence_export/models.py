@@ -60,6 +60,34 @@ class CompositeEvidencePackage(FrozenModel):
     source_record_references: tuple[str, ...] = Field(min_length=1)
 
 
+class SuspensionEvidencePackage(FrozenModel):
+    package_id: str = Field(pattern=r"^SPKG-[0-9a-f]{12}$")
+    suspension_record_id: UUID
+    validation_attempt_id: UUID
+    test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_id: str | None = None
+    evidence_class: EvidenceClass
+    source_catalogue_version: SemanticVersion | None = None
+    source_catalogue_sha256: Sha256Digest | None = None
+    source_test_definition_version: SemanticVersion | None = None
+    source_test_definition_sha256: Sha256Digest | None = None
+    source_case_definition_version: SemanticVersion | None = None
+    source_case_definition_sha256: Sha256Digest | None = None
+    source_configuration_id: ConfigurationId | None = None
+    source_configuration_version: SemanticVersion | None = None
+    source_application_build_id: Sha256Digest | None = None
+    verifier_application_build_id: Sha256Digest
+    generation_application_build_id: Sha256Digest
+    validation_execution_id: UUID | None = None
+    scenario_run_id: UUID | None = None
+    evidence_snapshot_ids: tuple[UUID, ...] = ()
+    manifest_sha256: Sha256Digest
+    archive_sha256: Sha256Digest
+    archive_path: str = Field(min_length=1)
+    verification_status: Literal["VERIFIED"]
+    source_record_references: tuple[str, ...] = Field(min_length=1)
+
+
 class EvidenceExportCandidate(FrozenModel):
     validation_execution_id: UUID
     test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")

@@ -128,6 +128,15 @@ class ControlledEngineeringRegistry:
                 raise AssuranceAuthorityError("controlled source hash does not match the registry")
         return records
 
+    def has_design_question(self, record_id: str) -> bool:
+        return any(item.record_id == record_id for item in self.data.design_questions)
+
+    def has_conflict(self, record_id: str) -> bool:
+        return any(item.record_id == record_id for item in self.data.conflict_reviews)
+
+    def has_time_review(self, record_id: str) -> bool:
+        return any(item.record_id == record_id for item in self.data.time_reviews)
+
     @staticmethod
     def _binds(record: Any, target: ValidationTargetSelection, field_id: str) -> bool:
         return (
@@ -286,6 +295,9 @@ class IntegrityVerificationAuthority:
                 return "CANONICAL_PAYLOAD_MISMATCH", {"examined_source": artifact_reference, "expected_integrity": artifact.expected_canonical_sha256, "observed_failure": canonical, "quarantine_record": f"BACKEND:{artifact_reference}:CANONICAL_PAYLOAD_MISMATCH"}
         return None
 
+    def has_reference(self, artifact_reference: str) -> bool:
+        return artifact_reference in self._artifacts
+
 
 class RuntimeTimeAuthority:
     def __init__(self, controlled_failures: dict[str, dict[str, Any]] | None = None) -> None:
@@ -302,10 +314,20 @@ class RuntimeTimeAuthority:
         failure = self._controlled_failures.get(step_reference)
         if failure is None:
             return None
-        return "UNCONTROLLED_WALL_CLOCK_DEPENDENCY", {
+        failure_code = failure.get("failure_code", "WALL_CLOCK_SOURCE_DETECTED")
+        if failure_code not in {
+            "MISSING_CONTROLLED_TIME",
+            "WALL_CLOCK_SOURCE_DETECTED",
+            "NONDETERMINISTIC_DELAY_DEPENDENCY",
+        }:
+            raise AssuranceAuthorityError("runtime time authority returned an uncontrolled failure code")
+        return failure_code, {
             "dependency_name": step_reference,
             "wall_clock_reference": failure["wall_clock_reference"],
             "controlled_replacement_unavailable": True,
             "backend_execution_id": execution_id,
             "backend_verifier": "RuntimeTimeAuthority",
         }
+
+    def has_failure(self, step_reference: str) -> bool:
+        return step_reference in self._controlled_failures

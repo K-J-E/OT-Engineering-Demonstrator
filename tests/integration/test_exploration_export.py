@@ -2002,3 +2002,304 @@ def test_dc004_historical_execution_is_resolved_exported_and_active_old_work_is_
     )
     assert new_execution.catalogue_version == "1.1"
     assert new_execution.catalogue_sha256 != old_final.catalogue_sha256
+
+
+@pytest.mark.i8
+def test_qa048_post_entry_suspension_composite_and_standalone_historical_export(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios = scenario(tmp_path, "qa048")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    artifact = tmp_path / "post-entry-evidence.json"
+    artifact.write_text('{"status":"controlled"}\n', encoding="utf-8")
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST,
+        integrity_authority=IntegrityVerificationAuthority((ControlledArtifact(
+            artifact_reference="post-entry-evidence", path=artifact,
+            expected_sha256=sha256_file(artifact),
+        ),)),
+    )
+    passes = tuple(
+        execute_dc004_case(
+            scenarios, validation, test_id="VT-EXP-ROLE-001", case_id=case_id,
+            section_id=section_id, command_base=21000 + index * 100,
+        )
+        for index, (case_id, section_id) in enumerate((
+            ("EXP-ROLE-A2", "SEC-A2"),
+            ("EXP-ROLE-B2", "SEC-B2"),
+            ("EXP-ROLE-A1", "SEC-A1"),
+        ))
+    )
+    post_run = scenarios.initialise_next_run(InitialiseRunRequest(
+        command_id=UUID(int=21900), actor="Graduate Engineer",
+        mode=ScenarioMode.EXPLORATION, configuration_version="1.1",
+        fault_section_id="SEC-A4", scenario_time=T0,
+    )).snapshot.run
+    post_execution = validation.start_execution(
+        "VT-EXP-ROLE-001", post_run.scenario_run_id, case_id="EXP-ROLE-A4"
+    )
+    checkpoint = validation.capture_checkpoint(
+        post_execution.validation_execution_id, "CONTROLLED_RESULT"
+    )
+    artifact.write_text('{"status":"corrupt"}\n', encoding="utf-8")
+    suspension = validation.evaluate_suspension(
+        post_execution.validation_attempt_id,
+        trusted_target_selection_id=post_execution.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.INTEGRITY,
+        lifecycle_position=SuspensionLifecyclePosition.EVIDENCE_FINALISATION,
+        reference_id="post-entry-evidence", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None,
+        scenario_run_id=post_run.scenario_run_id,
+        validation_execution_id=post_execution.validation_execution_id,
+        finalised_at=at(8000),
+    )
+    assert repository.get_attempt(
+        suspension.validation_attempt_id
+    ).status is ValidationAttemptStatus.SUSPENDED
+    assert not repository.has_executed_result_for_attempt(
+        suspension.validation_attempt_id
+    )
+    with sqlite3.connect(tmp_path / "validation.sqlite3") as connection:
+        with pytest.raises(sqlite3.IntegrityError, match="cannot acquire evidence"):
+            connection.execute(
+                "INSERT INTO validation_evidence_snapshots "
+                "SELECT ?,validation_execution_id,checkpoint_id,scenario_run_id,scenario_time_ms,"
+                "state_revision,canonical_payload_sha256,payload_json "
+                "FROM validation_evidence_snapshots WHERE evidence_snapshot_id=?",
+                (str(UUID(int=21999)), str(checkpoint.evidence_snapshot_id)),
+            )
+
+    original_get_execution = repository.get_execution
+    monkeypatch.setattr(
+        repository,
+        "get_execution",
+        lambda identity: (
+            original_get_execution(identity).model_copy(update={"case_id": "EXP-ROLE-A2"})
+            if identity == post_execution.validation_execution_id
+            else original_get_execution(identity)
+        ),
+    )
+    with pytest.raises(ValidationBoundaryError, match="provenance is inconsistent"):
+        validation.assemble_composite(
+            "VT-EXP-ROLE-001",
+            tuple(item.validation_execution_id for item in passes),
+            suspension_record_ids=(suspension.suspension_record_id,),
+            created_at=at(8001),
+        )
+    monkeypatch.setattr(repository, "get_execution", original_get_execution)
+
+    composite = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        tuple(item.validation_execution_id for item in passes),
+        suspension_record_ids=(suspension.suspension_record_id,),
+        created_at=at(8002),
+    )
+    suspension_link = next(
+        item for item in composite.constituent_links
+        if item.source_kind is CompositeConstituentSourceKind.SUSPENSION_RESULT
+    )
+    assert suspension_link.scenario_run_id == post_run.scenario_run_id
+    assert suspension_link.evidence_snapshot_ids == (checkpoint.evidence_snapshot_id,)
+    final = validation.finalise_composite(
+        composite.composite_result_id, finalised_at=at(8003)
+    )
+    assert final.determination is ValidationVerdict.BLOCKED_TEST
+
+    packages = EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    export = EvidenceExportService(
+        packages, repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios, JsonConfigurationLoader(CONFIGURATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        application_build_manifest=MANIFEST,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    suspension_package = export.generate_suspension(suspension.suspension_record_id)
+    assert suspension_package.validation_execution_id == post_execution.validation_execution_id
+    assert suspension_package.scenario_run_id == post_run.scenario_run_id
+    assert suspension_package.evidence_snapshot_ids == (checkpoint.evidence_snapshot_id,)
+    with ZipFile(tmp_path / suspension_package.archive_path) as archive:
+        names = set(archive.namelist())
+        assert "records/validation-suspension.json" in names
+        assert "records/validation-target-selection.json" in names
+        assert "records/validation-attempt.json" in names
+        assert "records/validation-execution.json" in names
+        assert "records/scenario-run.json" in names
+        assert "records/condition-definition.json" in names
+        assert f"records/evidence/{checkpoint.evidence_snapshot_id}.json" in names
+        manifest = json.loads(archive.read("manifest.json"))
+        assert manifest["source_application_build_id"] == MANIFEST.application_build_id
+        assert manifest["generation_application_build_id"] == MANIFEST.application_build_id
+
+    composite_package = export.generate_composite(final.composite_result_id)
+    with ZipFile(tmp_path / composite_package.archive_path) as archive:
+        base = f"records/constituents/{suspension.suspension_record_id}"
+        assert f"{base}/validation-execution.json" in archive.namelist()
+        assert f"{base}/scenario-run.json" in archive.namelist()
+        assert f"{base}/evidence/{checkpoint.evidence_snapshot_id}.json" in archive.namelist()
+
+    later_identity = IDENTITY.model_copy(update={"git_commit": "9" * 40})
+    later_manifest = ApplicationBuildManifest(
+        application_build_id=sha256_bytes(
+            canonical_json_bytes(later_identity.model_dump(mode="json"))
+        ),
+        identity=later_identity,
+    )
+    later_export = EvidenceExportService(
+        packages, repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios, JsonConfigurationLoader(CONFIGURATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        application_build_manifest=later_manifest,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    historical_package = later_export.generate_suspension(
+        suspension.suspension_record_id
+    )
+    assert historical_package.source_application_build_id == MANIFEST.application_build_id
+    assert historical_package.generation_application_build_id == later_manifest.application_build_id
+
+    formal_target, formal_attempt = validation.create_target_selection(
+        "VT-TOP-DEF-001", created_at=at(8100),
+        requested_fixture_identity="unavailable-formal-fixture",
+    )
+    formal_suspension = validation.evaluate_suspension(
+        formal_attempt.validation_attempt_id,
+        trusted_target_selection_id=formal_target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="CONTROLLED_FIXTURE", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(8101),
+    )
+    formal_package = later_export.generate_suspension(
+        formal_suspension.suspension_record_id
+    )
+    assert formal_package.evidence_class is EvidenceClass.FORMAL
+    assert formal_package.validation_execution_id is None
+    assert formal_package.scenario_run_id is None
+
+
+@pytest.mark.i8
+def test_qa049_deterministic_classifier_precedence_gate_outcomes_and_authorities(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "qa049")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    artifact = tmp_path / "classifier-input.json"
+    artifact.write_text('{"status":"controlled"}\n', encoding="utf-8")
+    expected_hash = sha256_file(artifact)
+    time_failures = {
+        "missing-time": {
+            "failure_code": "MISSING_CONTROLLED_TIME",
+            "wall_clock_reference": "backend-missing-controlled-time",
+        },
+        "wall-clock": {
+            "failure_code": "WALL_CLOCK_SOURCE_DETECTED",
+            "wall_clock_reference": "backend-observed-host-now",
+        },
+        "delay": {
+            "failure_code": "NONDETERMINISTIC_DELAY_DEPENDENCY",
+            "wall_clock_reference": "backend-observed-nondeterministic-delay",
+        },
+    }
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST,
+        engineering_registry=assurance_registry(),
+        integrity_authority=IntegrityVerificationAuthority((ControlledArtifact(
+            artifact_reference="classifier-input", path=artifact,
+            expected_sha256=expected_hash,
+        ),)),
+        time_authority=RuntimeTimeAuthority(time_failures),
+    )
+
+    unresolved_records = []
+    for index, (routing, reference) in enumerate((
+        (SuspensionEvaluationType.ENGINEERING_BEHAVIOUR, "DQ-TEST-OPEN"),
+        (SuspensionEvaluationType.IDENTITY_RESOLUTION, "CONTROLLED_FIXTURE"),
+    )):
+        target, attempt = validation.create_target_selection(
+            "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(9000 + index),
+            requested_fixture_identity="unresolved-classifier-fixture",
+        )
+        record = validation.evaluate_suspension(
+            attempt.validation_attempt_id,
+            trusted_target_selection_id=target.target_selection_id,
+            evaluation_type=routing,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id=reference,
+            field_id="comparison_expected_values" if routing is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR else None,
+            source_assertion_ids=("SRC-VP",) if routing is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR else (),
+            proposer_actor_id=None, reviewer_actor_id=None,
+            finalised_at=at(9010 + index),
+        )
+        assert record.condition_id is ValidationSuspensionCondition.VSC_003
+        assert [item.status.value for item in record.evaluated_classifier_gates] == [
+            "PASS", "NOT_APPLICABLE", "FAIL", "NOT_REACHED", "NOT_REACHED", "NOT_REACHED"
+        ]
+        assert "CONTROLLED_FIXTURE" not in record.resolved_source_identities
+        assert all(value is not None for value in record.resolved_source_identities.values())
+        backend = record.evidence[0].payload["evidence"]["backend_verification"]
+        assert backend["verifier_service"] == "IdentityResolutionAuthority"
+        assert backend["verifier_module"] == "ot_demo.modules.validation.assurance"
+        assert backend["verifier_application_build_id"] == MANIFEST.application_build_id
+        assert backend["verification_attempt_sha256"] == sha256_bytes(
+            canonical_json_bytes(backend["verification_attempt"])
+        )
+        assert backend["failure_report_sha256"] == sha256_bytes(
+            canonical_json_bytes(backend["failure_report"])
+        )
+        unresolved_records.append(record)
+    assert {item.condition_id for item in unresolved_records} == {
+        ValidationSuspensionCondition.VSC_003
+    }
+
+    target, attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(9020)
+    )
+    artifact.write_text('{"status":"tampered"}\n', encoding="utf-8")
+    integrity = validation.evaluate_suspension(
+        attempt.validation_attempt_id,
+        trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="classifier-input", field_id="comparison_expected_values",
+        source_assertion_ids=("SRC-VP",), proposer_actor_id=None,
+        reviewer_actor_id=None, finalised_at=at(9021),
+    )
+    assert integrity.condition_id is ValidationSuspensionCondition.VSC_005
+    assert [item.status.value for item in integrity.evaluated_classifier_gates] == [
+        "PASS", "FAIL", "NOT_REACHED", "NOT_REACHED", "NOT_REACHED", "NOT_REACHED"
+    ]
+    integrity_backend = integrity.evidence[0].payload["evidence"]["backend_verification"]
+    assert integrity_backend["verifier_service"] == "IntegrityVerificationAuthority"
+
+    for index, (reference, expected_code) in enumerate((
+        ("missing-time", "MISSING_CONTROLLED_TIME"),
+        ("wall-clock", "WALL_CLOCK_SOURCE_DETECTED"),
+        ("delay", "NONDETERMINISTIC_DELAY_DEPENDENCY"),
+    )):
+        run = scenarios.initialise_next_run(InitialiseRunRequest(
+            command_id=UUID(int=23000 + index), actor="Graduate Engineer",
+            mode=ScenarioMode.EXPLORATION, configuration_version="1.1",
+            fault_section_id="SEC-A2", scenario_time=T0,
+        )).snapshot.run
+        execution = validation.start_execution(
+            "VT-EXP-ROLE-001", run.scenario_run_id, case_id="EXP-ROLE-A2"
+        )
+        record = validation.evaluate_suspension(
+            execution.validation_attempt_id,
+            trusted_target_selection_id=execution.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.TIME_AUTHORITY,
+            lifecycle_position=SuspensionLifecyclePosition.EXECUTION_IN_PROGRESS,
+            reference_id=reference, field_id=None, source_assertion_ids=(),
+            proposer_actor_id=None, reviewer_actor_id=None,
+            scenario_run_id=run.scenario_run_id,
+            validation_execution_id=execution.validation_execution_id,
+            finalised_at=at(9050 + index),
+        )
+        assert record.evidence[0].failure_code == expected_code
+        backend = record.evidence[0].payload["evidence"]["backend_verification"]
+        assert backend["verifier_service"] == "RuntimeTimeAuthority"
+        assert backend["failure_report"]["failure_code"] == expected_code

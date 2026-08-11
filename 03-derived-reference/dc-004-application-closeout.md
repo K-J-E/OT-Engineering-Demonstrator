@@ -152,7 +152,7 @@ EXPLORATORY constituent and composite records.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 134 tests including QA-045–QA-047 corrections; application acceptance remains pending independent re-review |
+| Complete backend unit/integration suite | PASS — 136 tests including QA-048/QA-049 corrections; application acceptance remains pending independent re-review |
 | React/Cytoscape component suite | PASS — 17 tests |
 | Chromium formal, investigation and Exploration/export workflows | PASS — 3 tests |
 | Pinned TypeScript/Vite production build | PASS |
@@ -240,3 +240,9 @@ Independent re-review accepted QA-041 but held QA-042 application acceptance pen
 ## 13. QA-045–QA-047 provenance completion
 
 Independent re-review closed QA-043 but required three bounded provenance corrections. The revised target supports all six accepted VSC-003 input roles with exactly one resolver-proven unavailable role; composite suspension membership preserves that exception without fabricating the missing value. Reviewer assertions and pre-entry time steps carry exact canonical text/location fingerprints. EXECUTION_RESULT membership now explicitly resolves and verifies the immutable ExecutedValidationResult and its attempt/execution/run/evidence links at both assembly and finalisation. These corrections are verified but pending independent re-review; QA-044 and overall QA-042/DC-005 application acceptance remain open, PR #10 stays draft/unmerged and I9 remains stopped.
+
+## 14. QA-048/QA-049 post-entry provenance and deterministic classifier
+
+Independent re-review accepted QA-044/QA-046/QA-047 and accepted QA-045 subject only to a bounded serialization correction. `ValidationSuspensionRecord.resolved_source_identities` now contains only the target's genuinely resolved evidence. A shared post-entry resolver verifies the complete suspension/target/attempt/execution/run/evidence chain, absence of an ExecutedValidationResult and terminal SUSPENDED state; composite links preserve the actual run/evidence set. Standalone suspension ZIPs and composite ZIPs use that same source set and remain exportable under later generation builds without re-evaluating mutable truth.
+
+The classifier applies the accepted integrity → identity → conflict → behaviour → time precedence after trusted-target verification, records actual PASS/FAIL/NOT_APPLICABLE/NOT_REACHED outcomes in the deterministic fingerprint and retains the concrete backend verifier service/module/build and hashed verification attempt/failure report. QA-048 and QA-049 are corrected and verified but pending independent re-review. PR #10 remains draft/unmerged and I9 remains stopped.

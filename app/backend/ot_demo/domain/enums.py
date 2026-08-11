@@ -225,6 +225,13 @@ class SuspensionEvaluationType(StrEnum):
     INTEGRITY = "INTEGRITY"
 
 
+class ClassifierGateOutcomeStatus(StrEnum):
+    PASS = "PASS"
+    FAIL = "FAIL"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    NOT_REACHED = "NOT_REACHED"
+
+
 class RequiredInputRole(StrEnum):
     APPLICATION_BUILD = "APPLICATION_BUILD"
     CONFIGURATION = "CONFIGURATION"

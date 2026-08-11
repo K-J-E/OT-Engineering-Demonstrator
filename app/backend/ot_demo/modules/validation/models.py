@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field, model_validator
@@ -23,6 +23,7 @@ from ...domain.enums import (
     SuspensionLifecyclePosition,
     SuspensionRecordStatus,
     RequiredInputRole,
+    ClassifierGateOutcomeStatus,
     ValidationVerdict,
 )
 from ...domain.value_objects import (
@@ -326,6 +327,32 @@ class ValidationSuspensionAuthority(FrozenModel):
         return self
 
 
+class ClassifierGateOutcome(FrozenModel):
+    gate_id: Literal[
+        "TRUSTED_TARGET",
+        "INTEGRITY",
+        "INPUT_IDENTITY",
+        "BASELINE_CONFLICT",
+        "UNSPECIFIED_BEHAVIOUR",
+        "CONTROLLED_TIME",
+    ]
+    status: ClassifierGateOutcomeStatus
+    selected_condition_id: ValidationSuspensionCondition | None = None
+    failure_code: str | None = Field(default=None, pattern=r"^[A-Z0-9_]+$")
+    outcome_payload_sha256: Sha256Digest | None = None
+
+    @model_validator(mode="after")
+    def validate_failure_shape(self) -> Self:
+        failed = self.status is ClassifierGateOutcomeStatus.FAIL
+        if failed != (
+            self.selected_condition_id is not None
+            and self.failure_code is not None
+            and self.outcome_payload_sha256 is not None
+        ):
+            raise ValueError("only a failed classifier gate carries selected failure provenance")
+        return self
+
+
 class ValidationSuspensionRecord(FrozenModel):
     record_schema_version: SemanticVersion = "1.0"
     classifier_version: SemanticVersion = "1.0"
@@ -338,7 +365,9 @@ class ValidationSuspensionRecord(FrozenModel):
     reason_code: str = Field(pattern=r"^BLOCKED-TEST/VSC-00[1-5]/[A-Z_]+$")
     deterministic_fingerprint: Sha256Digest
     verifier_application_build_id: Sha256Digest
-    evaluated_classifier_gates: tuple[str, ...] = Field(min_length=1)
+    evaluated_classifier_gates: tuple[ClassifierGateOutcome | str, ...] = Field(
+        min_length=6, max_length=6
+    )
     target_selection_sha256: Sha256Digest
     intended_test_id: str
     intended_case_id: str | None = None
@@ -358,6 +387,12 @@ class ValidationSuspensionRecord(FrozenModel):
 
     @model_validator(mode="after")
     def validate_lifecycle(self) -> Self:
+        if str(self.classifier_version) != "1.0" and any(
+            isinstance(item, str) for item in self.evaluated_classifier_gates
+        ):
+            raise ValueError(
+                "current classifier records require actual structured gate outcomes"
+            )
         if (self.status is SuspensionRecordStatus.FINALISED) != (
             self.finalised_at is not None
         ):

@@ -637,6 +637,8 @@ def test_api_factory_exposes_authorised_run_validation_investigation_and_i8_expo
         "/api/v1/validation/composites/{composite_id}/finalise",
         "/api/v1/composite-evidence-packages",
         "/api/v1/composite-evidence-packages/{package_id}/download",
+        "/api/v1/suspension-evidence-packages",
+        "/api/v1/suspension-evidence-packages/{package_id}/download",
     }
     suspension_schema = application.openapi()["components"]["schemas"]["SuspendValidationAttemptPayload"]
     properties = set(suspension_schema["properties"])

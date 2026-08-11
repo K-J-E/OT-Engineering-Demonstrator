@@ -23,6 +23,7 @@ from ...domain.enums import (
     SuspensionRecordStatus,
     SuspensionEvaluationType,
     RequiredInputRole,
+    ClassifierGateOutcomeStatus,
     ValidationVerdict,
 )
 from ...infrastructure.build_identity import ApplicationBuildManifest
@@ -55,6 +56,7 @@ from .models import (
     ValidationSuspensionEvidence,
     ValidationSuspensionAuthority,
     ValidationSuspensionRecord,
+    ClassifierGateOutcome,
 )
 from .assurance import (
     AssuranceAuthorityError,
@@ -63,6 +65,10 @@ from .assurance import (
     IdentityResolutionAuthority,
     IntegrityVerificationAuthority,
     RuntimeTimeAuthority,
+)
+from .suspension_provenance import (
+    SuspensionProvenanceError,
+    resolve_suspension_source,
 )
 
 
@@ -523,54 +529,200 @@ class ValidationService:
             raise ValidationBoundaryError("suspension evaluation is not bound to the trusted target selection")
         if attempt.status in {ValidationAttemptStatus.EXECUTED, ValidationAttemptStatus.SUSPENDED}:
             raise ValidationBoundaryError("completed validation attempt cannot be suspended")
+        gate_order = (
+            "TRUSTED_TARGET", "INTEGRITY", "INPUT_IDENTITY",
+            "BASELINE_CONFLICT", "UNSPECIFIED_BEHAVIOUR", "CONTROLLED_TIME",
+        )
+        evaluated_gates: list[ClassifierGateOutcome] = [
+            ClassifierGateOutcome(
+                gate_id="TRUSTED_TARGET",
+                status=ClassifierGateOutcomeStatus.PASS,
+            )
+        ]
+        selected: tuple[
+            ValidationSuspensionCondition,
+            str,
+            dict[str, Any],
+            SuspensionAuthorityKind,
+            str,
+        ] | None = None
+
+        def record_gate(
+            gate_id: str,
+            status: ClassifierGateOutcomeStatus,
+            *,
+            condition: ValidationSuspensionCondition | None = None,
+            failure_code: str | None = None,
+            payload: dict[str, Any] | None = None,
+        ) -> None:
+            evaluated_gates.append(ClassifierGateOutcome(
+                gate_id=gate_id,
+                status=status,
+                selected_condition_id=condition,
+                failure_code=failure_code,
+                outcome_payload_sha256=(
+                    sha256_bytes(canonical_json_bytes(payload)) if payload is not None else None
+                ),
+            ))
+
         try:
-            if evaluation_type is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR:
-                condition = ValidationSuspensionCondition.VSC_001
-                failure_code = "UNSPECIFIED_ENGINEERING_BEHAVIOUR"
-                evidence_payload = self._engineering_registry.verify_design_question(
-                    target, reference_id, field_id or "", source_assertion_ids
-                )
-                authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
-            elif evaluation_type is SuspensionEvaluationType.BASELINE_CONFLICT:
-                condition = ValidationSuspensionCondition.VSC_002
-                failure_code = "INCONSISTENT_BASELINE"
-                evidence_payload = self._engineering_registry.verify_conflict(
-                    target, reference_id, field_id or "", source_assertion_ids
-                )
-                authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
-            elif evaluation_type is SuspensionEvaluationType.IDENTITY_RESOLUTION:
-                condition = ValidationSuspensionCondition.VSC_003
-                result = self._identity_authority.evaluate(target, reference_id)
-                if result is None:
-                    raise AssuranceAuthorityError("required identity resolves uniquely")
-                failure_code, evidence_payload = result
-                authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
-            elif evaluation_type is SuspensionEvaluationType.INTEGRITY:
-                condition = ValidationSuspensionCondition.VSC_005
+            integrity_applicable = (
+                self._integrity_authority.has_reference(reference_id)
+                or evaluation_type is SuspensionEvaluationType.INTEGRITY
+            )
+            if integrity_applicable:
                 result = self._integrity_authority.evaluate(reference_id)
                 if result is None:
-                    raise AssuranceAuthorityError("controlled artefact passed integrity verification")
-                failure_code, evidence_payload = result
-                authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
+                    record_gate("INTEGRITY", ClassifierGateOutcomeStatus.PASS)
+                else:
+                    failure_code, payload = result
+                    record_gate(
+                        "INTEGRITY", ClassifierGateOutcomeStatus.FAIL,
+                        condition=ValidationSuspensionCondition.VSC_005,
+                        failure_code=failure_code, payload=payload,
+                    )
+                    selected = (
+                        ValidationSuspensionCondition.VSC_005, failure_code, payload,
+                        SuspensionAuthorityKind.BACKEND_ASSURANCE,
+                        "IntegrityVerificationAuthority",
+                    )
             else:
-                condition = ValidationSuspensionCondition.VSC_004
-                failure_code = "UNCONTROLLED_WALL_CLOCK_DEPENDENCY"
-                if lifecycle_position is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
-                    evidence_payload = self._engineering_registry.verify_preentry_time(
+                record_gate("INTEGRITY", ClassifierGateOutcomeStatus.NOT_APPLICABLE)
+
+            identity_role = target.unresolved_required_role
+            if identity_role is None and evaluation_type is SuspensionEvaluationType.IDENTITY_RESOLUTION:
+                try:
+                    identity_role = RequiredInputRole(reference_id)
+                except ValueError as error:
+                    raise AssuranceAuthorityError(
+                        "required input role is outside the controlled resolver registry"
+                    ) from error
+            if selected is None:
+                if identity_role is None:
+                    record_gate("INPUT_IDENTITY", ClassifierGateOutcomeStatus.PASS)
+                else:
+                    result = self._identity_authority.evaluate(target, identity_role.value)
+                    if result is None:
+                        record_gate("INPUT_IDENTITY", ClassifierGateOutcomeStatus.PASS)
+                    else:
+                        failure_code, payload = result
+                        record_gate(
+                            "INPUT_IDENTITY", ClassifierGateOutcomeStatus.FAIL,
+                            condition=ValidationSuspensionCondition.VSC_003,
+                            failure_code=failure_code, payload=payload,
+                        )
+                        selected = (
+                            ValidationSuspensionCondition.VSC_003, failure_code, payload,
+                            SuspensionAuthorityKind.BACKEND_ASSURANCE,
+                            "IdentityResolutionAuthority",
+                        )
+            else:
+                record_gate("INPUT_IDENTITY", ClassifierGateOutcomeStatus.NOT_REACHED)
+
+            if selected is None:
+                conflict_applicable = (
+                    self._engineering_registry.has_conflict(reference_id)
+                    or evaluation_type is SuspensionEvaluationType.BASELINE_CONFLICT
+                )
+                if conflict_applicable:
+                    payload = self._engineering_registry.verify_conflict(
                         target, reference_id, field_id or "", source_assertion_ids
                     )
-                    authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
-                else:
-                    result = self._time_authority.evaluate(
-                        lifecycle_position, reference_id,
-                        str(validation_execution_id) if validation_execution_id else None,
+                    failure_code = "INCONSISTENT_BASELINE"
+                    record_gate(
+                        "BASELINE_CONFLICT", ClassifierGateOutcomeStatus.FAIL,
+                        condition=ValidationSuspensionCondition.VSC_002,
+                        failure_code=failure_code, payload=payload,
                     )
-                    if result is None:
-                        raise AssuranceAuthorityError("controlled runtime time verification passed")
-                    failure_code, evidence_payload = result
-                    authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
+                    selected = (
+                        ValidationSuspensionCondition.VSC_002, failure_code, payload,
+                        SuspensionAuthorityKind.ENGINEERING_REVIEW,
+                        "ControlledEngineeringRegistry",
+                    )
+                else:
+                    record_gate("BASELINE_CONFLICT", ClassifierGateOutcomeStatus.NOT_APPLICABLE)
+            else:
+                record_gate("BASELINE_CONFLICT", ClassifierGateOutcomeStatus.NOT_REACHED)
+
+            if selected is None:
+                behaviour_applicable = (
+                    self._engineering_registry.has_design_question(reference_id)
+                    or evaluation_type is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR
+                )
+                if behaviour_applicable:
+                    payload = self._engineering_registry.verify_design_question(
+                        target, reference_id, field_id or "", source_assertion_ids
+                    )
+                    failure_code = "UNSPECIFIED_ENGINEERING_BEHAVIOUR"
+                    record_gate(
+                        "UNSPECIFIED_BEHAVIOUR", ClassifierGateOutcomeStatus.FAIL,
+                        condition=ValidationSuspensionCondition.VSC_001,
+                        failure_code=failure_code, payload=payload,
+                    )
+                    selected = (
+                        ValidationSuspensionCondition.VSC_001, failure_code, payload,
+                        SuspensionAuthorityKind.ENGINEERING_REVIEW,
+                        "ControlledEngineeringRegistry",
+                    )
+                else:
+                    record_gate("UNSPECIFIED_BEHAVIOUR", ClassifierGateOutcomeStatus.NOT_APPLICABLE)
+            else:
+                record_gate("UNSPECIFIED_BEHAVIOUR", ClassifierGateOutcomeStatus.NOT_REACHED)
+
+            if selected is None:
+                time_applicable = (
+                    evaluation_type is SuspensionEvaluationType.TIME_AUTHORITY
+                    or self._engineering_registry.has_time_review(reference_id)
+                    or self._time_authority.has_failure(reference_id)
+                )
+                if time_applicable:
+                    if lifecycle_position is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
+                        payload = self._engineering_registry.verify_preentry_time(
+                            target, reference_id, field_id or "", source_assertion_ids
+                        )
+                        failure_code = "UNCONTROLLED_WALL_CLOCK_DEPENDENCY"
+                        authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
+                        verifier_name = "ControlledEngineeringRegistry"
+                    else:
+                        result = self._time_authority.evaluate(
+                            lifecycle_position, reference_id,
+                            str(validation_execution_id) if validation_execution_id else None,
+                        )
+                        if result is None:
+                            raise AssuranceAuthorityError(
+                                "controlled runtime time verification passed"
+                            )
+                        failure_code, payload = result
+                        authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
+                        verifier_name = "RuntimeTimeAuthority"
+                    record_gate(
+                        "CONTROLLED_TIME", ClassifierGateOutcomeStatus.FAIL,
+                        condition=ValidationSuspensionCondition.VSC_004,
+                        failure_code=failure_code, payload=payload,
+                    )
+                    selected = (
+                        ValidationSuspensionCondition.VSC_004, failure_code, payload,
+                        authority_kind, verifier_name,
+                    )
+                else:
+                    record_gate("CONTROLLED_TIME", ClassifierGateOutcomeStatus.NOT_APPLICABLE)
+            else:
+                record_gate("CONTROLLED_TIME", ClassifierGateOutcomeStatus.NOT_REACHED)
         except AssuranceAuthorityError as error:
             raise ValidationBoundaryError(str(error)) from error
+
+        if selected is None:
+            messages = {
+                SuspensionEvaluationType.IDENTITY_RESOLUTION: "required identity resolves uniquely",
+                SuspensionEvaluationType.INTEGRITY: "controlled artefact passed integrity verification",
+                SuspensionEvaluationType.TIME_AUTHORITY: "controlled runtime time verification passed",
+            }
+            raise ValidationBoundaryError(
+                messages.get(evaluation_type, "requested controlled suspension condition is not established")
+            )
+        if tuple(item.gate_id for item in evaluated_gates) != gate_order:
+            raise ValidationBoundaryError("deterministic classifier did not preserve the accepted gate order")
+        condition, failure_code, evidence_payload, authority_kind, verifier_name = selected
         if authority_kind is SuspensionAuthorityKind.BACKEND_ASSURANCE:
             if proposer_actor_id is not None or reviewer_actor_id is not None:
                 raise ValidationBoundaryError("caller cannot supply backend assurance actor identities")
@@ -602,6 +754,51 @@ class ValidationService:
             if validation_execution_id != attempt.validation_execution_id:
                 raise ValidationBoundaryError("suspension must bind the attempt's actual execution")
         condition_evidence = evidence_payload
+        failed_role = (
+            condition_evidence.get("input_name")
+            if condition is ValidationSuspensionCondition.VSC_003
+            else None
+        )
+        if authority_kind is SuspensionAuthorityKind.BACKEND_ASSURANCE:
+            verification_reference = (
+                failed_role
+                or condition_evidence.get("examined_source")
+                or condition_evidence.get("dependency_name")
+                or reference_id
+            )
+            verification_attempt = {
+                "verifier_service": verifier_name,
+                "verifier_module": "ot_demo.modules.validation.assurance",
+                "verifier_application_build_id": self._application_build_manifest.application_build_id,
+                "target_selection_id": str(target.target_selection_id),
+                "verification_reference": verification_reference,
+                "lifecycle_position": lifecycle.value,
+                "scenario_run_id": str(scenario_run_id) if scenario_run_id else None,
+                "validation_execution_id": (
+                    str(validation_execution_id) if validation_execution_id else None
+                ),
+            }
+            failure_report = {
+                "condition_id": condition.value,
+                "failure_code": failure_code,
+                "verified_facts": condition_evidence,
+            }
+            condition_evidence = {
+                **condition_evidence,
+                "backend_verification": {
+                    "verifier_service": verifier_name,
+                    "verifier_module": "ot_demo.modules.validation.assurance",
+                    "verifier_application_build_id": self._application_build_manifest.application_build_id,
+                    "verification_attempt": verification_attempt,
+                    "verification_attempt_sha256": sha256_bytes(
+                        canonical_json_bytes(verification_attempt)
+                    ),
+                    "failure_report": failure_report,
+                    "failure_report_sha256": sha256_bytes(
+                        canonical_json_bytes(failure_report)
+                    ),
+                },
+            }
         evidence_payload = {
             "target_selection_id": str(target.target_selection_id),
             "condition_id": condition.value,
@@ -617,26 +814,12 @@ class ValidationService:
             payload_sha256=sha256_bytes(canonical_json_bytes(evidence_payload)),
         )
         reason_code = f"BLOCKED-TEST/{condition.value}/{lifecycle.value}"
-        evaluated_gates = (
-            "TRUSTED_TARGET_SELECTION_PRESENT",
-            "INTEGRITY_GATE_EVALUATED",
-            "IDENTITY_RESOLUTION_GATE_EVALUATED",
-            "BASELINE_CONFLICT_GATE_EVALUATED",
-            "CONTROLLING_BEHAVIOUR_GATE_EVALUATED",
-            "CONTROLLED_TIME_GATE_EVALUATED",
-        )
         resolved_identities = {
-            "catalogue_version": str(target.catalogue_version),
-            "catalogue_sha256": target.catalogue_sha256,
-            "test_definition_version": str(target.test_definition_version),
-            "test_definition_sha256": target.test_definition_sha256,
-            "case_definition_version": str(target.case_definition_version) if target.case_definition_version else None,
-            "case_definition_sha256": target.case_definition_sha256,
-            "configuration_id": target.configuration_id,
-            "configuration_version": str(target.configuration_version),
+            key: dict(value) for key, value in target.resolved_identity_evidence.items()
         }
-        failed_role = condition_evidence.get("input_name") if condition is ValidationSuspensionCondition.VSC_003 else None
-        presented_identity = condition_evidence.get("presented_identity_evidence", {})
+        presented_identity = evidence_payload["evidence"].get(
+            "presented_identity_evidence", {}
+        )
         reason_parameters = {
             "condition_id": condition.value,
             "failure_code": failure_code,
@@ -645,14 +828,14 @@ class ValidationService:
         }
         fingerprint_payload = {
             "target": target.model_dump(mode="json"),
-            "classifier_version": "1.0",
-            "evaluated_gates": list(evaluated_gates),
+            "classifier_version": "1.1",
+            "evaluated_gates": [item.model_dump(mode="json") for item in evaluated_gates],
             "condition_id": condition.value,
             "lifecycle_position": lifecycle.value,
             "reason_code": reason_code,
             "evidence_sha256": evidence.payload_sha256,
             "evidence_ids": [str(evidence.evidence_id)],
-            "evidence_contract_version": "1.0",
+            "evidence_contract_version": "1.1",
             "reason_parameters": reason_parameters,
             "authority": authority.model_dump(mode="json"),
             "verifier_application_build_id": self._application_build_manifest.application_build_id,
@@ -660,6 +843,8 @@ class ValidationService:
             "validation_execution_id": str(validation_execution_id) if validation_execution_id else None,
         }
         record = ValidationSuspensionRecord(
+            record_schema_version="1.1",
+            classifier_version="1.1",
             suspension_record_id=uuid4(),
             validation_attempt_id=attempt.validation_attempt_id,
             target_selection_id=target.target_selection_id,
@@ -669,7 +854,7 @@ class ValidationService:
             reason_code=reason_code,
             deterministic_fingerprint=sha256_bytes(canonical_json_bytes(fingerprint_payload)),
             verifier_application_build_id=self._application_build_manifest.application_build_id,
-            evaluated_classifier_gates=evaluated_gates,
+            evaluated_classifier_gates=tuple(evaluated_gates),
             target_selection_sha256=target.canonical_selection_sha256,
             intended_test_id=target.test_id,
             intended_case_id=target.case_id,
@@ -677,6 +862,7 @@ class ValidationService:
             failed_required_input_role=failed_role,
             presented_identity_evidence=presented_identity,
             inherited_evidence_class=target.evidence_class,
+            evidence_contract_version="1.1",
             reason_parameters=reason_parameters,
             rendered_reason=(
                 f"Validation attempt suspended under {condition.value} at {lifecycle.value}; "
@@ -895,7 +1081,13 @@ class ValidationService:
                 )
             case = case_by_id[case_id]
             expected_case_sha = self._case_sha256(case)
-            attempt = self._repository.get_attempt(record.validation_attempt_id)
+            try:
+                suspension_source = resolve_suspension_source(
+                    self._repository, self._scenarios, record
+                )
+            except SuspensionProvenanceError as error:
+                raise ValidationBoundaryError(str(error)) from error
+            attempt = suspension_source.attempt
             unavailable_role = (
                 target.unresolved_required_role
                 if record.condition_id is ValidationSuspensionCondition.VSC_003
@@ -943,6 +1135,11 @@ class ValidationService:
                     != self._application_build_manifest.application_build_id
                 or record.verifier_application_build_id
                 != self._application_build_manifest.application_build_id
+                or (
+                    suspension_source.run is not None
+                    and suspension_source.run.fault_section_id
+                    != case.selected_fault_section_id
+                )
             ):
                 raise ValidationBoundaryError(
                     f"suspension provenance does not satisfy DC-004/DC-005: {case_id}"
@@ -968,7 +1165,10 @@ class ValidationService:
                     case_definition_sha256=(None if unavailable_role is RequiredInputRole.CASE_DEFINITION else expected_case_sha),
                     unavailable_required_input_role=unavailable_role,
                     constituent_verdict=ValidationVerdict.BLOCKED_TEST,
-                    evidence_snapshot_ids=(),
+                    evidence_snapshot_ids=tuple(
+                        item.evidence_snapshot_id
+                        for item in suspension_source.evidence_snapshots
+                    ),
                 )
             )
 
@@ -1081,10 +1281,21 @@ class ValidationService:
             else:
                 assert link.suspension_record_id is not None
                 suspension = self._repository.get_suspension(link.suspension_record_id)
-                target = self._repository.get_target(suspension.target_selection_id)
+                try:
+                    suspension_source = resolve_suspension_source(
+                        self._repository, self._scenarios, suspension
+                    )
+                except SuspensionProvenanceError as error:
+                    raise ValidationBoundaryError(str(error)) from error
+                target = suspension_source.target
                 if (
                     suspension.status is not SuspensionRecordStatus.FINALISED
                     or target.case_id != link.case_id
+                    or suspension.scenario_run_id != link.scenario_run_id
+                    or tuple(
+                        item.evidence_snapshot_id
+                        for item in suspension_source.evidence_snapshots
+                    ) != link.evidence_snapshot_ids
                     or target.unresolved_required_role != link.unavailable_required_input_role
                     or (
                         link.unavailable_required_input_role is not RequiredInputRole.CASE_DEFINITION

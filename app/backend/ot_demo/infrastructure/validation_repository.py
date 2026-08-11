@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from uuid import UUID
 
-from ..domain.enums import EvidenceClass
+from ..domain.enums import EvidenceClass, SuspensionRecordStatus
 from ..modules.validation.models import (
     CompositeValidationResult,
     EvidenceSnapshot,
@@ -337,7 +337,12 @@ class ValidationRepository:
     ) -> None:
         try:
             with self._connect() as connection:
-                draft_payload = record.model_copy(update={"status": "DRAFT", "finalised_at": None}).model_dump_json()
+                draft_payload = record.model_copy(
+                    update={
+                        "status": SuspensionRecordStatus.DRAFT,
+                        "finalised_at": None,
+                    }
+                ).model_dump_json()
                 connection.execute(
                     "INSERT INTO validation_suspension_records (suspension_record_id,validation_attempt_id,target_selection_id,condition_id,lifecycle_position,status,reason_code,deterministic_fingerprint,scenario_run_id,validation_execution_id,finalised_at_ms,payload_json) VALUES (?,?,?,?,?,'DRAFT',?,?,?,?,?,?)",
                     (str(record.suspension_record_id), str(record.validation_attempt_id), str(record.target_selection_id), record.condition_id.value, record.lifecycle_position.value, record.reason_code, record.deterministic_fingerprint, str(record.scenario_run_id) if record.scenario_run_id else None, str(record.validation_execution_id) if record.validation_execution_id else None, instant_to_epoch_ms(record.finalised_at), draft_payload),
@@ -374,6 +379,14 @@ class ValidationRepository:
             "executed_validation_results", "executed_result_id", result_id,
             ExecutedValidationResult,
         )
+
+    def has_executed_result_for_attempt(self, attempt_id: UUID) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM executed_validation_results WHERE validation_attempt_id=?",
+                (str(attempt_id),),
+            ).fetchone()
+        return row is not None
 
     def list_suspensions(self) -> tuple[ValidationSuspensionRecord, ...]:
         with self._connect() as connection:
