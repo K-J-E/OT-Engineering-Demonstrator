@@ -38,7 +38,7 @@ historical hashes are preserved in `BASELINE-MANIFEST.json` and remain recoverab
 history.
 
 The accepted working baseline after DC-001, DC-002, DC-003 and authoritative design baselining of
-DC-004 is preserved on reviewed `main`. This DC-005 design branch contains four explicitly proposed
+DC-004 is preserved on reviewed `main`. This DC-005 design branch contains five explicitly proposed
 authoritative revisions for independent review; it does not supersede the accepted baseline. Both
 accepted and proposed identities are recorded in `CURRENT-BASELINE-MANIFEST.json`.
 
@@ -63,15 +63,18 @@ QA-042 design-control boundary; it is not part of the accepted `main` baseline.
 
 DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination — is proposed on this
 branch and pending independent engineering review. It defines the exact five accepted suspension
-condition identities, lifecycle/record/authority/evidence contracts, deterministic reason,
-immutable history and DC-004 composite relationship. It introduces no machine implementation,
-requirement, electrical, restoration, catalogue, RTM or event-type change. PR #10 remains
+condition identities, a distinct attempt/result lifecycle, deterministic non-overlapping classifier,
+trusted target/provenance anchor, bounded reviewer-authority control, immutable history and DC-004
+composite relationship. It introduces no machine implementation, electrical, restoration, catalogue,
+RTM or event-type change. Proposed Requirements Specification v0.4 clarifies only
+`REQ-VAL-007`–`REQ-VAL-009`, retaining their IDs, 124 total requirements and 286 mappings. PR #10 remains
 unchanged, QA-041 is not applied and I9 remains stopped.
 
-The accepted detailed Design Brief and Network Model are revision 0.4; the Requirements
+The accepted detailed Design Brief and Network Model are revision 0.4; accepted Requirements
 Specification remains revision 0.3 with 124 unique requirements. Accepted System Architecture and
 Workflow Design remain revision 0.2; accepted Demonstrator Design is revision 0.3 and accepted
-Validation Plan is revision 1.1. The DC-005 branch proposes System Architecture v0.3 Section 27,
+Validation Plan is revision 1.1. The DC-005 branch proposes Requirements Specification v0.4
+clarification at REQ-VAL-007–009, System Architecture v0.3 Section 27,
 Workflow Design v0.3 Section 28, Demonstrator Design v0.4 Section 37 and Validation Plan v1.2
 Section 20. The accepted identities remain controlling until independent review and controlled
 application. The documents remain working Draft engineering artefacts because further controlled

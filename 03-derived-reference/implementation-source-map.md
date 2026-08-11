@@ -13,7 +13,7 @@ This file is a navigation aid only. It is not a replacement for the detailed doc
 - Controlled test catalogue, deterministic scenario time, expected outcomes, negative-test interpretation, Exploration verification, evidence strategy and 124-requirement verification mapping: `OT Project Validation Plan.docx`
 - Accepted generic active-fault isolation rule, A/B/C boundary evidence conditions, eight-section v1.1 incidence answer key, all-open plus zero-source-path proof and application verification: `DC-003-generic-active-fault-isolation-boundary-derivation.md` together with the applied sections in the six authoritative Word artefacts
 - Accepted multi-run exploratory validation determination: `DC-004-multi-run-exploratory-validation-determination.md` together with authoritative Validation Plan v1.1 Section 19 and Demonstrator Design v0.3 Section 36. These define the immutable historical-catalogue/test-definition resolver, engineering-expectation versus provenance separation and constituent-owned scenario-time rule. Draft application PR #10 remains unchanged/unmerged at the QA-042 design-control stop.
-- Proposed validation-suspension assurance design: `DC-005-controlled-validation-suspension-and-blocked-test-determination.md` together with proposed Validation Plan v1.2 Section 20, Demonstrator Design v0.4 Section 37, System Architecture v0.3 Section 27 and Workflow Design v0.3 Section 28. These proposed revisions are review inputs only and do not supersede the accepted identities or authorise machine work.
+- Proposed validation-suspension assurance design: `DC-005-controlled-validation-suspension-and-blocked-test-determination.md` together with proposed Requirements Specification v0.4 clarification at `REQ-VAL-007`–`REQ-VAL-009`, Validation Plan v1.2 Section 20, Demonstrator Design v0.4 Section 37, System Architecture v0.3 Section 27 and Workflow Design v0.3 Section 28. These proposed revisions are review inputs only and do not supersede the accepted identities or authorise machine work.
 
 ## Mandatory implementation discipline
 When coding begins:
@@ -112,7 +112,7 @@ For independent engineering review of the proposed validation-suspension design,
 3. accepted Demonstrator Design v0.3 Sections 8.7, 9, 19–21 and 36, then proposed v0.4 Section 37;
 4. accepted System Architecture v0.2 Sections 10, 12 and 20, then proposed v0.3 Section 27;
 5. accepted Workflow Design v0.2 Sections 5.2, 14 and 19, then proposed v0.3 Section 28;
-6. Requirements Specification `REQ-VAL-001–014`, especially unchanged `REQ-VAL-008`; and
+6. accepted Requirements Specification v0.3 `REQ-VAL-001–014`, then proposed v0.4 controlled clarification to `REQ-VAL-007`–`REQ-VAL-009`; and
 7. accepted DC-004 Sections 5–13 for constituent identity, exact completeness, aggregation, historical resolution and export.
 
-Review shall confirm exactly five condition IDs (`VSC-001`–`VSC-005`), the lifecycle/record relationship, condition-specific evidence and authority, deterministic reason, immutable history, FORMAL/EXPLORATORY separation and the controlled DC-004 execution/suspension source union. It shall also confirm that the Requirements Specification, Design Brief, Network Model, machine catalogue/contracts/schema, PR #10 and I9 behaviour remain unchanged.
+Review shall confirm exactly five condition IDs (`VSC-001`–`VSC-005`), the attempt/result lifecycle, non-overlapping classifier, trusted target/provenance anchor, condition-specific evidence and bounded authority, deterministic reason, immutable history, FORMAL/EXPLORATORY separation and the controlled DC-004 execution/suspension source union. It shall also confirm unchanged requirement IDs/count/RTM, Design Brief, Network Model, machine catalogue/contracts/schema, PR #10 and I9 behaviour.

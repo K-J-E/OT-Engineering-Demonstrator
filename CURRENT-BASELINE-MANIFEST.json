@@ -158,12 +158,28 @@
   ],
   "proposed_authoritative_revisions": [
     {
+      "path": "01-engineering-source-documents/OT Project Requirements Specification.docx",
+      "version": "0.4 — proposed DC-005 controlled clarification",
+      "status": "Proposed; accepted identity remains v0.3",
+      "sha256": "11c8760aa3ed9b745853c6b6e9ab7363c0b6c1c64f7d26755e8ff57f465f352d",
+      "bytes": 39533,
+      "paragraphs": 1266,
+      "tables": 1,
+      "inline_shapes": 0,
+      "verified_unique_requirements": 124,
+      "clarified_requirement_ids": ["REQ-VAL-007", "REQ-VAL-008", "REQ-VAL-009"],
+      "accepted_identity": {
+        "version": "0.3",
+        "sha256": "7d5522e53dd99e505b9853d6b0b0255c8b4585964909f5659e1ab13d7d1eaeea"
+      }
+    },
+    {
       "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
       "version": "1.2 — proposed DC-005 controlled revision",
       "status": "Proposed; accepted identity remains v1.1",
-      "sha256": "bc16880075cff637717e1a08742b2e5f7a101966a9a245c3aa1b248340bd28f6",
-      "bytes": 846655,
-      "paragraphs": 170,
+      "sha256": "85dddab031aab7d2a5600fc844396474f042fa6dc2cbe5af243a23ebb504ca7d",
+      "bytes": 847644,
+      "paragraphs": 171,
       "tables": 31,
       "inline_shapes": 0,
       "completed_through_section": "20.7",
@@ -176,8 +192,8 @@
       "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
       "version": "0.4 — proposed DC-005 controlled revision",
       "status": "Proposed; accepted identity remains v0.3",
-      "sha256": "b8b3f3d9645649d86847939672f2df35224bfb1758d764768433c5feb2006683",
-      "bytes": 851456,
+      "sha256": "b30323b93fcbc23f0f6cd76feb9a1646314051d177a8f94c54b6aac0813771e8",
+      "bytes": 851645,
       "paragraphs": 379,
       "tables": 35,
       "inline_shapes": 2,
@@ -191,8 +207,8 @@
       "path": "01-engineering-source-documents/OT Project System Architecture.docx",
       "version": "0.3 — proposed DC-005 controlled revision",
       "status": "Proposed; accepted identity remains v0.2",
-      "sha256": "8ad9d834b4c90f35231844bcb793e4f18544040a0853644bfa9c8a1abe370613",
-      "bytes": 547971,
+      "sha256": "83bb1b5f1e224943a76e0f91ea4cc37b4e71e95016b2fbae7e668c9068e17c21",
+      "bytes": 548273,
       "paragraphs": 325,
       "tables": 13,
       "inline_shapes": 2,
@@ -206,8 +222,8 @@
       "path": "01-engineering-source-documents/OT Project Workflow Design.docx",
       "version": "0.3 — proposed DC-005 controlled revision",
       "status": "Proposed; accepted identity remains v0.2",
-      "sha256": "ac946735caecadcab49b6cf8748caa2e668e03f8b4afd19aed3131efd26ed3e5",
-      "bytes": 622490,
+      "sha256": "8c0ea11d595c1b1d719f927918894797ada3cccdad15c9a36764857c7642423e",
+      "bytes": 622805,
       "paragraphs": 266,
       "tables": 34,
       "inline_shapes": 2,
@@ -246,7 +262,7 @@
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
     "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. Draft DC-004 application PR #10 is unchanged and unmerged; QA-041 remains open and QA-042 produced the accepted DC-005 design-control stop. I9 remains stopped.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
-    "The four proposed DC-005 Word revisions are recorded separately from their accepted identities and do not supersede them unless independent review accepts and applies DC-005.",
+    "The five proposed DC-005 Word revisions, including the controlled REQ-VAL-007–009 clarification with unchanged IDs/count/RTM, are recorded separately from their accepted identities and do not supersede them unless independent review accepts and applies DC-005.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."
   ]
 }

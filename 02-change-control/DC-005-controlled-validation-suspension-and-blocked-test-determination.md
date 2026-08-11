@@ -26,9 +26,11 @@ a client to submit arbitrary prose and a verdict.
 
 DC-005 proposes that missing contract. It changes validation assurance only.
 It does not change network configuration, topology, outage, telemetry validity,
-DC-003 isolation, restoration, scenario electrical behaviour, expected
-engineering outcomes, the 124 formal requirements, the 24-test catalogue, the
-286 requirement-to-test relationships or the 15 operational-event types.
+DC-003 isolation, restoration, scenario electrical behaviour or expected
+engineering outcomes. It proposes a controlled terminology clarification to
+`REQ-VAL-007`, `REQ-VAL-008` and `REQ-VAL-009` while retaining those IDs, the
+124-requirement total, all 286 requirement-to-test relationships, the 24-test
+catalogue and the 15 operational-event types.
 
 This proposal does not implement QA-041 or QA-042, alter PR #10, resume I9 or
 authorise application work.
@@ -40,16 +42,23 @@ The following distinctions remain controlling:
 - `PERMITTED`, `REJECTED`, operational `BLOCKED` and `NO_CANDIDATE` describe
   engineering/system outcomes. When a controlled negative test expects one of
   those outcomes and the evidence agrees, the validation verdict is `PASS`.
-- `PASS` and `FAIL` are determinations for a test that validly executed and
-  reached an expected-versus-observed comparison.
+- A `ValidationAttempt` begins only after a trusted campaign/test-selection
+  authority binds the intended controlled test or case and entry assurance
+  starts. An attempt may remain incomplete, become active or terminate
+  `SUSPENDED` with a valid `BLOCKED-TEST` assurance determination.
+- An `ExecutedValidationResult` exists only after valid
+  expected-versus-observed comparison. It records the observed result,
+  sufficient supporting evidence and exactly one `PASS` or `FAIL`.
 - `NOT RUN` means no valid attempt or accepted suspension determination exists;
   it draws no engineering or validation conclusion.
 - `BLOCKED-TEST` means the validation procedure itself could not validly start,
   continue or reach determination because exactly one accepted entry/suspension
   condition was established with its required evidence.
-- Missing evidence does not establish a suspension. An unsupported condition
-  is rejected. A missing or unexecuted DC-004 case remains `INCOMPLETE`; neither
-  state can be relabelled `BLOCKED-TEST`.
+- Ordinary missing evidence does not establish FAIL or suspension. It leaves
+  the attempt non-finalisable/incomplete unless exactly one accepted condition
+  is established. An unsupported condition is rejected. A missing or
+  unexecuted DC-004 case remains `INCOMPLETE`; neither state can be relabelled
+  `BLOCKED-TEST`.
 
 ## 3. Exact controlled condition identities
 
@@ -57,14 +66,34 @@ DC-005 adds no suspension category. The exact stable IDs and labels are:
 
 | Condition ID | Accepted label | Authoritative meaning |
 |---|---|---|
-| `VSC-001` | Unspecified engineering behaviour | The accepted engineering baseline does not define behaviour required to start, continue or determine the named test/case. |
-| `VSC-002` | Inconsistent baseline | Two or more identified authoritative sources provide incompatible controlling statements for the named test/case and the conflict has not been dispositioned. |
-| `VSC-003` | Unidentifiable input version | A required build, configuration, catalogue, test definition, case definition or controlled fixture cannot be resolved uniquely to its required version/hash identity. |
-| `VSC-004` | Uncontrolled wall-clock dependency | A test definition, runtime step or evidence determination depends on local current time, sleep/delay or another time source instead of the controlled scenario clock. |
-| `VSC-005` | Evidence corruption | A required controlled evidence/input artefact fails its approved integrity, parsing or schema verification and therefore cannot support a valid determination. |
+| `VSC-001` | Unspecified engineering behaviour | Integrity-valid trusted authoritative sources contain no controlling behaviour for the required field/step. |
+| `VSC-002` | Inconsistent baseline | Two or more integrity-valid trusted authoritative sources provide incompatible controlling statements for the same field/step. |
+| `VSC-003` | Unidentifiable input version | After integrity verification passes for presented artefacts, a required build, configuration, catalogue, test definition, case definition or fixture identity is missing, unknown or ambiguous. |
+| `VSC-004` | Uncontrolled wall-clock dependency | One integrity-valid, unambiguous trusted definition/runtime actually relies on local current time, sleep/delay or another non-controlled time source. |
+| `VSC-005` | Evidence corruption | A required trusted artefact/package fails its declared integrity, schema, hash or canonical-payload verification. |
 
 The ID, not a label or narrative note, is the authoritative classification.
 Labels may be presented for review but cannot create or change the result.
+
+### 3.1 Deterministic non-overlapping classifier
+
+The versioned classifier evaluates one semantic chain and stops at the first
+applicable authoritative boundary:
+
+1. a trusted target-selection anchor must exist before case-level evaluation;
+2. integrity/schema/hash/canonical-payload failure is exclusively `VSC-005`;
+3. only integrity-valid presented inputs proceed to identity resolution, where
+   missing, unknown or ambiguous required identity is `VSC-003`;
+4. among resolved trusted controlling sources, multiple incompatible
+   assertions are `VSC-002`;
+5. if those trusted sources contain no controlling behaviour, the result is
+   `VSC-001`; and
+6. only one unambiguous trusted definition/runtime that actually relies on a
+   non-controlled time source is `VSC-004`.
+
+Unsupported or simultaneous client claims are rejected; they do not select a
+condition. Identical preserved facts and the same classifier version therefore
+produce exactly one authoritative condition ID.
 
 ## 4. Lifecycle location of suspension
 
@@ -96,11 +125,19 @@ fabricating a run or discarding an existing one.
 
 Where a condition prevents valid entry, no `ScenarioRun` or
 `ValidationExecution` is created merely to obtain a place to store a verdict.
-The assurance service creates a `ValidationSuspensionRecord` bound to the
-selected controlled test/case and the identities available at that boundary.
-When its condition, authority and evidence contract are complete, finalisation
-makes that record the authoritative `BLOCKED-TEST` determination for the
-attempted test/case.
+Before evaluation, a trusted campaign/test-selection authority creates an
+immutable `ValidationTargetSelection` that identifies the intended controlled
+test/case, requested input identities, source campaign/catalogue authority and
+canonical selection hash. Client-supplied `test_id` or `case_id` text is not a
+target authority.
+
+The assurance service creates a `ValidationAttempt` and a draft
+`ValidationSuspensionRecord` against that anchor. It records only source
+identities actually resolved, the failed required input role and presented
+identity evidence, and the assurance-verifier application build separately
+from the intended/unresolved target application build. Finalisation can make
+the record authoritative at test/case level only when the target anchor proves
+that exact test/case under the accepted active or historical source package.
 
 The absence of run/execution identities is explicit as
 `PRE_EXECUTION_ENTRY`; it is not a blank field that may be interpreted as a
@@ -108,21 +145,23 @@ missing linkage.
 
 ### 5.2 Suspension after execution starts
 
-Where a valid execution already exists, the suspension record must link to that
-exact execution and run. The execution enters terminal status `SUSPENDED`,
-references the finalised suspension record and exposes verdict
-`BLOCKED-TEST`. It retains every checkpoint/evidence record already captured.
-It is not replaced by an unrelated blocked record and cannot later be reopened
-or converted to PASS/FAIL. A new valid attempt creates a new run/execution.
+Where a valid execution/run context already exists, the suspension record must
+link it exactly and preserve every checkpoint/evidence record. The
+`ValidationAttempt` enters terminal status `SUSPENDED` and exposes
+`BLOCKED-TEST` through the finalised suspension record. It does not create an
+`ExecutedValidationResult`, because valid comparison was not reached. It
+cannot later be reopened or converted to PASS/FAIL; a new valid attempt creates
+new identities.
 
 ### 5.3 Evidence/finalisation suspension
 
 Where an accepted condition is established while verifying evidence or
 provenance, the same linked treatment applies. A comparison mismatch under
-valid evidence remains `FAIL`; it cannot be converted to suspension. Missing
-ordinary mandatory evidence also remains `FAIL` unless the separate
-condition-specific suspension contract proves why the test itself could not
-validly complete.
+valid evidence creates `FAIL`; it cannot be converted to suspension. Ordinary
+missing mandatory evidence alone creates neither FAIL nor BLOCKED-TEST: the
+attempt remains non-finalisable/incomplete unless a genuine accepted condition
+is established through the applicable classifier, authority and evidence
+contract.
 
 ## 6. Immutable `ValidationSuspensionRecord`
 
@@ -131,12 +170,14 @@ The proposed minimum record is:
 | Field group | Controlled fields and rules |
 |---|---|
 | Identity | `suspension_record_id` as UUID v4; review display `VSR-` plus first eight UUID characters; `record_schema_version`. |
-| Classification | One `condition_id` from `VSC-001`–`VSC-005`; controlled label is resolved from the registry rather than supplied as authority by the client. |
-| Test binding | `test_id`; `case_id` where applicable; catalogue ID/version/hash; test-definition version/hash; case-definition version/hash where applicable. |
-| Build/input provenance | Backend-controlled `application_build_id`; configuration ID/version/hash and controlled-fixture identities where available; explicit unavailable input role and resolver evidence only for a valid `VSC-003` case. |
-| Existing operational/validation context | `scenario_run_id` and `validation_execution_id` when a valid execution exists; both absent with explicit `PRE_EXECUTION_ENTRY` when entry failed before either existed. |
+| Classification | `classifier_version`; evaluated gate outcomes; exactly one `condition_id` from `VSC-001`–`VSC-005`; controlled label is resolved from the registry. |
+| Intended target anchor | `target_selection_id`; trusted campaign/test-selection authority identity/version/hash; intended `test_id`/`case_id`; requested catalogue/test/case/configuration/fixture/application-build identities; canonical selection payload SHA-256. |
+| Resolved source provenance | Only successfully verified catalogue/test/case-definition and input identities; historical resolver/package identity used. |
+| Failed-input provenance | Exact `failed_required_input_role`; every presented ID/version/hash or explicit absence; controlled resolver evidence. |
+| Build separation | `target_application_build_id` remains intended/resolved/unresolved as evidenced; `assurance_verifier_build_id` identifies the build making the suspension determination and never substitutes for the target. |
+| Attempt and existing context | `validation_attempt_id`; `scenario_run_id` and `validation_execution_id` only when validly created; `executed_validation_result_id` is absent for suspension. |
 | Lifecycle | One lifecycle point from Section 4; evidence class `FORMAL` or `EXPLORATORY` inherited from the bound definition/case. |
-| Authority | `authority_kind`; backend verifier identity/build or reviewer actor ID/role; proposal/finalisation actor separation where reviewer judgement is required. |
+| Authority | `authority_kind`; backend verifier identity/build or controlled local reviewer `actor_id`/role; proposal/finalisation actor separation where reviewer judgement is required. |
 | Evidence | Condition-specific evidence-contract version; ordered/canonical immutable evidence references; structured evidence payload hash; verifier result and provenance agreement result. |
 | Reason | Backend-generated `controlled_reason_code`, controlled reason parameters, rendered deterministic reason and canonical reason fingerprint. |
 | State | `DRAFT` or `FINALISED`; `BLOCKED-TEST` relationship exists only when `FINALISED`. |
@@ -151,8 +192,13 @@ execution exists, its terminal suspension relationship.
 Every condition-specific evidence item uses a common immutable envelope:
 
 - evidence-record ID and evidence type;
-- owning test/case and catalogue/test/case-definition identities;
-- source application build and configuration/input identity where applicable;
+- owning `target_selection_id` and intended test/case;
+- trusted campaign/test-selection authority identity and selection hash;
+- resolved catalogue/test/case-definition identities only where verified;
+- intended/resolved target application build and configuration/input identity
+  where applicable;
+- separate assurance-verifier application build;
+- failed input role and presented identity evidence where applicable;
 - run/execution identity when one exists;
 - repository/source-record reference and canonical payload SHA-256;
 - producer/verifier identity and verification result; and
@@ -163,7 +209,8 @@ A client cannot make unrelated evidence relevant by copying its ID. Evidence
 from another test, case, definition, build, configuration, run or execution is
 rejected whenever that identity is applicable. Historical records resolve
 against their own accepted catalogue/definition package under DC-004 rather
-than being relabelled under the active version.
+than being relabelled under the active version. A copied test/case ID, even if
+textually valid, cannot replace the trusted target selection.
 
 ## 8. Condition-specific evidence contracts
 
@@ -174,8 +221,9 @@ because a code path is absent.
 
 Mandatory evidence:
 
-1. a `ControlledSourceReviewEvidence` record naming every reviewed governing or
-   detailed source by document identity, version, SHA-256 and section;
+1. a `ControlledSourceReviewEvidence` record naming every integrity-valid
+   reviewed governing or detailed source by document identity, version,
+   SHA-256 and section;
 2. the exact test/case/step or comparison field for which controlling behaviour
    is absent;
 3. a registered engineering-design-question reference in the controlled QA/DQ
@@ -194,8 +242,8 @@ Authority: engineering/reviewer judgement.
 
 Mandatory evidence:
 
-1. a `BaselineConflictEvidence` record containing at least two distinct
-   authoritative source assertions;
+1. a `BaselineConflictEvidence` record containing at least two distinct,
+   integrity-valid trusted authoritative controlling assertions;
 2. for each assertion: document identity/version/hash, section/row reference
    and canonical assertion-text hash;
 3. the exact controlling field/step/result affected;
@@ -218,8 +266,9 @@ Mandatory evidence is an `IdentityResolutionEvidence` record containing:
 - one required input role from `APPLICATION_BUILD`, `CONFIGURATION`,
   `CATALOGUE`, `TEST_DEFINITION`, `CASE_DEFINITION` or `CONTROLLED_FIXTURE`;
 - every presented ID/version/hash value, including explicit absence;
-- one resolver failure code from `MISSING_IDENTITY`, `UNKNOWN_IDENTITY`,
-  `HASH_MISMATCH` or `AMBIGUOUS_IDENTITY`;
+- one resolver failure code from `MISSING_IDENTITY`, `UNKNOWN_IDENTITY` or
+  `AMBIGUOUS_IDENTITY` after integrity checks pass for every presented
+  artefact;
 - resolver service identity, backend build and canonical resolution-attempt
   payload/hash; and
 - the test/case and any run/execution identity already established.
@@ -229,6 +278,9 @@ input resolves uniquely, `VSC-003` is rejected. Configuration or definition
 identity may be unavailable only when that exact input role is the proven
 failure; all other available provenance remains mandatory.
 
+`HASH_MISMATCH`, schema failure, unreadable bytes and canonical-payload
+mismatch are exclusively `VSC-005`; they are never `VSC-003` identity outcomes.
+
 ### 8.4 `VSC-004` — Uncontrolled wall-clock dependency
 
 Authority:
@@ -237,10 +289,12 @@ Authority:
 - runtime/evidence detection: backend assurance.
 
 Pre-entry mandatory evidence is a `ControlledTimeDefinitionReviewEvidence`
-record containing the exact catalogue/test/case definition identity, procedure
-step/checkpoint index, canonical step-text hash and reviewer authority showing
-that the step requires local current time, sleep/delay or a non-controlled time
-source.
+record containing one integrity-valid, unambiguous trusted catalogue/test/case
+definition identity, procedure step/checkpoint index, canonical step-text hash
+and reviewer authority showing that the controlling step actually requires
+local current time, sleep/delay or a non-controlled time source. Missing or
+ambiguous controlling definitions classify earlier as `VSC-001`, `VSC-002` or
+`VSC-003`, as applicable.
 
 Runtime/finalisation mandatory evidence is a `TimeAuthorityEvidence` record
 containing:
@@ -292,8 +346,13 @@ or ordinary absence of mandatory evidence is not corruption and does not create
 | `VSC-005` | Backend integrity verifier | Backend Assurance | Client cannot supply the integrity result, hashes, failure code or verdict. |
 
 Reviewer-authorised records require distinct proposal and finalisation audit
-identities. The same actor may not both propose and independently finalise the
-record. Backend-authorised records identify the service/module and application
+identities. V1 machine-enforces that both actor IDs exist in a controlled local
+actor/role registry, the roles are eligible, the IDs differ, the audit links
+agree and finalisation is immutable. The same actor ID may not both propose and
+finalise the record. V1 does not authenticate a real person or cryptographically
+prove organisational independence; independent engineering review asserts
+that the controlled actor identities correspond to distinct reviewers.
+Backend-authorised records identify the service/module and assurance-verifier
 build and are reproducible from preserved controlled facts.
 
 The public API accepts a suspension evaluation/request, not
@@ -308,8 +367,10 @@ Every finalised record contains:
   `BLOCKED-TEST/<condition_id>/<lifecycle_point>`;
 - condition-specific controlled parameters from verified evidence;
 - a backend-rendered reason from the fixed template for that condition; and
-- `reason_fingerprint = SHA-256(canonical JSON(condition ID, lifecycle point,
-  test/case identity, evidence-contract version, sorted verified evidence
+- `reason_fingerprint = SHA-256(canonical JSON(classifier version, evaluated
+  gate outcomes, selected condition ID, lifecycle point, target-selection
+  identity/hash, resolved-source identities, failed-input evidence where
+  applicable, evidence-contract version, sorted verified evidence
   identities/hashes and controlled parameters))`.
 
 The fixed reason semantics are:
@@ -332,16 +393,21 @@ UUIDs or narrative notes differ.
 The assurance authority may finalise `BLOCKED-TEST` only when all of the
 following are true:
 
-1. exactly one ID from `VSC-001`–`VSC-005` is selected or detected;
-2. its lifecycle point is permitted;
-3. the bound test/case and every available catalogue/definition/build/input
+1. a trusted `ValidationTargetSelection` proves the intended controlled
+   test/case under its campaign/test-selection authority;
+2. the versioned classifier evaluates the preserved facts and selects exactly
+   one ID from `VSC-001`–`VSC-005`;
+3. its lifecycle point is permitted;
+4. the bound test/case and every available catalogue/definition/build/input
    identity resolve under the applicable active or historical package;
-4. its condition-specific evidence contract is complete;
-5. common evidence provenance agrees;
-6. the required backend or independent reviewer authority is satisfied;
-7. no prior PASS/FAIL/final suspension exists for the same attempt;
-8. the backend generates the controlled reason/fingerprint; and
-9. the record and evidence membership are atomically finalised and immutable.
+5. the target application-build role is distinct from the
+   assurance-verifier-build role and neither substitutes for the other;
+6. its condition-specific evidence contract is complete;
+7. common evidence provenance agrees;
+8. the required backend or reviewer control is satisfied;
+9. no prior ExecutedValidationResult/final suspension exists for the attempt;
+10. the backend generates the controlled reason/fingerprint; and
+11. the record and evidence membership are atomically finalised and immutable.
 
 Failure of any check rejects finalisation and leaves a reviewable draft or no
 record. It never defaults to `BLOCKED-TEST`.
@@ -353,17 +419,21 @@ suspension does not require a fictional run:
 
 | Constituent source kind | Required source | Permitted verdict |
 |---|---|---|
-| `EXECUTION_RESULT` | One finalised `ValidationExecution` and its actual `ScenarioRun`/evidence | `PASS` or `FAIL` only. |
-| `SUSPENSION_RESULT` | One finalised `ValidationSuspensionRecord`; linked execution/run required when they validly exist and explicitly absent only for `PRE_EXECUTION_ENTRY` | `BLOCKED-TEST` only. |
+| `EXECUTION_RESULT` | One finalised `ExecutedValidationResult` and its actual `ValidationExecution`/`ScenarioRun`/evidence | `PASS` or `FAIL` only. |
+| `SUSPENSION_RESULT` | One finalised `ValidationSuspensionRecord` whose trusted target-selection authority/hash resolves to the exact required case; linked execution/run required when validly created and explicitly absent only for `PRE_EXECUTION_ENTRY` | `BLOCKED-TEST` only. |
 
 For an in-progress/finalisation suspension, the suspension source references
-the terminal suspended execution and actual run. For a pre-entry suspension,
-the source contains the exact test/case/catalogue/build/input identities that
-were available plus the verified reason that valid entry failed.
+the terminal suspended attempt and actual execution/run context. For a
+pre-entry suspension, the source contains its immutable target selection,
+successfully resolved source identities, failed input role/presented identity
+evidence, intended/unresolved target application build and separate
+assurance-verifier build plus the verified reason entry failed.
 
 Composite assembly independently resolves the source kind and verifies:
 
-- exact required case ID appears once through exactly one source kind;
+- exact required case appears once through exactly one source kind and, for a
+  suspension, is proved by the trusted campaign/test-selection anchor rather
+  than caller-supplied `case_id` text;
 - test/case/definition/catalogue/build/configuration provenance agrees, except
   only the specific unavailable input proven by valid `VSC-003`;
 - an `EXECUTION_RESULT` verdict is read from its immutable execution;
@@ -432,23 +502,29 @@ Future controlled application shall prove at minimum:
    finalisation actors;
 5. backend-authorised conditions derive their verifier facts, failure code,
    reason and verdict without client override;
-6. valid finalised suspension produces `BLOCKED-TEST`; missing evidence,
+6. the versioned classifier gives exactly one deterministic non-overlapping
+   VSC result, including HASH_MISMATCH exclusively as VSC-005;
+7. valid finalised suspension produces `BLOCKED-TEST`; missing evidence,
    unsupported condition and unexecuted test do not;
-7. pre-entry suspension creates no fictional run/execution;
-8. post-entry suspension preserves and terminally links the actual execution,
+8. pre-entry suspension requires a trusted target anchor and creates no
+   fictional run/execution/result;
+9. target application and assurance-verifier builds remain distinct;
+10. post-entry suspension preserves and terminally links the actual execution,
    run and captured evidence;
-9. operational restoration `BLOCKED` remains distinct and produces validation
+11. valid comparison creates `ExecutedValidationResult` PASS/FAIL; ordinary
+    missing evidence remains incomplete;
+12. operational restoration `BLOCKED` remains distinct and produces validation
    PASS when it matches the negative-test oracle;
-10. complete DC-004 membership with one valid suspension and remaining PASS
+13. complete DC-004 membership with one valid suspension and remaining PASS
     finalises `BLOCKED-TEST`;
-11. one genuine FAIL plus one genuine suspension finalises FAIL;
-12. missing/invalid membership remains INCOMPLETE;
-13. finalised suspension/evidence/composite membership is database-immutable;
-14. historical review/export preserves source suspension provenance;
-15. FORMAL/EXPLORATORY progress remains separated;
-16. exactly 24 tests, 124 requirements, 286 RTM relationships and 15 event types
+14. one genuine FAIL plus one genuine suspension finalises FAIL;
+15. missing/unanchored/invalid membership remains INCOMPLETE;
+16. finalised suspension/evidence/composite membership is database-immutable;
+17. historical review/export preserves target/source/verifier provenance;
+18. FORMAL/EXPLORATORY progress remains separated;
+19. exactly 24 tests, 124 requirements, 286 RTM relationships and 15 event types
     remain unchanged; and
-17. canonical network/configuration/schema and dependency identities remain
+20. canonical network/configuration/schema and dependency identities remain
     unchanged.
 
 ## 16. Authoritative artefact impact assessment
@@ -459,7 +535,7 @@ Future controlled application shall prove at minimum:
 | Demonstrator Design v0.3 | Proposed v0.4 Section 37 | Defines record/API/persistence/review/export implementation boundary without applying it. |
 | System Architecture v0.2 | Proposed v0.3 Section 27 | SA-CMP-08 currently describes execution-based PASS/FAIL only and needs the separate suspension assurance record plus optional execution relationship. |
 | Workflow Design v0.2 | Proposed v0.3 Section 28 | Existing completion flow records PASS/FAIL only and needs pre-entry, post-entry and finalisation suspension sequences and authority roles. |
-| Requirements Specification v0.3 | No change | REQ-VAL-008 continues to govern a test that validly executes to comparison. A suspended attempt is explicitly not a completed executed test; no requirement wording or count changes. |
+| Requirements Specification v0.3 | Proposed v0.4 controlled wording clarification to `REQ-VAL-007`–`REQ-VAL-009` | Defines ValidationAttempt versus ExecutedValidationResult in the requirements themselves. IDs, verification intent, 124 total and exact 286 RTM relationships remain unchanged. |
 | Engineering Design Brief | No change | The change clarifies validation assurance, not operational engineering behaviour. |
 | Network Model | No change | No electrical state, value, topology or validation answer key changes. |
 | DC-004 | Bounded relationship clarification | Composite membership accepts a verified suspension source for `BLOCKED-TEST` without weakening one-execution/one-run provenance for actual executions. |
@@ -473,10 +549,11 @@ unless DC-005 is separately accepted and applied.
 
 | Artefact | Accepted identity | Proposed DC-005 identity |
 |---|---|---|
-| Validation Plan | v1.1; SHA-256 `c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c`; 842,611 bytes; 145 paragraphs; 27 tables; through Section 19.9 | v1.2 proposed; SHA-256 `bc16880075cff637717e1a08742b2e5f7a101966a9a245c3aa1b248340bd28f6`; 846,655 bytes; 170 paragraphs; 31 tables; through Section 20.7 |
-| Demonstrator Design | v0.3; SHA-256 `f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5`; 849,329 bytes; 360 paragraphs; 33 tables; through Section 36.8 | v0.4 proposed; SHA-256 `b8b3f3d9645649d86847939672f2df35224bfb1758d764768433c5feb2006683`; 851,456 bytes; 379 paragraphs; 35 tables; through Section 37.6 |
-| System Architecture | v0.2; SHA-256 `249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77`; 546,251 bytes; 311 paragraphs; 12 tables; through Section 26.5 | v0.3 proposed; SHA-256 `8ad9d834b4c90f35231844bcb793e4f18544040a0853644bfa9c8a1abe370613`; 547,971 bytes; 325 paragraphs; 13 tables; through Section 27.4 |
-| Workflow Design | v0.2; SHA-256 `f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547`; 620,162 bytes; 252 paragraphs; 31 tables; through Section 27.4 | v0.3 proposed; SHA-256 `ac946735caecadcab49b6cf8748caa2e668e03f8b4afd19aed3131efd26ed3e5`; 622,490 bytes; 266 paragraphs; 34 tables; through Section 28.5 |
+| Requirements Specification | v0.3; SHA-256 `7d5522e53dd99e505b9853d6b0b0255c8b4585964909f5659e1ab13d7d1eaeea`; 38,838 bytes; 1,261 paragraphs; 1 table; 124 requirements | v0.4 proposed clarification; SHA-256 `11c8760aa3ed9b745853c6b6e9ab7363c0b6c1c64f7d26755e8ff57f465f352d`; 39,533 bytes; 1,266 paragraphs; 1 table; 124 requirements |
+| Validation Plan | v1.1; SHA-256 `c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c`; 842,611 bytes; 145 paragraphs; 27 tables; through Section 19.9 | v1.2 proposed; SHA-256 `85dddab031aab7d2a5600fc844396474f042fa6dc2cbe5af243a23ebb504ca7d`; 847,644 bytes; 171 paragraphs; 31 tables; through Section 20.7 |
+| Demonstrator Design | v0.3; SHA-256 `f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5`; 849,329 bytes; 360 paragraphs; 33 tables; through Section 36.8 | v0.4 proposed; SHA-256 `b30323b93fcbc23f0f6cd76feb9a1646314051d177a8f94c54b6aac0813771e8`; 851,645 bytes; 379 paragraphs; 35 tables; through Section 37.6 |
+| System Architecture | v0.2; SHA-256 `249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77`; 546,251 bytes; 311 paragraphs; 12 tables; through Section 26.5 | v0.3 proposed; SHA-256 `83bb1b5f1e224943a76e0f91ea4cc37b4e71e95016b2fbae7e668c9068e17c21`; 548,273 bytes; 325 paragraphs; 13 tables; through Section 27.4 |
+| Workflow Design | v0.2; SHA-256 `f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547`; 620,162 bytes; 252 paragraphs; 31 tables; through Section 27.4 | v0.3 proposed; SHA-256 `8c0ea11d595c1b1d719f927918894797ada3cccdad15c9a36764857c7642423e`; 622,805 bytes; 266 paragraphs; 34 tables; through Section 28.5 |
 
 ## 17. Proposed design gate
 
@@ -484,7 +561,7 @@ DC-005 and all associated authoritative revisions remain proposed until
 independent engineering review accepts them. This proposal authorises no
 machine catalogue, contract, schema, database, API, frontend or test change.
 
-If accepted, DC-005 must be applied to the four affected authoritative
+If accepted, DC-005 must be applied to the five affected authoritative
 artefacts, cross-document verified and incorporated into reviewed `main` before
 QA-042 application resumes. QA-041 remains pending on the unchanged DC-004
 application branch. PR #10 remains draft/unmerged, and I9 remains stopped until
