@@ -37,9 +37,10 @@ The original uploaded pre-change files were copied byte-for-byte into the initia
 historical hashes are preserved in `BASELINE-MANIFEST.json` and remain recoverable through Git
 history.
 
-The canonical files in `01-engineering-source-documents/` now contain the accepted working
-baseline after DC-001, DC-002, DC-003 and authoritative design baselining of DC-004. Their current
-hashes and structural metadata are recorded in `CURRENT-BASELINE-MANIFEST.json`.
+The accepted working baseline after DC-001, DC-002, DC-003 and authoritative design baselining of
+DC-004 is preserved on reviewed `main`. This DC-005 design branch contains four explicitly proposed
+authoritative revisions for independent review; it does not supersede the accepted baseline. Both
+accepted and proposed identities are recorded in `CURRENT-BASELINE-MANIFEST.json`.
 
 ## Change status
 
@@ -57,13 +58,24 @@ DC-004 — Multi-Run Exploratory Validation Determination — is accepted as the
 validation/design treatment. It defines constituent cases, immutable composite determination,
 historical catalogue/test-definition resolution and provenance boundaries without changing the
 24-test catalogue, 124 requirements, 286 RTM relationships, 15 event types or electrical behaviour.
-Its separate machine/application phase remains pending and I9 remains stopped.
+Its separate machine/application phase exists only on unchanged draft PR #10 and is stopped at the
+QA-042 design-control boundary; it is not part of the accepted `main` baseline.
 
-The current detailed Design Brief and Network Model are revision 0.4; the Requirements
-Specification remains revision 0.3 with 124 unique requirements. System Architecture and
-Workflow Design remain revision 0.2; Demonstrator Design is revision 0.3. They
-remain working Draft engineering documents because subsequent controlled design development
-may require further revision before final client-facing packaging.
+DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination — is proposed on this
+branch and pending independent engineering review. It defines the exact five accepted suspension
+condition identities, lifecycle/record/authority/evidence contracts, deterministic reason,
+immutable history and DC-004 composite relationship. It introduces no machine implementation,
+requirement, electrical, restoration, catalogue, RTM or event-type change. PR #10 remains
+unchanged, QA-041 is not applied and I9 remains stopped.
+
+The accepted detailed Design Brief and Network Model are revision 0.4; the Requirements
+Specification remains revision 0.3 with 124 unique requirements. Accepted System Architecture and
+Workflow Design remain revision 0.2; accepted Demonstrator Design is revision 0.3 and accepted
+Validation Plan is revision 1.1. The DC-005 branch proposes System Architecture v0.3 Section 27,
+Workflow Design v0.3 Section 28, Demonstrator Design v0.4 Section 37 and Validation Plan v1.2
+Section 20. The accepted identities remain controlling until independent review and controlled
+application. The documents remain working Draft engineering artefacts because further controlled
+development may require revision before final client-facing packaging.
 
 The Simplified Network Model v0.4 is complete through Section 18.7 and constitutes the Step 5
 engineering answer key. Step 6 — System Architecture v0.2 is established through Section 26.5 and
@@ -84,9 +96,11 @@ acceptance. Implementation proceeds only through separately authorised increment
 accepted implementation baselines. I8 — Exploration and Export passed final independent
 engineering/implementation review, including accepted QA-008 evidence export and independently
 verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 is accepted as
-the authoritative design change, but its machine/application phase has not begun. I9 was authorised
-and then stopped before implementation; it cannot resume until the separate DC-004 application has
-passed independent review and been incorporated into `main`.
+the authoritative design change. Its separate application branch/PR #10 remains draft and
+unmerged; QA-041 remains pending there and QA-042 produced the accepted design-control stop now
+addressed only by proposed DC-005. I9 cannot resume until DC-005 is independently dispositioned,
+the separately authorised application work is corrected and accepted, and that reviewed baseline
+is incorporated into `main`.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

@@ -1,7 +1,7 @@
 {
   "baseline_date": "2026-08-11",
   "baseline_name": "Accepted engineering and DC-004 validation-design baseline, with accepted implementation through I8",
-  "baseline_status": "ACCEPTED DC-004 DESIGN AND I8 IMPLEMENTATION BASELINE — I9 STOPPED PENDING SEPARATE DC-004 APPLICATION",
+  "baseline_status": "ACCEPTED DC-004 DESIGN AND I8 IMPLEMENTATION BASELINE — PROPOSED DC-005 PENDING REVIEW; PR #10 UNCHANGED; I9 STOPPED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -15,6 +15,14 @@
     "DC-003 — Generic Active-Fault Isolation Boundary Derivation",
     "DC-004 — Multi-Run Exploratory Validation Determination"
   ],
+  "proposed_change": {
+    "id": "DC-005",
+    "title": "Controlled Validation Suspension and BLOCKED-TEST Determination",
+    "status": "PROPOSED — pending independent engineering review; no application authorised",
+    "branch": "agent/dc-005-validation-suspension",
+    "base_commit": "e4f74611d9f750f4577f36c1c473f79506266347",
+    "implementation_boundary": "No PR #10, QA-041, machine catalogue, contract, schema, database, API, frontend or I9 change"
+  },
   "documents": [
     {
       "path": "00-governance/OT project vision.pdf",
@@ -148,18 +156,87 @@
       }
     }
   ],
+  "proposed_authoritative_revisions": [
+    {
+      "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
+      "version": "1.2 — proposed DC-005 controlled revision",
+      "status": "Proposed; accepted identity remains v1.1",
+      "sha256": "bc16880075cff637717e1a08742b2e5f7a101966a9a245c3aa1b248340bd28f6",
+      "bytes": 846655,
+      "paragraphs": 170,
+      "tables": 31,
+      "inline_shapes": 0,
+      "completed_through_section": "20.7",
+      "accepted_identity": {
+        "version": "1.1",
+        "sha256": "c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c"
+      }
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
+      "version": "0.4 — proposed DC-005 controlled revision",
+      "status": "Proposed; accepted identity remains v0.3",
+      "sha256": "b8b3f3d9645649d86847939672f2df35224bfb1758d764768433c5feb2006683",
+      "bytes": 851456,
+      "paragraphs": 379,
+      "tables": 35,
+      "inline_shapes": 2,
+      "completed_through_section": "37.6",
+      "accepted_identity": {
+        "version": "0.3",
+        "sha256": "f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5"
+      }
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project System Architecture.docx",
+      "version": "0.3 — proposed DC-005 controlled revision",
+      "status": "Proposed; accepted identity remains v0.2",
+      "sha256": "8ad9d834b4c90f35231844bcb793e4f18544040a0853644bfa9c8a1abe370613",
+      "bytes": 547971,
+      "paragraphs": 325,
+      "tables": 13,
+      "inline_shapes": 2,
+      "completed_through_section": "27.4",
+      "accepted_identity": {
+        "version": "0.2",
+        "sha256": "249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77"
+      }
+    },
+    {
+      "path": "01-engineering-source-documents/OT Project Workflow Design.docx",
+      "version": "0.3 — proposed DC-005 controlled revision",
+      "status": "Proposed; accepted identity remains v0.2",
+      "sha256": "ac946735caecadcab49b6cf8748caa2e668e03f8b4afd19aed3131efd26ed3e5",
+      "bytes": 622490,
+      "paragraphs": 266,
+      "tables": 34,
+      "inline_shapes": 2,
+      "completed_through_section": "28.5",
+      "accepted_identity": {
+        "version": "0.2",
+        "sha256": "f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547"
+      }
+    }
+  ],
   "implementation_baseline": {
     "accepted_through_increment": "I8",
     "accepted_reviewed_implementation_tip": "111df44a425731dc7f44c437c1d675e5dac85263",
-    "next_increment": "DC-004 application phase, then I9 — Packaging/review",
+    "next_increment": "Independent DC-005 design review; no implementation increment authorised",
     "next_increment_authorised": false,
-    "dc004_application_status": "NOT BEGUN — separate branch, tests, build identity and independent review required",
-    "i9_status": "STOPPED — may not resume until the accepted DC-004 application is incorporated into main"
+    "dc004_application_status": "DRAFT PR #10 EXISTS BUT IS UNCHANGED/UNMERGED — QA-041 open; QA-042 accepted as design-control stop pending DC-005 review",
+    "dc004_application_pr": {
+      "number": 10,
+      "state": "OPEN/DRAFT",
+      "head_branch": "agent/dc-004-application",
+      "observed_head_commit": "a22d428483b8afcbcbaa5309d327c2ac3709f7fa",
+      "treatment": "Read-only verification only; not modified by DC-005 proposal"
+    },
+    "i9_status": "STOPPED — no resumption authority; DC-005 and corrected DC-004 application require separate acceptance first"
   },
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
     "BASELINE-MANIFEST.json preserves the original pre-DC-001/DC-002 integrity record.",
-    "Detailed engineering design documents remain working Drafts because later controlled implementation findings and final client-facing packaging may require revision; Validation Plan v1.1 is the accepted validation-design baseline through DC-004.",
+    "Detailed engineering design documents remain working Drafts because later controlled implementation findings and final client-facing packaging may require revision; Validation Plan v1.1 remains the accepted validation-design baseline through DC-004 while proposed v1.2 awaits DC-005 review.",
     "DC-003 is applied and cross-document verified across the Engineering Design Brief, Network Model, System Architecture, Workflow Design, Demonstrator Design and Validation Plan without changing the Requirements Specification or its 124 unique requirements.",
     "Network Model Sections 16–18 form the approved engineering answer key for the formal state sequence, DEF-001 and generic active-fault isolation boundary derivation.",
     "System Architecture v0.2 establishes the Step 6 logical components, information ownership, interfaces, scenario boundaries and architecture decisions without changing the accepted DC-001 or DC-002 principles.",
@@ -167,8 +244,9 @@
     "Demonstrator Design v0.3 establishes the Step 8 practical local application and accepted DC-004 multi-run validation-assurance design without changing approved engineering behaviour.",
     "Validation Plan v1.1 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. DC-004 application has not begun; I9 was authorised and then stopped before implementation and may not resume until the separately reviewed DC-004 application baseline is incorporated into main.",
+    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. Draft DC-004 application PR #10 is unchanged and unmerged; QA-041 remains open and QA-042 produced the accepted DC-005 design-control stop. I9 remains stopped.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
+    "The four proposed DC-005 Word revisions are recorded separately from their accepted identities and do not supersede them unless independent review accepts and applies DC-005.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."
   ]
 }
