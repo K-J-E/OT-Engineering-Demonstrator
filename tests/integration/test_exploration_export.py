@@ -1160,6 +1160,12 @@ def test_dc005_exact_conditions_authority_immutability_and_composite_union(
                 (str(records[0].suspension_record_id),),
             )
         connection.rollback()
+        with pytest.raises(sqlite3.IntegrityError, match="terminal validation attempt"):
+            connection.execute(
+                "UPDATE validation_attempts SET status='ACTIVE' WHERE validation_attempt_id=?",
+                (str(records[0].validation_attempt_id),),
+            )
+        connection.rollback()
         with pytest.raises(sqlite3.IntegrityError, match="cannot acquire evidence"):
             connection.execute(
                 "INSERT INTO validation_suspension_evidence VALUES (?,?,?,?,?,?,?)",

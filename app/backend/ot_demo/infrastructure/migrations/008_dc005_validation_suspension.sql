@@ -80,6 +80,16 @@ CREATE TRIGGER validation_targets_no_update BEFORE UPDATE ON validation_target_s
 BEGIN SELECT RAISE(ABORT, 'validation target selections are immutable'); END;
 CREATE TRIGGER validation_targets_no_delete BEFORE DELETE ON validation_target_selections
 BEGIN SELECT RAISE(ABORT, 'validation target selections are immutable'); END;
+CREATE TRIGGER validation_attempt_identity_no_update BEFORE UPDATE ON validation_attempts
+WHEN NEW.validation_attempt_id != OLD.validation_attempt_id
+  OR NEW.target_selection_id != OLD.target_selection_id
+  OR NEW.created_at_ms != OLD.created_at_ms
+BEGIN SELECT RAISE(ABORT, 'validation attempt identity is immutable'); END;
+CREATE TRIGGER validation_attempt_terminal_no_update BEFORE UPDATE ON validation_attempts
+WHEN OLD.status IN ('SUSPENDED','EXECUTED')
+BEGIN SELECT RAISE(ABORT, 'terminal validation attempt is immutable'); END;
+CREATE TRIGGER validation_attempts_no_delete BEFORE DELETE ON validation_attempts
+BEGIN SELECT RAISE(ABORT, 'validation attempts are immutable history'); END;
 CREATE TRIGGER executed_results_no_update BEFORE UPDATE ON executed_validation_results
 BEGIN SELECT RAISE(ABORT, 'executed validation results are immutable'); END;
 CREATE TRIGGER executed_results_no_delete BEFORE DELETE ON executed_validation_results
