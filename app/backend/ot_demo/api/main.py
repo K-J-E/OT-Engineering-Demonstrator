@@ -26,7 +26,13 @@ from ..modules.scenario.models import (
     ScenarioCommandRequest,
     ScenarioSnapshot,
 )
-from ..domain.enums import EvidenceClass, ScenarioCommandType, ScenarioMode, SwitchState
+from ..domain.enums import (
+    EvidenceClass,
+    ScenarioCommandType,
+    ScenarioMode,
+    SwitchState,
+    SuspensionLifecyclePosition,
+)
 from ..infrastructure.validation_repository import ValidationRecordNotFound
 from ..infrastructure.investigation_repository import InvestigationRecordNotFound
 from ..modules.investigation.models import InvestigationWorkspace
@@ -50,6 +56,10 @@ from ..modules.validation.models import (
     ValidationExecutionLinks,
     ValidationExecution,
     ValidationExecutionSummary,
+    ValidationAttempt,
+    ValidationTargetSelection,
+    ValidationSuspensionRecord,
+    SuspensionClassifierFacts,
 )
 from ..modules.validation.service import ValidationBoundaryError, ValidationService
 from ..modules.workspace.models import WorkspaceBootstrap, WorkspaceProjection
@@ -138,7 +148,8 @@ class GenerateCompositeEvidencePackagePayload(_ApiRequest):
 
 class AssembleCompositePayload(_ApiRequest):
     test_id: str = Field(pattern=r"^VT-EXP-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
-    validation_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+    validation_execution_ids: tuple[UUID, ...] = ()
+    validation_suspension_record_ids: tuple[UUID, ...] = ()
     created_at: datetime
 
     def to_domain(self) -> AssembleCompositeRequest:
@@ -150,6 +161,30 @@ class FinaliseCompositePayload(_ApiRequest):
 
     def to_domain(self) -> FinaliseCompositeRequest:
         return FinaliseCompositeRequest.model_validate(self.model_dump())
+
+
+class PrepareValidationAttemptPayload(_ApiRequest):
+    test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    configuration_version: str = "1.1"
+    actor_id: str = "graduate-engineer"
+    created_at: datetime
+
+
+class SuspendValidationAttemptPayload(_ApiRequest):
+    trusted_target_selection_id: UUID
+    lifecycle_position: SuspensionLifecyclePosition
+    evidence_corruption_failure_code: str | None = None
+    input_identity_failure_code: str | None = None
+    inconsistent_baseline_failure_code: str | None = None
+    unspecified_behaviour_failure_code: str | None = None
+    wall_clock_dependency_failure_code: str | None = None
+    evidence_payload: dict
+    proposer_actor_id: str
+    reviewer_actor_id: str
+    finalised_at: datetime
+    scenario_run_id: UUID | None = None
+    validation_execution_id: UUID | None = None
 
 
 def create_app(
@@ -455,6 +490,73 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.post(
+        "/api/v1/validation/attempts",
+        response_model=ValidationAttempt,
+    )
+    def prepare_validation_attempt(
+        request: PrepareValidationAttemptPayload,
+    ) -> ValidationAttempt:
+        try:
+            _, attempt = validation().create_target_selection(
+                request.test_id,
+                case_id=request.case_id,
+                configuration_version=request.configuration_version,
+                actor_id=request.actor_id,
+                created_at=request.created_at,
+            )
+            return attempt
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/attempts/{attempt_id}/suspend",
+        response_model=ValidationSuspensionRecord,
+    )
+    def suspend_validation_attempt(
+        attempt_id: UUID,
+        request: SuspendValidationAttemptPayload,
+    ) -> ValidationSuspensionRecord:
+        try:
+            facts = SuspensionClassifierFacts.model_validate(
+                request.model_dump(
+                    exclude={
+                        "proposer_actor_id", "reviewer_actor_id", "finalised_at",
+                        "scenario_run_id", "validation_execution_id",
+                    }
+                )
+            )
+            return validation().suspend_attempt(
+                attempt_id,
+                facts,
+                proposer_actor_id=request.proposer_actor_id,
+                reviewer_actor_id=request.reviewer_actor_id,
+                finalised_at=request.finalised_at,
+                scenario_run_id=request.scenario_run_id,
+                validation_execution_id=request.validation_execution_id,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except ValidationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/validation/suspensions",
+        response_model=tuple[ValidationSuspensionRecord, ...],
+    )
+    def list_validation_suspensions() -> tuple[ValidationSuspensionRecord, ...]:
+        return validation().list_suspensions()
+
+    @app.get(
+        "/api/v1/validation/suspensions/{record_id}",
+        response_model=ValidationSuspensionRecord,
+    )
+    def get_validation_suspension(record_id: UUID) -> ValidationSuspensionRecord:
+        try:
+            return validation().get_suspension(record_id)
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.post(
         "/api/v1/validation/executions/{execution_id}/checkpoints",
         response_model=EvidenceSnapshot,
     )
@@ -528,6 +630,7 @@ def create_app(
                 domain_request.test_id,
                 domain_request.validation_execution_ids,
                 created_at=domain_request.created_at,
+                suspension_record_ids=domain_request.validation_suspension_record_ids,
             )
         except ValidationRecordNotFound as error:
             raise HTTPException(status_code=404, detail=str(error)) from error

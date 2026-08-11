@@ -11,6 +11,7 @@ from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 from ...application.scenario_coordinator import ScenarioCoordinator
 from ...domain.enums import (
+    CompositeConstituentSourceKind,
     CompositeResultStatus,
     EvidenceClass,
     ScenarioMode,
@@ -57,12 +58,14 @@ class EvidenceExportService:
         if isinstance(catalogue, ValidationCatalogueResolver):
             self._catalogue = catalogue
         else:
-            historical = (
-                catalogue.catalogue_path.parent / "history/v1.0/catalogue.json"
+            historical = tuple(
+                sorted(
+                    catalogue.catalogue_path.parent.glob("history/*/catalogue.json")
+                )
             )
             self._catalogue = ValidationCatalogueResolver(
                 catalogue.catalogue_path,
-                (historical,) if historical.is_file() else (),
+                historical,
             )
         self._application_build_manifest = application_build_manifest
         self._output_directory = output_directory.resolve()
@@ -171,6 +174,14 @@ class EvidenceExportService:
         summaries = tuple(
             self._validation.summary(item.validation_execution_id)
             for item in composite.constituent_links
+            if item.source_kind is CompositeConstituentSourceKind.EXECUTION_RESULT
+            and item.validation_execution_id is not None
+        )
+        suspensions = tuple(
+            self._validation.get_suspension(item.suspension_record_id)
+            for item in composite.constituent_links
+            if item.source_kind is CompositeConstituentSourceKind.SUSPENSION_RESULT
+            and item.suspension_record_id is not None
         )
         package_id = f"CPKG-{uuid4().hex[:12]}"
         archive_name = f"{package_id}-EXPLORATORY.zip"
@@ -192,6 +203,21 @@ class EvidenceExportService:
                 records[
                     f"records/constituents/{execution_id}/evidence/{evidence.evidence_snapshot_id}.json"
                 ] = evidence.model_dump(mode="json")
+        for suspension in suspensions:
+            suspension_id = suspension.suspension_record_id
+            records[
+                f"records/constituents/{suspension_id}/validation-suspension.json"
+            ] = suspension.model_dump(mode="json")
+            records[
+                f"records/constituents/{suspension_id}/validation-target-selection.json"
+            ] = self._validation.get_target(
+                suspension.target_selection_id
+            ).model_dump(mode="json")
+            records[
+                f"records/constituents/{suspension_id}/validation-attempt.json"
+            ] = self._validation.get_attempt(
+                suspension.validation_attempt_id
+            ).model_dump(mode="json")
         files = {path: canonical_json_bytes(value) for path, value in records.items()}
         files["README.txt"] = self._readme(EvidenceClass.EXPLORATORY)
         source_references = tuple(
@@ -219,6 +245,9 @@ class EvidenceExportService:
             "determination": composite.determination.value,
             "constituent_execution_ids": [
                 str(item.execution.validation_execution_id) for item in summaries
+            ],
+            "constituent_suspension_record_ids": [
+                str(item.suspension_record_id) for item in suspensions
             ],
             "source_record_references": list(source_references),
             "files": [
@@ -249,6 +278,9 @@ class EvidenceExportService:
                 ),
                 constituent_execution_ids=tuple(
                     item.execution.validation_execution_id for item in summaries
+                ),
+                constituent_suspension_record_ids=tuple(
+                    item.suspension_record_id for item in suspensions
                 ),
                 manifest_sha256=manifest_sha,
                 archive_sha256=sha256_file(archive_path),

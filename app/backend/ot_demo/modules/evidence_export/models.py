@@ -51,7 +51,8 @@ class CompositeEvidencePackage(FrozenModel):
     test_definition_sha256: Sha256Digest
     source_application_build_id: Sha256Digest
     generation_application_build_id: Sha256Digest
-    constituent_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+    constituent_execution_ids: tuple[UUID, ...] = ()
+    constituent_suspension_record_ids: tuple[UUID, ...] = ()
     manifest_sha256: Sha256Digest
     archive_sha256: Sha256Digest
     archive_path: str = Field(min_length=1)

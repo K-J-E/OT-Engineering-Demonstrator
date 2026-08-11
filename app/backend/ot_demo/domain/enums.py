@@ -180,6 +180,43 @@ class ValidationExecutionStatus(StrEnum):
     FINALISED = "FINALISED"
 
 
+class ValidationAttemptStatus(StrEnum):
+    NOT_STARTED = "NOT_STARTED"
+    ACTIVE = "ACTIVE"
+    INCOMPLETE = "INCOMPLETE"
+    SUSPENDED = "SUSPENDED"
+    EXECUTED = "EXECUTED"
+
+
+class ValidationSuspensionCondition(StrEnum):
+    VSC_001 = "VSC-001"
+    VSC_002 = "VSC-002"
+    VSC_003 = "VSC-003"
+    VSC_004 = "VSC-004"
+    VSC_005 = "VSC-005"
+
+
+class SuspensionLifecyclePosition(StrEnum):
+    PRE_EXECUTION_ENTRY = "PRE_EXECUTION_ENTRY"
+    EXECUTION_IN_PROGRESS = "EXECUTION_IN_PROGRESS"
+    EVIDENCE_FINALISATION = "EVIDENCE_FINALISATION"
+
+
+class SuspensionRecordStatus(StrEnum):
+    DRAFT = "DRAFT"
+    FINALISED = "FINALISED"
+
+
+class SuspensionAuthorityKind(StrEnum):
+    ENGINEERING_REVIEW = "ENGINEERING_REVIEW"
+    BACKEND_ASSURANCE = "BACKEND_ASSURANCE"
+
+
+class CompositeConstituentSourceKind(StrEnum):
+    EXECUTION_RESULT = "EXECUTION_RESULT"
+    SUSPENSION_RESULT = "SUSPENSION_RESULT"
+
+
 class CompositeCompletenessStatus(StrEnum):
     INCOMPLETE = "INCOMPLETE"
     COMPLETE = "COMPLETE"

@@ -1434,7 +1434,7 @@
           "version": "1.0",
           "selected_fault_section_id": "SEC-A4",
           "initial_conditions": {"configuration_version": "1.1", "scenario_mode": "EXPLORATION", "boundary_device_id": "TS-01", "observed_value": "OPEN", "quality": "GOOD", "age_ms": 60001},
-          "comparison_expected_values": {"selected_fault_section_id": "SEC-A4", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["SW-A34", "TS-01"], "boundary_evidence": {"TS-01": {"observed_value": "OPEN", "quality": "GOOD", "freshness": "STALE", "proof_status": "UNPROVEN", "open_action_eligible": false, "reason_codes": ["FRESHNESS_STALE"]}}, "isolated": false},
+          "comparison_expected_values": {"selected_fault_section_id": "SEC-A4", "affected_feeder_id": "FDR-A", "protection_breaker_id": "BRK-A", "incident_boundary_device_ids": ["SW-A34", "TS-01"], "boundary_evidence": {"TS-01": {"observed_value": "OPEN", "quality": "GOOD", "freshness": "STALE", "age_ms": 60001, "proof_status": "UNPROVEN", "open_action_eligible": false, "reason_codes": ["FRESHNESS_STALE"]}}, "isolated": false},
           "checkpoint_obligations": [{"checkpoint_id": "CONTROLLED_RESULT", "required_content": ["BUILD_AND_CONFIGURATION_IDENTITY", "EXPLORATORY_CLASSIFICATION", "SCENARIO_RUN_AND_REVISION", "TOPOLOGY_AND_ISOLATION"]}]
         }
       ]

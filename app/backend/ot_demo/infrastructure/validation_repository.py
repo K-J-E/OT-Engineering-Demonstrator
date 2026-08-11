@@ -12,6 +12,10 @@ from ..modules.validation.models import (
     EvidenceSnapshot,
     ValidationExecution,
     ValidationExecutionSummary,
+    ValidationAttempt,
+    ValidationTargetSelection,
+    ExecutedValidationResult,
+    ValidationSuspensionRecord,
 )
 from ..modules.telemetry.service import instant_to_epoch_ms
 from .sqlite_migrations import apply_migrations
@@ -50,8 +54,9 @@ class ValidationRepository:
                     scenario_mode, evidence_class, configuration_id,
                     configuration_version, application_build_id, status,
                     started_scenario_time_ms, finalised_scenario_time_ms,
-                    verdict, payload_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    verdict, payload_json, validation_attempt_id,
+                    target_selection_id, executed_result_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(execution.validation_execution_id),
@@ -74,8 +79,82 @@ class ValidationRepository:
                     None,
                     None,
                     execution.model_dump_json(),
+                    str(execution.validation_attempt_id) if execution.validation_attempt_id else None,
+                    str(execution.target_selection_id) if execution.target_selection_id else None,
+                    str(execution.executed_result_id) if execution.executed_result_id else None,
                 ),
             )
+
+    def insert_target_and_attempt(
+        self,
+        target: ValidationTargetSelection,
+        attempt: ValidationAttempt,
+    ) -> None:
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO validation_target_selections "
+                    "(target_selection_id,test_id,case_id,catalogue_sha256,test_definition_sha256,created_at_ms,payload_json) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (
+                        str(target.target_selection_id), target.test_id, target.case_id,
+                        target.catalogue_sha256, target.test_definition_sha256,
+                        instant_to_epoch_ms(target.created_at), target.model_dump_json(),
+                    ),
+                )
+                connection.execute(
+                    "INSERT INTO validation_attempts "
+                    "(validation_attempt_id,target_selection_id,status,scenario_run_id,validation_execution_id,created_at_ms,updated_at_ms,payload_json) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (
+                        str(attempt.validation_attempt_id), str(attempt.target_selection_id),
+                        attempt.status.value, None, None,
+                        instant_to_epoch_ms(attempt.created_at),
+                        instant_to_epoch_ms(attempt.updated_at), attempt.model_dump_json(),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise ValidationRecordConflict("validation target/attempt identity conflicts") from error
+
+    def bind_attempt_execution(
+        self, attempt: ValidationAttempt, execution: ValidationExecution
+    ) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE validation_attempts SET status=?,scenario_run_id=?,validation_execution_id=?,updated_at_ms=?,payload_json=? "
+                "WHERE validation_attempt_id=? AND status='NOT_STARTED'",
+                (
+                    attempt.status.value, str(attempt.scenario_run_id),
+                    str(attempt.validation_execution_id), instant_to_epoch_ms(attempt.updated_at),
+                    attempt.model_dump_json(), str(attempt.validation_attempt_id),
+                ),
+            )
+            if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ValidationRecordConflict("validation attempt is not available for execution")
+            connection.execute(
+                "INSERT INTO validation_executions (validation_execution_id,test_id,test_definition_version,test_definition_sha256,catalogue_version,catalogue_sha256,case_id,case_definition_version,case_definition_sha256,scenario_run_id,scenario_mode,evidence_class,configuration_id,configuration_version,application_build_id,status,started_scenario_time_ms,finalised_scenario_time_ms,verdict,payload_json,validation_attempt_id,target_selection_id,executed_result_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    str(execution.validation_execution_id), execution.test_id,
+                    execution.test_definition_version, execution.test_definition_sha256,
+                    execution.catalogue_version, execution.catalogue_sha256, execution.case_id,
+                    execution.case_definition_version, execution.case_definition_sha256,
+                    str(execution.scenario_run_id), execution.scenario_mode.value,
+                    execution.evidence_class.value, execution.configuration_id,
+                    execution.configuration_version, execution.application_build_id,
+                    execution.status.value, instant_to_epoch_ms(execution.started_scenario_time),
+                    None, None, execution.model_dump_json(),
+                    str(execution.validation_attempt_id), str(execution.target_selection_id), None,
+                ),
+            )
+
+    def bind_attempt_run(self, attempt: ValidationAttempt) -> None:
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE validation_attempts SET status=?,scenario_run_id=?,updated_at_ms=?,payload_json=? WHERE validation_attempt_id=? AND status='NOT_STARTED'",
+                (attempt.status.value, str(attempt.scenario_run_id), instant_to_epoch_ms(attempt.updated_at), attempt.model_dump_json(), str(attempt.validation_attempt_id)),
+            )
+            if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                raise ValidationRecordConflict("validation attempt cannot enter the scenario")
 
     def insert_composite(self, composite: CompositeValidationResult) -> None:
         try:
@@ -114,27 +193,23 @@ class ValidationRepository:
                     ),
                 )
                 for link in composite.constituent_links:
+                    if link.validation_execution_id is not None:
+                        connection.execute(
+                            "INSERT INTO composite_validation_constituents (composite_result_id,case_id,validation_execution_id,scenario_run_id,case_definition_sha256,constituent_verdict,payload_json) VALUES (?,?,?,?,?,?,?)",
+                            (str(composite.composite_result_id), link.case_id,
+                             str(link.validation_execution_id), str(link.scenario_run_id),
+                             link.case_definition_sha256,
+                             link.constituent_verdict.value if link.constituent_verdict else None,
+                             link.model_dump_json()),
+                        )
                     connection.execute(
-                        """
-                        INSERT INTO composite_validation_constituents (
-                            composite_result_id, case_id, validation_execution_id,
-                            scenario_run_id, case_definition_sha256,
-                            constituent_verdict, payload_json
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            str(composite.composite_result_id),
-                            link.case_id,
-                            str(link.validation_execution_id),
-                            str(link.scenario_run_id),
-                            link.case_definition_sha256,
-                            (
-                                link.constituent_verdict.value
-                                if link.constituent_verdict is not None
-                                else None
-                            ),
-                            link.model_dump_json(),
-                        ),
+                        "INSERT INTO composite_validation_constituent_sources (composite_result_id,case_id,source_kind,validation_execution_id,suspension_record_id,constituent_verdict,payload_json) VALUES (?,?,?,?,?,?,?)",
+                        (str(composite.composite_result_id), link.case_id,
+                         link.source_kind.value,
+                         str(link.validation_execution_id) if link.validation_execution_id else None,
+                         str(link.suspension_record_id) if link.suspension_record_id else None,
+                         link.constituent_verdict.value if link.constituent_verdict else None,
+                         link.model_dump_json()),
                     )
         except sqlite3.IntegrityError as error:
             raise ValidationRecordConflict(
@@ -219,6 +294,90 @@ class ValidationRepository:
                 raise ValidationRecordNotFound(
                     "active validation execution not found for finalisation"
                 )
+
+    def finalise_execution_result(
+        self,
+        execution: ValidationExecution,
+        attempt: ValidationAttempt,
+        result: ExecutedValidationResult,
+    ) -> None:
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "UPDATE validation_executions SET status=?,finalised_scenario_time_ms=?,verdict=?,payload_json=?,executed_result_id=? "
+                    "WHERE validation_execution_id=? AND status='ACTIVE'",
+                    (
+                        execution.status.value, instant_to_epoch_ms(execution.finalised_scenario_time),
+                        execution.verdict.value, execution.model_dump_json(), str(result.executed_result_id),
+                        str(execution.validation_execution_id),
+                    ),
+                )
+                if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                    raise ValidationRecordConflict("active validation execution not found")
+                connection.execute(
+                    "UPDATE validation_attempts SET status=?,updated_at_ms=?,payload_json=? "
+                    "WHERE validation_attempt_id=? AND status='ACTIVE'",
+                    (attempt.status.value, instant_to_epoch_ms(attempt.updated_at), attempt.model_dump_json(), str(attempt.validation_attempt_id)),
+                )
+                if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                    raise ValidationRecordConflict("active validation attempt not found")
+                connection.execute(
+                    "INSERT INTO executed_validation_results (executed_result_id,validation_attempt_id,validation_execution_id,verdict,result_sha256,finalised_at_ms,payload_json) VALUES (?,?,?,?,?,?,?)",
+                    (str(result.executed_result_id), str(result.validation_attempt_id), str(result.validation_execution_id), result.verdict.value, result.result_sha256, instant_to_epoch_ms(result.finalised_at), result.model_dump_json()),
+                )
+        except sqlite3.IntegrityError as error:
+            raise ValidationRecordConflict("executed validation result conflicts with immutable history") from error
+
+    def insert_finalised_suspension(
+        self,
+        attempt: ValidationAttempt,
+        record: ValidationSuspensionRecord,
+    ) -> None:
+        try:
+            with self._connect() as connection:
+                draft_payload = record.model_copy(update={"status": "DRAFT", "finalised_at": None}).model_dump_json()
+                connection.execute(
+                    "INSERT INTO validation_suspension_records (suspension_record_id,validation_attempt_id,target_selection_id,condition_id,lifecycle_position,status,reason_code,deterministic_fingerprint,scenario_run_id,validation_execution_id,finalised_at_ms,payload_json) VALUES (?,?,?,?,?,'DRAFT',?,?,?,?,?,?)",
+                    (str(record.suspension_record_id), str(record.validation_attempt_id), str(record.target_selection_id), record.condition_id.value, record.lifecycle_position.value, record.reason_code, record.deterministic_fingerprint, str(record.scenario_run_id) if record.scenario_run_id else None, str(record.validation_execution_id) if record.validation_execution_id else None, instant_to_epoch_ms(record.finalised_at), draft_payload),
+                )
+                for evidence in record.evidence:
+                    connection.execute(
+                        "INSERT INTO validation_suspension_evidence (evidence_id,suspension_record_id,condition_id,evidence_type,failure_code,payload_sha256,payload_json) VALUES (?,?,?,?,?,?,?)",
+                        (str(evidence.evidence_id), str(record.suspension_record_id), evidence.condition_id.value, evidence.evidence_type, evidence.failure_code, evidence.payload_sha256, evidence.model_dump_json()),
+                    )
+                connection.execute(
+                    "UPDATE validation_suspension_records SET status='FINALISED',payload_json=? WHERE suspension_record_id=? AND status='DRAFT'",
+                    (record.model_dump_json(), str(record.suspension_record_id)),
+                )
+                connection.execute(
+                    "UPDATE validation_attempts SET status='SUSPENDED',updated_at_ms=?,payload_json=? WHERE validation_attempt_id=? AND status IN ('NOT_STARTED','ACTIVE','INCOMPLETE')",
+                    (instant_to_epoch_ms(attempt.updated_at), attempt.model_dump_json(), str(attempt.validation_attempt_id)),
+                )
+                if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                    raise ValidationRecordConflict("validation attempt cannot be suspended")
+        except sqlite3.IntegrityError as error:
+            raise ValidationRecordConflict("suspension record conflicts with immutable history") from error
+
+    def get_target(self, target_id: UUID) -> ValidationTargetSelection:
+        return self._get_json("validation_target_selections", "target_selection_id", target_id, ValidationTargetSelection)
+
+    def get_attempt(self, attempt_id: UUID) -> ValidationAttempt:
+        return self._get_json("validation_attempts", "validation_attempt_id", attempt_id, ValidationAttempt)
+
+    def get_suspension(self, record_id: UUID) -> ValidationSuspensionRecord:
+        return self._get_json("validation_suspension_records", "suspension_record_id", record_id, ValidationSuspensionRecord)
+
+    def list_suspensions(self) -> tuple[ValidationSuspensionRecord, ...]:
+        with self._connect() as connection:
+            rows = connection.execute("SELECT payload_json FROM validation_suspension_records WHERE status='FINALISED' ORDER BY finalised_at_ms,suspension_record_id").fetchall()
+        return tuple(ValidationSuspensionRecord.model_validate_json(row["payload_json"], strict=True) for row in rows)
+
+    def _get_json(self, table: str, key: str, identity: UUID, model):
+        with self._connect() as connection:
+            row = connection.execute(f"SELECT payload_json FROM {table} WHERE {key}=?", (str(identity),)).fetchone()
+        if row is None:
+            raise ValidationRecordNotFound(f"controlled validation record not found: {identity}")
+        return model.model_validate_json(row["payload_json"], strict=True)
 
     def insert_evidence(self, snapshot: EvidenceSnapshot) -> None:
         try:

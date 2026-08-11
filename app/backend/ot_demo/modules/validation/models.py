@@ -10,12 +10,18 @@ from typing_extensions import Self
 
 from ...domain.base import FrozenModel
 from ...domain.enums import (
+    CompositeConstituentSourceKind,
     CompositeCompletenessStatus,
     CompositeResultStatus,
     EvidenceClass,
     ScenarioMode,
     ValidationDefinitionStatus,
     ValidationExecutionStatus,
+    ValidationAttemptStatus,
+    ValidationSuspensionCondition,
+    SuspensionAuthorityKind,
+    SuspensionLifecyclePosition,
+    SuspensionRecordStatus,
     ValidationVerdict,
 )
 from ...domain.value_objects import (
@@ -160,6 +166,9 @@ class ValidationExecution(FrozenModel):
     verdict: ValidationVerdict | None = None
     verdict_reason: str | None = None
     links: ValidationExecutionLinks = ValidationExecutionLinks()
+    validation_attempt_id: UUID | None = None
+    target_selection_id: UUID | None = None
+    executed_result_id: UUID | None = None
 
     @model_validator(mode="after")
     def validate_lifecycle(self) -> Self:
@@ -187,7 +196,138 @@ class ValidationExecution(FrozenModel):
             raise ValueError(
                 "finalised executions require observed result, calculations, evidence, verdict and time"
             )
+        if finalised and self.verdict not in {
+            ValidationVerdict.PASS,
+            ValidationVerdict.FAIL,
+        }:
+            raise ValueError("executed validation results are PASS/FAIL only")
         return self
+
+
+class ValidationTargetSelection(FrozenModel):
+    selection_schema_version: SemanticVersion = "1.0"
+    target_selection_id: UUID
+    test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    test_definition_version: SemanticVersion
+    test_definition_sha256: Sha256Digest
+    catalogue_version: SemanticVersion
+    catalogue_sha256: Sha256Digest
+    case_definition_version: SemanticVersion | None = None
+    case_definition_sha256: Sha256Digest | None = None
+    evidence_class: EvidenceClass
+    configuration_id: ConfigurationId
+    configuration_version: SemanticVersion
+    target_application_build_id: Sha256Digest
+    canonical_selection_payload: dict[str, Any]
+    canonical_selection_sha256: Sha256Digest
+    selected_by_actor_id: str = Field(min_length=1)
+    selected_by_role: str = Field(min_length=1)
+    created_at: UtcMillisecondInstant
+
+
+class ValidationAttempt(FrozenModel):
+    validation_attempt_id: UUID
+    target_selection_id: UUID
+    status: ValidationAttemptStatus
+    scenario_run_id: UUID | None = None
+    validation_execution_id: UUID | None = None
+    created_at: UtcMillisecondInstant
+    updated_at: UtcMillisecondInstant
+
+
+class ExecutedValidationResult(FrozenModel):
+    executed_result_id: UUID
+    validation_attempt_id: UUID
+    validation_execution_id: UUID
+    verdict: ValidationVerdict
+    evidence_snapshot_ids: tuple[UUID, ...] = Field(min_length=1)
+    result_sha256: Sha256Digest
+    finalised_at: UtcMillisecondInstant
+
+    @model_validator(mode="after")
+    def validate_pass_fail_only(self) -> Self:
+        if self.verdict not in {ValidationVerdict.PASS, ValidationVerdict.FAIL}:
+            raise ValueError("ExecutedValidationResult permits PASS or FAIL only")
+        return self
+
+
+class ValidationSuspensionEvidence(FrozenModel):
+    evidence_id: UUID
+    condition_id: ValidationSuspensionCondition
+    evidence_type: str = Field(min_length=1)
+    failure_code: str = Field(pattern=r"^[A-Z0-9_]+$")
+    payload: dict[str, Any]
+    payload_sha256: Sha256Digest
+
+
+class ValidationSuspensionAuthority(FrozenModel):
+    authority_kind: SuspensionAuthorityKind
+    proposer_actor_id: str = Field(min_length=1)
+    proposer_role: str = Field(min_length=1)
+    reviewer_actor_id: str = Field(min_length=1)
+    reviewer_role: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_separation(self) -> Self:
+        if self.proposer_actor_id == self.reviewer_actor_id:
+            raise ValueError("suspension proposer and reviewer must be distinct actors")
+        return self
+
+
+class ValidationSuspensionRecord(FrozenModel):
+    record_schema_version: SemanticVersion = "1.0"
+    classifier_version: SemanticVersion = "1.0"
+    suspension_record_id: UUID
+    validation_attempt_id: UUID
+    target_selection_id: UUID
+    condition_id: ValidationSuspensionCondition
+    lifecycle_position: SuspensionLifecyclePosition
+    status: SuspensionRecordStatus
+    reason_code: str = Field(pattern=r"^BLOCKED-TEST/VSC-00[1-5]/[A-Z_]+$")
+    deterministic_fingerprint: Sha256Digest
+    verifier_application_build_id: Sha256Digest
+    evaluated_classifier_gates: tuple[str, ...] = Field(min_length=1)
+    target_selection_sha256: Sha256Digest
+    intended_test_id: str
+    intended_case_id: str | None = None
+    resolved_source_identities: dict[str, Any]
+    failed_required_input_role: str | None = None
+    presented_identity_evidence: dict[str, Any]
+    inherited_evidence_class: EvidenceClass
+    evidence_contract_version: SemanticVersion = "1.0"
+    reason_parameters: dict[str, Any]
+    rendered_reason: str = Field(min_length=1)
+    evidence: tuple[ValidationSuspensionEvidence, ...] = Field(min_length=1)
+    authority: ValidationSuspensionAuthority
+    scenario_run_id: UUID | None = None
+    validation_execution_id: UUID | None = None
+    created_at: UtcMillisecondInstant
+    finalised_at: UtcMillisecondInstant | None = None
+
+    @model_validator(mode="after")
+    def validate_lifecycle(self) -> Self:
+        if (self.status is SuspensionRecordStatus.FINALISED) != (
+            self.finalised_at is not None
+        ):
+            raise ValueError("finalised suspension requires finalised_at")
+        if self.lifecycle_position is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
+            if self.scenario_run_id is not None or self.validation_execution_id is not None:
+                raise ValueError("pre-entry suspension must not fabricate run/execution identity")
+        elif self.scenario_run_id is None or self.validation_execution_id is None:
+            raise ValueError("in-progress/finalisation suspension requires actual run and execution")
+        return self
+
+
+class SuspensionClassifierFacts(FrozenModel):
+    trusted_target_selection_id: UUID
+    lifecycle_position: SuspensionLifecyclePosition
+    evidence_corruption_failure_code: str | None = None
+    input_identity_failure_code: str | None = None
+    inconsistent_baseline_failure_code: str | None = None
+    unspecified_behaviour_failure_code: str | None = None
+    wall_clock_dependency_failure_code: str | None = None
+    evidence_payload: dict[str, Any]
 
 
 class EvidenceSnapshot(FrozenModel):
@@ -240,11 +380,32 @@ class FinaliseValidationExecutionRequest(FrozenModel):
 
 class CompositeConstituentLink(FrozenModel):
     case_id: str = Field(pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
-    validation_execution_id: UUID
-    scenario_run_id: UUID
+    source_kind: CompositeConstituentSourceKind = (
+        CompositeConstituentSourceKind.EXECUTION_RESULT
+    )
+    validation_execution_id: UUID | None = None
+    suspension_record_id: UUID | None = None
+    scenario_run_id: UUID | None = None
     case_definition_sha256: Sha256Digest
     constituent_verdict: ValidationVerdict | None = None
     evidence_snapshot_ids: tuple[UUID, ...] = ()
+
+    @model_validator(mode="after")
+    def validate_source_union(self) -> Self:
+        executed = self.source_kind is CompositeConstituentSourceKind.EXECUTION_RESULT
+        if executed != (self.validation_execution_id is not None):
+            raise ValueError("execution source requires exactly one execution ID")
+        if executed == (self.suspension_record_id is not None):
+            raise ValueError("constituent source must be execution XOR suspension")
+        if executed and self.constituent_verdict not in {
+            None,
+            ValidationVerdict.PASS,
+            ValidationVerdict.FAIL,
+        }:
+            raise ValueError("execution constituent must be incomplete or PASS/FAIL")
+        if not executed and self.constituent_verdict is not ValidationVerdict.BLOCKED_TEST:
+            raise ValueError("suspension constituent result must be BLOCKED-TEST")
+        return self
 
 
 class CompositeCompleteness(FrozenModel):
@@ -298,7 +459,8 @@ class CompositeValidationResult(FrozenModel):
 
 class AssembleCompositeRequest(FrozenModel):
     test_id: str = Field(pattern=r"^VT-EXP-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
-    validation_execution_ids: tuple[UUID, ...] = Field(min_length=1)
+    validation_execution_ids: tuple[UUID, ...] = ()
+    validation_suspension_record_ids: tuple[UUID, ...] = ()
     created_at: UtcMillisecondInstant
 
 

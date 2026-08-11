@@ -33,6 +33,7 @@ from ..validation.models import (
     CompositeValidationResult,
     LoadedValidationDefinition,
     ValidationExecutionSummary,
+    ValidationSuspensionRecord,
 )
 
 
@@ -171,6 +172,7 @@ class ValidationWorkspaceView(FrozenModel):
     run_executions: tuple[ValidationExecutionSummary, ...]
     library_executions: tuple[ValidationExecutionSummary, ...]
     composites: tuple[CompositeValidationResult, ...]
+    suspensions: tuple[ValidationSuspensionRecord, ...] = ()
     progress: ValidationProgress
     actions: tuple[ValidationWorkspaceAction, ...]
 

@@ -8,6 +8,7 @@ from uuid import UUID, uuid4
 
 from ...application.scenario_coordinator import ScenarioCoordinator
 from ...domain.enums import (
+    CompositeConstituentSourceKind,
     CompositeCompletenessStatus,
     CompositeResultStatus,
     EvidenceClass,
@@ -15,6 +16,11 @@ from ...domain.enums import (
     ScenarioMode,
     SwitchState,
     ValidationExecutionStatus,
+    ValidationAttemptStatus,
+    ValidationSuspensionCondition,
+    SuspensionAuthorityKind,
+    SuspensionLifecyclePosition,
+    SuspensionRecordStatus,
     ValidationVerdict,
 )
 from ...infrastructure.build_identity import ApplicationBuildManifest
@@ -40,6 +46,13 @@ from .models import (
     ValidationExecution,
     ValidationExecutionLinks,
     ValidationExecutionSummary,
+    ValidationAttempt,
+    ValidationTargetSelection,
+    ExecutedValidationResult,
+    ValidationSuspensionEvidence,
+    ValidationSuspensionAuthority,
+    ValidationSuspensionRecord,
+    SuspensionClassifierFacts,
 )
 
 
@@ -48,6 +61,39 @@ class ValidationBoundaryError(ValueError):
 
 
 class ValidationService:
+    _ACTOR_ROLES = {
+        "graduate-engineer": "GRADUATE_ENGINEER",
+        "independent-reviewer": "INDEPENDENT_ENGINEERING_REVIEWER",
+        "backend-integrity-monitor": "BACKEND_ASSURANCE_PROPOSER",
+        "backend-assurance-reviewer": "BACKEND_ASSURANCE_REVIEWER",
+    }
+    _CONDITION_CONTRACTS = {
+        ValidationSuspensionCondition.VSC_001: (
+            {"UNSPECIFIED_ENGINEERING_BEHAVIOUR"},
+            {"authoritative_sources_checked", "missing_field_or_step", "open_design_question_id", "review_record_id"},
+            SuspensionAuthorityKind.ENGINEERING_REVIEW,
+        ),
+        ValidationSuspensionCondition.VSC_002: (
+            {"INCONSISTENT_BASELINE"},
+            {"trusted_source_assertions", "conflict_review_item", "review_disposition"},
+            SuspensionAuthorityKind.ENGINEERING_REVIEW,
+        ),
+        ValidationSuspensionCondition.VSC_003: (
+            {"MISSING_IDENTITY", "UNKNOWN_IDENTITY", "AMBIGUOUS_IDENTITY"},
+            {"input_name", "presented_identity_evidence", "resolution_failure"},
+            SuspensionAuthorityKind.BACKEND_ASSURANCE,
+        ),
+        ValidationSuspensionCondition.VSC_004: (
+            {"UNCONTROLLED_WALL_CLOCK_DEPENDENCY"},
+            {"dependency_name", "wall_clock_reference", "controlled_replacement_unavailable"},
+            SuspensionAuthorityKind.ENGINEERING_REVIEW,
+        ),
+        ValidationSuspensionCondition.VSC_005: (
+            {"HASH_MISMATCH", "UNREADABLE", "SCHEMA_INVALID", "CANONICAL_PAYLOAD_MISMATCH"},
+            {"examined_source", "expected_integrity", "observed_failure", "quarantine_record"},
+            SuspensionAuthorityKind.BACKEND_ASSURANCE,
+        ),
+    }
     def __init__(
         self,
         repository: ValidationRepository,
@@ -61,12 +107,14 @@ class ValidationService:
         if isinstance(catalogue, ValidationCatalogueResolver):
             self._catalogue = catalogue
         else:
-            historical = (
-                catalogue.catalogue_path.parent / "history/v1.0/catalogue.json"
+            historical = tuple(
+                sorted(
+                    catalogue.catalogue_path.parent.glob("history/*/catalogue.json")
+                )
             )
             self._catalogue = ValidationCatalogueResolver(
                 catalogue.catalogue_path,
-                (historical,) if historical.is_file() else (),
+                historical,
             )
         self._scenarios = scenarios
         self._configurations = configurations or JsonConfigurationLoader(
@@ -98,8 +146,23 @@ class ValidationService:
                     "a constituent scenario run may bind to only one validation execution"
                 )
         self._verify_links(loaded_definition, links)
+        target, attempt = self.create_target_selection(
+            test_id,
+            case_id=case_id,
+            created_at=run.scenario_time,
+            configuration_version=str(run.configuration_version),
+        )
+        execution_id = uuid4()
+        active_attempt = attempt.model_copy(
+            update={
+                "status": ValidationAttemptStatus.ACTIVE,
+                "scenario_run_id": scenario_run_id,
+                "validation_execution_id": execution_id,
+                "updated_at": run.scenario_time,
+            }
+        )
         execution = ValidationExecution(
-            validation_execution_id=uuid4(),
+            validation_execution_id=execution_id,
             test_id=test_id,
             test_definition_version=loaded_definition.definition.version,
             test_definition_sha256=loaded_definition.definition_sha256,
@@ -127,9 +190,73 @@ class ValidationService:
                 else loaded_definition.definition.comparison_expected_values
             ),
             links=links,
+            validation_attempt_id=attempt.validation_attempt_id,
+            target_selection_id=target.target_selection_id,
         )
-        self._repository.insert_execution(execution)
+        self._repository.bind_attempt_execution(active_attempt, execution)
         return execution
+
+    def create_target_selection(
+        self,
+        test_id: str,
+        *,
+        case_id: str | None = None,
+        created_at,
+        actor_id: str = "graduate-engineer",
+        configuration_version: str = "1.1",
+    ) -> tuple[ValidationTargetSelection, ValidationAttempt]:
+        role = self._ACTOR_ROLES.get(actor_id)
+        if role is None:
+            raise ValidationBoundaryError("target selection actor is outside the local role registry")
+        loaded = self._catalogue.get(test_id)
+        case = self._select_case(loaded, case_id)
+        configuration = self._configurations.load(f"v{configuration_version}").catalog_entry
+        target_selection_id = uuid4()
+        selection_payload = {
+            "target_selection_id": str(target_selection_id),
+            "test_id": test_id,
+            "case_id": case.case_id if case else None,
+            "requested_catalogue_version": str(loaded.catalogue_version),
+            "requested_catalogue_sha256": loaded.catalogue_sha256,
+            "requested_test_definition_version": str(loaded.definition.version),
+            "requested_test_definition_sha256": loaded.definition_sha256,
+            "requested_case_definition_sha256": self._case_sha256(case) if case else None,
+            "requested_configuration_id": configuration.configuration_id,
+            "requested_configuration_version": str(configuration.version),
+            "requested_application_build_id": self._application_build_manifest.application_build_id,
+            "evidence_class": loaded.definition.evidence_class.value,
+            "selection_authority_actor_id": actor_id,
+            "selection_authority_role": role,
+        }
+        target = ValidationTargetSelection(
+            target_selection_id=target_selection_id,
+            test_id=test_id,
+            case_id=case.case_id if case else None,
+            test_definition_version=loaded.definition.version,
+            test_definition_sha256=loaded.definition_sha256,
+            catalogue_version=loaded.catalogue_version,
+            catalogue_sha256=loaded.catalogue_sha256,
+            case_definition_version=case.version if case else None,
+            case_definition_sha256=self._case_sha256(case) if case else None,
+            evidence_class=loaded.definition.evidence_class,
+            configuration_id=configuration.configuration_id,
+            configuration_version=configuration.version,
+            target_application_build_id=self._application_build_manifest.application_build_id,
+            canonical_selection_payload=selection_payload,
+            canonical_selection_sha256=sha256_bytes(canonical_json_bytes(selection_payload)),
+            selected_by_actor_id=actor_id,
+            selected_by_role=role,
+            created_at=created_at,
+        )
+        attempt = ValidationAttempt(
+            validation_attempt_id=uuid4(),
+            target_selection_id=target.target_selection_id,
+            status=ValidationAttemptStatus.NOT_STARTED,
+            created_at=created_at,
+            updated_at=created_at,
+        )
+        self._repository.insert_target_and_attempt(target, attempt)
+        return target, attempt
 
     def capture_checkpoint(
         self,
@@ -139,6 +266,10 @@ class ValidationService:
         execution = self._repository.get_execution(execution_id)
         if execution.status is not ValidationExecutionStatus.ACTIVE:
             raise ValidationBoundaryError("finalised execution evidence cannot be replaced")
+        if execution.validation_attempt_id is not None and self._repository.get_attempt(
+            execution.validation_attempt_id
+        ).status is not ValidationAttemptStatus.ACTIVE:
+            raise ValidationBoundaryError("suspended/incomplete validation attempt cannot capture execution evidence")
         definition = self._bound_definition(execution)
         obligations = self._checkpoint_obligations(definition, execution.case_id)
         obligation = next(
@@ -219,6 +350,10 @@ class ValidationService:
         execution = self._repository.get_execution(execution_id)
         if execution.status is not ValidationExecutionStatus.ACTIVE:
             raise ValidationBoundaryError("validation execution is already finalised")
+        if execution.validation_attempt_id is not None and self._repository.get_attempt(
+            execution.validation_attempt_id
+        ).status is not ValidationAttemptStatus.ACTIVE:
+            raise ValidationBoundaryError("suspended/incomplete validation attempt cannot create an executed result")
         definition = self._bound_definition(execution)
         case = self._bound_case(definition, execution)
         expected = (
@@ -250,6 +385,7 @@ class ValidationService:
             "comparison_method": "CONTROLLED_EXPECTED_VALUE_EQUALITY",
             "comparisons": comparisons,
         }
+        result_id = uuid4()
         finalised = execution.model_copy(
             update={
                 "status": ValidationExecutionStatus.FINALISED,
@@ -265,10 +401,247 @@ class ValidationService:
                     if passed
                     else "Preserved observed values differ from the controlled expected values."
                 ),
+                "executed_result_id": result_id,
             }
         )
-        self._repository.finalise_execution(finalised)
+        if execution.validation_attempt_id is None:
+            self._repository.finalise_execution(finalised)
+            return finalised
+        attempt = self._repository.get_attempt(execution.validation_attempt_id)
+        executed_payload = {
+            "validation_attempt_id": str(attempt.validation_attempt_id),
+            "validation_execution_id": str(execution.validation_execution_id),
+            "verdict": verdict.value,
+            "evidence_snapshot_ids": [str(item.evidence_snapshot_id) for item in all_evidence],
+            "finalised_at": evidence.scenario_time.isoformat(),
+        }
+        result = ExecutedValidationResult(
+            executed_result_id=result_id,
+            validation_attempt_id=attempt.validation_attempt_id,
+            validation_execution_id=execution.validation_execution_id,
+            verdict=verdict,
+            evidence_snapshot_ids=tuple(item.evidence_snapshot_id for item in all_evidence),
+            result_sha256=sha256_bytes(canonical_json_bytes(executed_payload)),
+            finalised_at=evidence.scenario_time,
+        )
+        completed_attempt = attempt.model_copy(
+            update={"status": ValidationAttemptStatus.EXECUTED, "updated_at": evidence.scenario_time}
+        )
+        self._repository.finalise_execution_result(finalised, completed_attempt, result)
         return finalised
+
+    def suspend_attempt(
+        self,
+        attempt_id: UUID,
+        facts: SuspensionClassifierFacts,
+        *,
+        proposer_actor_id: str,
+        reviewer_actor_id: str,
+        finalised_at,
+        scenario_run_id: UUID | None = None,
+        validation_execution_id: UUID | None = None,
+    ) -> ValidationSuspensionRecord:
+        attempt = self._repository.get_attempt(attempt_id)
+        target = self._repository.get_target(attempt.target_selection_id)
+        if facts.trusted_target_selection_id != target.target_selection_id:
+            raise ValidationBoundaryError("suspension facts are not bound to the trusted target selection")
+        if attempt.status in {ValidationAttemptStatus.EXECUTED, ValidationAttemptStatus.SUSPENDED}:
+            raise ValidationBoundaryError("completed validation attempt cannot be suspended")
+        condition = self._classify_suspension(facts)
+        allowed_failure_codes, required_keys, authority_kind = self._CONDITION_CONTRACTS[condition]
+        failure_code = next(
+            code for code in (
+                facts.evidence_corruption_failure_code,
+                facts.input_identity_failure_code,
+                facts.inconsistent_baseline_failure_code,
+                facts.unspecified_behaviour_failure_code,
+                facts.wall_clock_dependency_failure_code,
+            ) if code is not None
+        )
+        if failure_code not in allowed_failure_codes:
+            raise ValidationBoundaryError("condition failure code is outside the accepted registry")
+        if set(facts.evidence_payload) != required_keys:
+            raise ValidationBoundaryError(
+                f"{condition.value} evidence contract requires exactly {sorted(required_keys)}"
+            )
+        proposer_role = self._ACTOR_ROLES.get(proposer_actor_id)
+        reviewer_role = self._ACTOR_ROLES.get(reviewer_actor_id)
+        if proposer_role is None or reviewer_role is None:
+            raise ValidationBoundaryError("suspension authority actor is outside the local role registry")
+        if proposer_actor_id == reviewer_actor_id:
+            raise ValidationBoundaryError("suspension proposer and reviewer must be distinct actors")
+        if authority_kind is SuspensionAuthorityKind.ENGINEERING_REVIEW:
+            if (
+                proposer_role != "GRADUATE_ENGINEER"
+                or reviewer_role != "INDEPENDENT_ENGINEERING_REVIEWER"
+            ):
+                raise ValidationBoundaryError("engineering suspension requires independent reviewer authority")
+        elif (
+            proposer_role != "BACKEND_ASSURANCE_PROPOSER"
+            or reviewer_role != "BACKEND_ASSURANCE_REVIEWER"
+        ):
+            raise ValidationBoundaryError("backend suspension requires backend assurance reviewer authority")
+        authority = ValidationSuspensionAuthority(
+            authority_kind=authority_kind,
+            proposer_actor_id=proposer_actor_id,
+            proposer_role=proposer_role,
+            reviewer_actor_id=reviewer_actor_id,
+            reviewer_role=reviewer_role,
+        )
+        lifecycle = facts.lifecycle_position
+        if lifecycle is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
+            scenario_run_id = None
+            validation_execution_id = None
+        else:
+            if scenario_run_id != attempt.scenario_run_id:
+                raise ValidationBoundaryError("suspension must bind the attempt's actual run")
+            if validation_execution_id != attempt.validation_execution_id:
+                raise ValidationBoundaryError("suspension must bind the attempt's actual execution")
+        evidence_payload = {
+            "target_selection_id": str(target.target_selection_id),
+            "condition_id": condition.value,
+            "failure_code": failure_code,
+            "evidence": facts.evidence_payload,
+        }
+        evidence = ValidationSuspensionEvidence(
+            evidence_id=uuid4(),
+            condition_id=condition,
+            evidence_type=f"{condition.value}_CONDITION_EVIDENCE",
+            failure_code=failure_code,
+            payload=facts.evidence_payload,
+            payload_sha256=sha256_bytes(canonical_json_bytes(evidence_payload)),
+        )
+        reason_code = f"BLOCKED-TEST/{condition.value}/{lifecycle.value}"
+        evaluated_gates = (
+            "TRUSTED_TARGET_SELECTION_PRESENT",
+            "INTEGRITY_GATE_EVALUATED",
+            "IDENTITY_RESOLUTION_GATE_EVALUATED",
+            "BASELINE_CONFLICT_GATE_EVALUATED",
+            "CONTROLLING_BEHAVIOUR_GATE_EVALUATED",
+            "CONTROLLED_TIME_GATE_EVALUATED",
+        )
+        resolved_identities = {
+            "catalogue_version": str(target.catalogue_version),
+            "catalogue_sha256": target.catalogue_sha256,
+            "test_definition_version": str(target.test_definition_version),
+            "test_definition_sha256": target.test_definition_sha256,
+            "case_definition_version": str(target.case_definition_version) if target.case_definition_version else None,
+            "case_definition_sha256": target.case_definition_sha256,
+            "configuration_id": target.configuration_id,
+            "configuration_version": str(target.configuration_version),
+        }
+        failed_role = facts.evidence_payload.get("input_name") if condition is ValidationSuspensionCondition.VSC_003 else None
+        presented_identity = facts.evidence_payload.get("presented_identity_evidence", {})
+        reason_parameters = {
+            "condition_id": condition.value,
+            "failure_code": failure_code,
+            "lifecycle_position": lifecycle.value,
+            "failed_required_input_role": failed_role,
+        }
+        fingerprint_payload = {
+            "target": target.model_dump(mode="json"),
+            "classifier_version": "1.0",
+            "evaluated_gates": list(evaluated_gates),
+            "condition_id": condition.value,
+            "lifecycle_position": lifecycle.value,
+            "reason_code": reason_code,
+            "evidence_sha256": evidence.payload_sha256,
+            "evidence_ids": [str(evidence.evidence_id)],
+            "evidence_contract_version": "1.0",
+            "reason_parameters": reason_parameters,
+            "authority": authority.model_dump(mode="json"),
+            "verifier_application_build_id": self._application_build_manifest.application_build_id,
+            "scenario_run_id": str(scenario_run_id) if scenario_run_id else None,
+            "validation_execution_id": str(validation_execution_id) if validation_execution_id else None,
+        }
+        record = ValidationSuspensionRecord(
+            suspension_record_id=uuid4(),
+            validation_attempt_id=attempt.validation_attempt_id,
+            target_selection_id=target.target_selection_id,
+            condition_id=condition,
+            lifecycle_position=lifecycle,
+            status=SuspensionRecordStatus.FINALISED,
+            reason_code=reason_code,
+            deterministic_fingerprint=sha256_bytes(canonical_json_bytes(fingerprint_payload)),
+            verifier_application_build_id=self._application_build_manifest.application_build_id,
+            evaluated_classifier_gates=evaluated_gates,
+            target_selection_sha256=target.canonical_selection_sha256,
+            intended_test_id=target.test_id,
+            intended_case_id=target.case_id,
+            resolved_source_identities=resolved_identities,
+            failed_required_input_role=failed_role,
+            presented_identity_evidence=presented_identity,
+            inherited_evidence_class=target.evidence_class,
+            reason_parameters=reason_parameters,
+            rendered_reason=(
+                f"Validation attempt suspended under {condition.value} at {lifecycle.value}; "
+                f"controlled failure code {failure_code}."
+            ),
+            evidence=(evidence,),
+            authority=authority,
+            scenario_run_id=scenario_run_id,
+            validation_execution_id=validation_execution_id,
+            created_at=attempt.created_at,
+            finalised_at=finalised_at,
+        )
+        suspended = attempt.model_copy(
+            update={"status": ValidationAttemptStatus.SUSPENDED, "updated_at": finalised_at}
+        )
+        try:
+            self._repository.insert_finalised_suspension(suspended, record)
+        except ValidationRecordConflict as error:
+            raise ValidationBoundaryError(str(error)) from error
+        return record
+
+    def enter_attempt(
+        self, attempt_id: UUID, scenario_run_id: UUID, *, entered_at
+    ) -> ValidationAttempt:
+        attempt = self._repository.get_attempt(attempt_id)
+        target = self._repository.get_target(attempt.target_selection_id)
+        run = self._scenarios.run_context(scenario_run_id)
+        if (
+            run.evidence_class is not target.evidence_class
+            or run.configuration_id != target.configuration_id
+            or run.configuration_version != target.configuration_version
+            or run.application_build_id != target.target_application_build_id
+            or (target.case_id is not None and run.fault_section_id != self._select_case(
+                self._catalogue.get(target.test_id), target.case_id
+            ).selected_fault_section_id)
+        ):
+            raise ValidationBoundaryError("scenario entry does not match the trusted target selection")
+        entered = attempt.model_copy(
+            update={
+                "status": ValidationAttemptStatus.INCOMPLETE,
+                "scenario_run_id": scenario_run_id,
+                "updated_at": entered_at,
+            }
+        )
+        self._repository.bind_attempt_run(entered)
+        return entered
+
+    @staticmethod
+    def _classify_suspension(facts: SuspensionClassifierFacts) -> ValidationSuspensionCondition:
+        ordered = (
+            (facts.evidence_corruption_failure_code, ValidationSuspensionCondition.VSC_005),
+            (facts.input_identity_failure_code, ValidationSuspensionCondition.VSC_003),
+            (facts.inconsistent_baseline_failure_code, ValidationSuspensionCondition.VSC_002),
+            (facts.unspecified_behaviour_failure_code, ValidationSuspensionCondition.VSC_001),
+            (facts.wall_clock_dependency_failure_code, ValidationSuspensionCondition.VSC_004),
+        )
+        applicable = [(code, condition) for code, condition in ordered if code is not None]
+        if len(applicable) != 1:
+            raise ValidationBoundaryError("suspension classifier requires exactly one supported condition fact")
+        code, condition = applicable[0]
+        allowed_codes = ValidationService._CONDITION_CONTRACTS[condition][0]
+        if code not in allowed_codes:
+            raise ValidationBoundaryError("condition fact failure code is not controlled")
+        return condition
+
+    def get_suspension(self, record_id: UUID) -> ValidationSuspensionRecord:
+        return self._repository.get_suspension(record_id)
+
+    def list_suspensions(self) -> tuple[ValidationSuspensionRecord, ...]:
+        return self._repository.list_suspensions()
 
     def get_execution(self, execution_id: UUID) -> ValidationExecutionSummary:
         return self._repository.summary(execution_id)
@@ -292,10 +665,15 @@ class ValidationService:
         execution_ids: tuple[UUID, ...],
         *,
         created_at,
+        suspension_record_ids: tuple[UUID, ...] = (),
     ) -> CompositeValidationResult:
         if len(execution_ids) != len(set(execution_ids)):
             raise ValidationBoundaryError(
                 "one constituent execution cannot be supplied more than once"
+            )
+        if len(suspension_record_ids) != len(set(suspension_record_ids)):
+            raise ValidationBoundaryError(
+                "one suspension result cannot be supplied more than once"
             )
         definition = self._catalogue.get(test_id)
         cases = definition.definition.constituent_cases
@@ -309,8 +687,16 @@ class ValidationService:
         required_case_ids = tuple(item.case_id for item in cases)
         case_by_id = {item.case_id: item for item in cases}
         summaries = tuple(self._repository.summary(item) for item in execution_ids)
+        suspensions = tuple(
+            self._repository.get_suspension(item) for item in suspension_record_ids
+        )
         corrected = self._configurations.load("v1.1").catalog_entry
-        seen_case_ids = [item.execution.case_id for item in summaries]
+        suspension_targets = tuple(
+            self._repository.get_target(item.target_selection_id) for item in suspensions
+        )
+        seen_case_ids = [item.execution.case_id for item in summaries] + [
+            item.case_id for item in suspension_targets
+        ]
         duplicates = tuple(
             sorted(
                 case_id
@@ -327,6 +713,8 @@ class ValidationService:
         unfinished: list[str] = []
         mismatched: list[str] = []
         common_configuration_id = None
+        common_configuration_version = None
+        common_build_id = None
         for summary in summaries:
             execution = summary.execution
             case_id = execution.case_id
@@ -357,6 +745,8 @@ class ValidationService:
                 )
             if common_configuration_id is None:
                 common_configuration_id = execution.configuration_id
+                common_configuration_version = execution.configuration_version
+                common_build_id = execution.application_build_id
             elif execution.configuration_id != common_configuration_id:
                 raise ValidationBoundaryError(
                     "constituents do not share one corrected configuration identity"
@@ -390,26 +780,71 @@ class ValidationService:
             elif execution.verdict not in {
                 ValidationVerdict.PASS,
                 ValidationVerdict.FAIL,
-                ValidationVerdict.BLOCKED_TEST,
             }:
                 raise ValidationBoundaryError(
                     f"constituent verdict is outside the aggregate rule: {case_id}"
                 )
-            elif (
-                execution.verdict is ValidationVerdict.BLOCKED_TEST
-                and (not execution.verdict_reason or not summary.evidence_snapshots)
-            ):
-                raise ValidationBoundaryError(
-                    f"BLOCKED-TEST constituent lacks its reason/evidence: {case_id}"
-                )
             links.append(
                 CompositeConstituentLink(
                     case_id=case_id,
+                    source_kind=CompositeConstituentSourceKind.EXECUTION_RESULT,
                     validation_execution_id=execution.validation_execution_id,
                     scenario_run_id=execution.scenario_run_id,
                     case_definition_sha256=expected_case_sha,
                     constituent_verdict=execution.verdict,
                     evidence_snapshot_ids=execution.evidence_snapshot_ids,
+                )
+            )
+
+        for record, target in zip(suspensions, suspension_targets, strict=True):
+            case_id = target.case_id
+            if case_id is None or case_id not in case_by_id:
+                raise ValidationBoundaryError(
+                    f"suspension is not bound to one required constituent case: {case_id}"
+                )
+            case = case_by_id[case_id]
+            expected_case_sha = self._case_sha256(case)
+            attempt = self._repository.get_attempt(record.validation_attempt_id)
+            if (
+                record.status is not SuspensionRecordStatus.FINALISED
+                or attempt.status is not ValidationAttemptStatus.SUSPENDED
+                or record.target_selection_id != target.target_selection_id
+                or target.test_id != test_id
+                or target.test_definition_version != definition.definition.version
+                or target.test_definition_sha256 != definition.definition_sha256
+                or target.catalogue_version != definition.catalogue_version
+                or target.catalogue_sha256 != definition.catalogue_sha256
+                or target.case_definition_sha256 != expected_case_sha
+                or target.evidence_class is not EvidenceClass.EXPLORATORY
+                or str(target.configuration_version) != "1.1"
+                or target.configuration_id != corrected.configuration_id
+                or target.target_application_build_id
+                != self._application_build_manifest.application_build_id
+                or record.verifier_application_build_id
+                != self._application_build_manifest.application_build_id
+            ):
+                raise ValidationBoundaryError(
+                    f"suspension provenance does not satisfy DC-004/DC-005: {case_id}"
+                )
+            if common_configuration_id is None:
+                common_configuration_id = target.configuration_id
+                common_configuration_version = target.configuration_version
+                common_build_id = target.target_application_build_id
+            elif (
+                target.configuration_id != common_configuration_id
+                or target.configuration_version != common_configuration_version
+                or target.target_application_build_id != common_build_id
+            ):
+                raise ValidationBoundaryError("constituent suspension provenance differs")
+            links.append(
+                CompositeConstituentLink(
+                    case_id=case_id,
+                    source_kind=CompositeConstituentSourceKind.SUSPENSION_RESULT,
+                    suspension_record_id=record.suspension_record_id,
+                    scenario_run_id=record.scenario_run_id,
+                    case_definition_sha256=expected_case_sha,
+                    constituent_verdict=ValidationVerdict.BLOCKED_TEST,
+                    evidence_snapshot_ids=(),
                 )
             )
 
@@ -440,10 +875,9 @@ class ValidationService:
             mismatched_case_ids=tuple(sorted(mismatched)),
             reasons=tuple(reasons),
         )
-        first_execution = summaries[0].execution if summaries else None
-        if first_execution is None:
+        if common_configuration_id is None or common_build_id is None:
             raise ValidationBoundaryError(
-                "composite assembly requires at least one preserved constituent execution"
+                "composite assembly requires at least one preserved constituent source"
             )
         composite = CompositeValidationResult(
             composite_result_id=uuid4(),
@@ -452,9 +886,9 @@ class ValidationService:
             test_definition_sha256=definition.definition_sha256,
             catalogue_version=definition.catalogue_version,
             catalogue_sha256=definition.catalogue_sha256,
-            application_build_id=first_execution.application_build_id,
-            configuration_id=first_execution.configuration_id,
-            configuration_version=first_execution.configuration_version,
+            application_build_id=common_build_id,
+            configuration_id=common_configuration_id,
+            configuration_version=common_configuration_version,
             required_case_ids=required_case_ids,
             constituent_links=tuple(sorted(links, key=lambda item: item.case_id)),
             completeness=completeness,
@@ -467,8 +901,9 @@ class ValidationService:
             source_record_references=tuple(
                 sorted(
                     {
-                        *(f"validation-execution:{item.validation_execution_id}" for item in links),
-                        *(f"scenario-run:{item.scenario_run_id}" for item in links),
+                        *(f"validation-execution:{item.validation_execution_id}" for item in links if item.validation_execution_id),
+                        *(f"validation-suspension:{item.suspension_record_id}" for item in links if item.suspension_record_id),
+                        *(f"scenario-run:{item.scenario_run_id}" for item in links if item.scenario_run_id),
                         *(f"evidence-snapshot:{evidence_id}" for item in links for evidence_id in item.evidence_snapshot_ids),
                     }
                 )
@@ -497,20 +932,36 @@ class ValidationService:
             )
         verdicts: list[ValidationVerdict] = []
         for link in composite.constituent_links:
-            execution = self._repository.get_execution(link.validation_execution_id)
-            if (
-                execution.status is not ValidationExecutionStatus.FINALISED
-                or execution.case_id != link.case_id
-                or execution.scenario_run_id != link.scenario_run_id
-                or execution.case_definition_sha256 != link.case_definition_sha256
-                or execution.verdict != link.constituent_verdict
-                or execution.evidence_snapshot_ids != link.evidence_snapshot_ids
-                or execution.verdict is None
-            ):
-                raise ValidationBoundaryError(
-                    f"constituent link no longer resolves immutably: {link.case_id}"
-                )
-            verdicts.append(execution.verdict)
+            if link.source_kind is CompositeConstituentSourceKind.EXECUTION_RESULT:
+                assert link.validation_execution_id is not None
+                execution = self._repository.get_execution(link.validation_execution_id)
+                if (
+                    execution.status is not ValidationExecutionStatus.FINALISED
+                    or execution.case_id != link.case_id
+                    or execution.scenario_run_id != link.scenario_run_id
+                    or execution.case_definition_sha256 != link.case_definition_sha256
+                    or execution.verdict != link.constituent_verdict
+                    or execution.evidence_snapshot_ids != link.evidence_snapshot_ids
+                    or execution.verdict not in {ValidationVerdict.PASS, ValidationVerdict.FAIL}
+                ):
+                    raise ValidationBoundaryError(
+                        f"execution constituent no longer resolves immutably: {link.case_id}"
+                    )
+                verdicts.append(execution.verdict)
+            else:
+                assert link.suspension_record_id is not None
+                suspension = self._repository.get_suspension(link.suspension_record_id)
+                target = self._repository.get_target(suspension.target_selection_id)
+                if (
+                    suspension.status is not SuspensionRecordStatus.FINALISED
+                    or target.case_id != link.case_id
+                    or target.case_definition_sha256 != link.case_definition_sha256
+                    or link.constituent_verdict is not ValidationVerdict.BLOCKED_TEST
+                ):
+                    raise ValidationBoundaryError(
+                        f"suspension constituent no longer resolves immutably: {link.case_id}"
+                    )
+                verdicts.append(ValidationVerdict.BLOCKED_TEST)
         determination, reason = self._aggregate_verdict(tuple(verdicts))
         finalised = composite.model_copy(
             update={
@@ -737,6 +1188,14 @@ class ValidationService:
             and item.requested_state is SwitchState.OPEN
             and item.available
         }
+        validity_by_point_id = {
+            item.point_id: item for item in snapshot.telemetry_validity
+        }
+        telemetry_age_by_entity_id = {
+            item.entity_id: validity_by_point_id[item.point_id].age_ms
+            for item in snapshot.telemetry
+            if item.point_id in validity_by_point_id
+        }
         boundary_evidence = (
             {
                 item.boundary_device_id: {
@@ -748,6 +1207,9 @@ class ValidationService:
                         item.freshness_status.value
                         if item.freshness_status is not None
                         else None
+                    ),
+                    "age_ms": telemetry_age_by_entity_id.get(
+                        item.boundary_device_id
                     ),
                     "proof_status": item.proof_status.value,
                     "open_action_eligible": item.boundary_device_id in open_targets,

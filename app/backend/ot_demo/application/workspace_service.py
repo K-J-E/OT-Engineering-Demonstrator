@@ -24,7 +24,11 @@ from ..modules.configuration.models import LoadedConfiguration
 from ..modules.scenario.models import AllowedAction, ScenarioSnapshot
 from ..modules.scenario.definition import formal_action_offset_seconds
 from ..modules.validation.catalogue import ValidationCatalogueResolver
-from ..modules.validation.models import LoadedValidationDefinition, ValidationExecutionSummary
+from ..modules.validation.models import (
+    LoadedValidationDefinition,
+    ValidationExecutionSummary,
+    ValidationSuspensionRecord,
+)
 from ..modules.validation.service import ValidationService
 from ..modules.workspace.models import (
     ConfiguredEntityView,
@@ -279,7 +283,10 @@ class WorkspaceService:
             run_executions=run_executions,
             library_executions=all_executions,
             composites=self._validation.list_composites(),
-            progress=self._validation_progress(definitions, all_executions),
+            suspensions=self._validation.list_suspensions(),
+            progress=self._validation_progress(
+                definitions, all_executions, self._validation.list_suspensions()
+            ),
             actions=self._validation_actions(snapshot, definitions, run_executions),
         )
         return WorkspaceProjection(
@@ -369,6 +376,7 @@ class WorkspaceService:
     def _validation_progress(
         definitions: tuple[LoadedValidationDefinition, ...],
         executions: tuple[ValidationExecutionSummary, ...],
+        suspensions: tuple[ValidationSuspensionRecord, ...] = (),
     ) -> ValidationProgress:
         formal_definitions = tuple(
             item
@@ -410,8 +418,9 @@ class WorkspaceService:
                 item.execution.verdict is ValidationVerdict.FAIL for item in finalised
             ),
             blocked_test_count=sum(
-                item.execution.verdict is ValidationVerdict.BLOCKED_TEST
-                for item in finalised
+                item.inherited_evidence_class is EvidenceClass.FORMAL
+                and item.intended_test_id in formal_test_ids
+                for item in suspensions
             ),
         )
 

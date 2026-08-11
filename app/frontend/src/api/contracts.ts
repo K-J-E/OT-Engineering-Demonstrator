@@ -370,8 +370,10 @@ export interface CompositeValidationResult {
   required_case_ids: string[]
   constituent_links: Array<{
     case_id: string
-    validation_execution_id: string
-    scenario_run_id: string
+    source_kind?: 'EXECUTION_RESULT' | 'SUSPENSION_RESULT'
+    validation_execution_id: string | null
+    suspension_record_id?: string | null
+    scenario_run_id: string | null
     case_definition_sha256: string
     constituent_verdict: string | null
     evidence_snapshot_ids: string[]
@@ -391,6 +393,23 @@ export interface CompositeValidationResult {
   source_record_references: string[]
   created_at: string
   finalised_at: string | null
+}
+
+export interface ValidationSuspensionRecord {
+  suspension_record_id: string
+  validation_attempt_id: string
+  target_selection_id: string
+  condition_id: 'VSC-001' | 'VSC-002' | 'VSC-003' | 'VSC-004' | 'VSC-005'
+  lifecycle_position: 'PRE_EXECUTION_ENTRY' | 'EXECUTION_IN_PROGRESS' | 'EVIDENCE_FINALISATION'
+  status: 'FINALISED'
+  reason_code: string
+  deterministic_fingerprint: string
+  verifier_application_build_id: string
+  evidence: Array<{ evidence_id: string; evidence_type: string; failure_code: string; payload_sha256: string }>
+  authority: { authority_kind: string; proposer_actor_id: string; proposer_role: string; reviewer_actor_id: string; reviewer_role: string }
+  scenario_run_id: string | null
+  validation_execution_id: string | null
+  finalised_at: string
 }
 
 export interface WorkspaceProjection {
@@ -441,6 +460,7 @@ export interface WorkspaceProjection {
     run_executions: ValidationExecutionSummary[]
     library_executions: ValidationExecutionSummary[]
     composites: CompositeValidationResult[]
+    suspensions: ValidationSuspensionRecord[]
     progress: {
       definition_count: number
       definitions_without_execution_count: number

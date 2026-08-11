@@ -26,6 +26,10 @@ from ot_demo.domain.enums import (
     SwitchState,
     TelemetryQuality,
     ValidationVerdict,
+    SuspensionLifecyclePosition,
+    ValidationAttemptStatus,
+    ValidationSuspensionCondition,
+    CompositeConstituentSourceKind,
 )
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
@@ -36,11 +40,15 @@ from ot_demo.infrastructure.evidence_package_repository import EvidencePackageRe
 from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes, sha256_file
 from ot_demo.infrastructure.investigation_repository import InvestigationRepository
 from ot_demo.infrastructure.scenario_repository import ScenarioRepository
-from ot_demo.infrastructure.validation_repository import ValidationRepository
+from ot_demo.infrastructure.validation_repository import (
+    ValidationRecordNotFound,
+    ValidationRepository,
+)
 from ot_demo.modules.evidence_export.service import EvidenceExportService
 from ot_demo.modules.scenario.models import InitialiseRunRequest, ScenarioCommandRequest
 from ot_demo.modules.validation.catalogue import ValidationCatalogueLoader
 from ot_demo.modules.validation.service import ValidationBoundaryError, ValidationService
+from ot_demo.modules.validation.models import SuspensionClassifierFacts
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -71,6 +79,10 @@ MANIFEST = ApplicationBuildManifest(
 
 def at(seconds: int) -> datetime:
     return T0 + timedelta(seconds=seconds)
+
+
+def at_milliseconds(milliseconds: int) -> datetime:
+    return T0 + timedelta(milliseconds=milliseconds)
 
 
 def scenario(tmp_path: Path, name: str = "scenario") -> ScenarioCoordinator:
@@ -819,6 +831,7 @@ def execute_dc004_case(
     section_id: str,
     command_base: int,
     assess_role: bool = True,
+    stale_age_ms: int = 60_001,
 ):
     initial = scenarios.initialise_next_run(
         InitialiseRunRequest(
@@ -843,7 +856,7 @@ def execute_dc004_case(
                 run_id=run_id,
                 revision=fault.snapshot.run.state_revision,
                 command_type=ScenarioCommandType.ACKNOWLEDGE_ALARM,
-                scenario_time=at(61),
+                scenario_time=at_milliseconds(stale_age_ms),
                 alarm_id=fault.snapshot.alarms[0].alarm_id,
             ),
         )
@@ -888,6 +901,345 @@ def execute_dc004_case(
     return validation.finalise_execution(
         execution.validation_execution_id, "CONTROLLED_RESULT"
     )
+
+
+@pytest.mark.i8
+def test_qa041_exact_stale_age_is_compared_and_61000_ms_substitution_fails(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "qa041-exact-age")
+    validation = ValidationService(
+        ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    exact = execute_dc004_case(
+        scenarios,
+        validation,
+        test_id="VT-EXP-ALL-001",
+        case_id="EXP-ALL-A4-STALE-OPEN",
+        section_id="SEC-A4",
+        command_base=9000,
+    )
+    assert exact.verdict is ValidationVerdict.PASS
+    assert exact.observed_result is not None
+    exact_boundary = exact.observed_result["boundary_evidence"]["TS-01"]
+    assert exact_boundary == {
+        "observed_value": "OPEN",
+        "quality": "GOOD",
+        "freshness": "STALE",
+        "age_ms": 60_001,
+        "proof_status": "UNPROVEN",
+        "open_action_eligible": False,
+        "reason_codes": ["FRESHNESS_STALE"],
+    }
+    substituted = execute_dc004_case(
+        scenarios,
+        validation,
+        test_id="VT-EXP-ALL-001",
+        case_id="EXP-ALL-A4-STALE-OPEN",
+        section_id="SEC-A4",
+        command_base=9100,
+        stale_age_ms=61_000,
+    )
+    assert substituted.verdict is ValidationVerdict.FAIL
+    mismatches = [item for item in substituted.calculations["comparisons"] if not item["match"]]
+    assert mismatches == [
+        {
+            "field": "boundary_evidence.TS-01.age_ms",
+            "expected": 60_001,
+            "observed": 61_000,
+            "match": False,
+        }
+    ]
+    boundary_at_limit = execute_dc004_case(
+        scenarios,
+        validation,
+        test_id="VT-EXP-ALL-001",
+        case_id="EXP-ALL-A4-STALE-OPEN",
+        section_id="SEC-A4",
+        command_base=9200,
+        stale_age_ms=60_000,
+    )
+    limit_evidence = boundary_at_limit.observed_result["boundary_evidence"]["TS-01"]
+    assert limit_evidence["age_ms"] == 60_000
+    assert limit_evidence["freshness"] == "FRESH"
+    assert boundary_at_limit.verdict is ValidationVerdict.FAIL
+
+
+def suspension_facts(target_id: UUID, condition: str) -> SuspensionClassifierFacts:
+    facts = {
+        "VSC-001": (
+            "unspecified_behaviour_failure_code",
+            "UNSPECIFIED_ENGINEERING_BEHAVIOUR",
+            {"authoritative_sources_checked": ["Validation Plan v1.2 §20"], "missing_field_or_step": "comparison_expected_values", "open_design_question_id": "DQ-TEST-001", "review_record_id": "REV-001"},
+        ),
+        "VSC-002": (
+            "inconsistent_baseline_failure_code",
+            "INCONSISTENT_BASELINE",
+            {"trusted_source_assertions": [{"identity": "Requirements v0.4", "hash": "1" * 64, "location": "REQ-VAL-007"}, {"identity": "Validation Plan v1.2", "hash": "2" * 64, "location": "§20"}], "conflict_review_item": "CR-001", "review_disposition": "Unresolved contradiction."},
+        ),
+        "VSC-003": (
+            "input_identity_failure_code",
+            "UNKNOWN_IDENTITY",
+            {"input_name": "network configuration", "presented_identity_evidence": {"version": "unknown"}, "resolution_failure": "No immutable hash match."},
+        ),
+        "VSC-004": (
+            "wall_clock_dependency_failure_code",
+            "UNCONTROLLED_WALL_CLOCK_DEPENDENCY",
+            {"dependency_name": "external clock", "wall_clock_reference": "host-now", "controlled_replacement_unavailable": True},
+        ),
+        "VSC-005": (
+            "evidence_corruption_failure_code",
+            "HASH_MISMATCH",
+            {"examined_source": "records/evidence.json", "expected_integrity": "1" * 64, "observed_failure": "2" * 64, "quarantine_record": "QUAR-001"},
+        ),
+    }
+    field, code, payload = facts[condition]
+    return SuspensionClassifierFacts(
+        trusted_target_selection_id=target_id,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        evidence_payload=payload,
+        **{field: code},
+    )
+
+
+@pytest.mark.i8
+def test_dc005_exact_conditions_authority_immutability_and_composite_union(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "dc005")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository,
+        ValidationCatalogueLoader(CATALOGUE),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    assert {item.value for item in ValidationSuspensionCondition} == {
+        "VSC-001", "VSC-002", "VSC-003", "VSC-004", "VSC-005"
+    }
+    cases = ("EXP-ROLE-A2", "EXP-ROLE-B2", "EXP-ROLE-A1", "EXP-ROLE-A4")
+    conditions = ("VSC-001", "VSC-003", "VSC-004", "VSC-005")
+    records = []
+    for index, (case_id, condition) in enumerate(zip(cases, conditions, strict=True)):
+        target, attempt = validation.create_target_selection(
+            "VT-EXP-ROLE-001", case_id=case_id, created_at=at(2000 + index)
+        )
+        backend = condition in {"VSC-003", "VSC-005"}
+        record = validation.suspend_attempt(
+            attempt.validation_attempt_id,
+            suspension_facts(target.target_selection_id, condition),
+            proposer_actor_id=("backend-integrity-monitor" if backend else "graduate-engineer"),
+            reviewer_actor_id=("backend-assurance-reviewer" if backend else "independent-reviewer"),
+            finalised_at=at(2100 + index),
+        )
+        assert record.condition_id.value == condition
+        assert record.reason_code == f"BLOCKED-TEST/{condition}/PRE_EXECUTION_ENTRY"
+        assert record.scenario_run_id is None
+        assert record.validation_execution_id is None
+        assert repository.get_attempt(attempt.validation_attempt_id).status is ValidationAttemptStatus.SUSPENDED
+        records.append(record)
+
+    # The remaining stable condition is independently classifiable under its exact contract.
+    target, attempt = validation.create_target_selection(
+        "VT-EXP-ALL-001", case_id="EXP-ALL-A1", created_at=at(2200)
+    )
+    inconsistent = validation.suspend_attempt(
+        attempt.validation_attempt_id,
+        suspension_facts(target.target_selection_id, "VSC-002"),
+        proposer_actor_id="graduate-engineer",
+        reviewer_actor_id="independent-reviewer",
+        finalised_at=at(2201),
+    )
+    assert inconsistent.condition_id.value == "VSC-002"
+
+    overlap = suspension_facts(target.target_selection_id, "VSC-001").model_copy(
+        update={"evidence_corruption_failure_code": "HASH_MISMATCH"}
+    )
+    with pytest.raises(ValidationBoundaryError, match="exactly one"):
+        ValidationService._classify_suspension(overlap)
+
+    composite = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        (),
+        suspension_record_ids=tuple(item.suspension_record_id for item in records),
+        created_at=at(2300),
+    )
+    assert composite.completeness.status.value == "COMPLETE"
+    assert all(
+        item.source_kind is CompositeConstituentSourceKind.SUSPENSION_RESULT
+        for item in composite.constituent_links
+    )
+    final = validation.finalise_composite(composite.composite_result_id, finalised_at=at(2301))
+    assert final.determination is ValidationVerdict.BLOCKED_TEST
+
+    export = EvidenceExportService(
+        EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios,
+        JsonConfigurationLoader(CONFIGURATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        application_build_manifest=MANIFEST,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    package = export.generate_composite(final.composite_result_id)
+    assert package.constituent_execution_ids == ()
+    assert set(package.constituent_suspension_record_ids) == {
+        item.suspension_record_id for item in records
+    }
+    with ZipFile(tmp_path / package.archive_path) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        assert set(manifest["constituent_suspension_record_ids"]) == {
+            str(item.suspension_record_id) for item in records
+        }
+        for record in records:
+            base = f"records/constituents/{record.suspension_record_id}"
+            assert f"{base}/validation-suspension.json" in archive.namelist()
+            assert f"{base}/validation-target-selection.json" in archive.namelist()
+            assert f"{base}/validation-attempt.json" in archive.namelist()
+
+    mixed_pass = tuple(
+        execute_dc004_case(
+            scenarios,
+            validation,
+            test_id="VT-EXP-ROLE-001",
+            case_id=case_id,
+            section_id=section_id,
+            command_base=10000 + index * 100,
+        )
+        for index, (case_id, section_id) in enumerate(
+            (("EXP-ROLE-A2", "SEC-A2"), ("EXP-ROLE-B2", "SEC-B2"), ("EXP-ROLE-A1", "SEC-A1"))
+        )
+    )
+    mixed = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        tuple(item.validation_execution_id for item in mixed_pass),
+        suspension_record_ids=(records[3].suspension_record_id,),
+        created_at=at(2400),
+    )
+    assert validation.finalise_composite(
+        mixed.composite_result_id, finalised_at=at(2401)
+    ).determination is ValidationVerdict.BLOCKED_TEST
+
+    failed_b2 = execute_dc004_case(
+        scenarios,
+        validation,
+        test_id="VT-EXP-ROLE-001",
+        case_id="EXP-ROLE-B2",
+        section_id="SEC-B2",
+        command_base=11000,
+        assess_role=False,
+    )
+    assert failed_b2.verdict is ValidationVerdict.FAIL
+    fail_dominates = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        (
+            mixed_pass[0].validation_execution_id,
+            failed_b2.validation_execution_id,
+            mixed_pass[2].validation_execution_id,
+        ),
+        suspension_record_ids=(records[3].suspension_record_id,),
+        created_at=at(2402),
+    )
+    assert validation.finalise_composite(
+        fail_dominates.composite_result_id, finalised_at=at(2403)
+    ).determination is ValidationVerdict.FAIL
+    with pytest.raises(ValidationRecordNotFound):
+        validation.assemble_composite(
+            "VT-EXP-ROLE-001", (),
+            suspension_record_ids=(UUID(int=55555),), created_at=at(2404)
+        )
+
+    with sqlite3.connect(tmp_path / "validation.sqlite3") as connection:
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            connection.execute(
+                "UPDATE validation_suspension_records SET reason_code='changed' WHERE suspension_record_id=?",
+                (str(records[0].suspension_record_id),),
+            )
+        connection.rollback()
+        with pytest.raises(sqlite3.IntegrityError, match="cannot acquire evidence"):
+            connection.execute(
+                "INSERT INTO validation_suspension_evidence VALUES (?,?,?,?,?,?,?)",
+                (str(UUID(int=9999)), str(records[0].suspension_record_id), "VSC-001", "LATE", "LATE", "3" * 64, "{}"),
+            )
+
+
+@pytest.mark.i8
+def test_dc005_three_lifecycle_positions_and_missing_evidence_boundary(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "dc005-lifecycle")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository,
+        ValidationCatalogueLoader(CATALOGUE),
+        scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    run2 = initialise_exploration(scenarios, "SEC-A2", 12000).snapshot.run
+    execution = validation.start_execution(
+        "VT-EXP-ROLE-001", run2.scenario_run_id, case_id="EXP-ROLE-A2"
+    )
+    progress_facts = suspension_facts(execution.target_selection_id, "VSC-001").model_copy(
+        update={"lifecycle_position": SuspensionLifecyclePosition.EXECUTION_IN_PROGRESS}
+    )
+    in_progress = validation.suspend_attempt(
+        execution.validation_attempt_id,
+        progress_facts,
+        proposer_actor_id="graduate-engineer",
+        reviewer_actor_id="independent-reviewer",
+        scenario_run_id=run2.scenario_run_id,
+        validation_execution_id=execution.validation_execution_id,
+        finalised_at=at(2),
+    )
+    assert in_progress.validation_execution_id == execution.validation_execution_id
+    assert repository.get_execution(execution.validation_execution_id).verdict is None
+
+    run2 = scenarios.initialise_next_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=12001), actor="Graduate Engineer",
+            mode=ScenarioMode.EXPLORATION, configuration_version="1.1",
+            fault_section_id="SEC-A2", scenario_time=T0,
+        )
+    ).snapshot.run
+    execution = validation.start_execution(
+        "VT-EXP-ROLE-001", run2.scenario_run_id, case_id="EXP-ROLE-A2"
+    )
+    validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
+    mid_facts = suspension_facts(execution.target_selection_id, "VSC-005").model_copy(
+        update={"lifecycle_position": SuspensionLifecyclePosition.EVIDENCE_FINALISATION}
+    )
+    mid = validation.suspend_attempt(
+        execution.validation_attempt_id,
+        mid_facts,
+        proposer_actor_id="backend-integrity-monitor",
+        reviewer_actor_id="backend-assurance-reviewer",
+        scenario_run_id=run2.scenario_run_id,
+        validation_execution_id=execution.validation_execution_id,
+        finalised_at=at(3),
+    )
+    assert mid.validation_execution_id == execution.validation_execution_id
+    with pytest.raises(ValidationBoundaryError, match="cannot capture"):
+        validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
+    assert repository.get_execution(execution.validation_execution_id).verdict is None
+
+    run3 = scenarios.initialise_next_run(
+        InitialiseRunRequest(
+            command_id=UUID(int=12002), actor="Graduate Engineer",
+            mode=ScenarioMode.EXPLORATION, configuration_version="1.1",
+            fault_section_id="SEC-A2", scenario_time=T0,
+        )
+    ).snapshot.run
+    incomplete = validation.start_execution(
+        "VT-EXP-ROLE-001", run3.scenario_run_id, case_id="EXP-ROLE-A2"
+    )
+    with pytest.raises(ValidationRecordNotFound, match="evidence checkpoint"):
+        validation.finalise_execution(incomplete.validation_execution_id, "CONTROLLED_RESULT")
+    assert repository.get_attempt(incomplete.validation_attempt_id).status is ValidationAttemptStatus.ACTIVE
+    assert len(validation.list_suspensions()) == 2
 
 
 @pytest.mark.i8
