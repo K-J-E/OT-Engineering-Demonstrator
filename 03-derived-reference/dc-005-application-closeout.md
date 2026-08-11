@@ -27,7 +27,7 @@ The accepted DC-005 authoritative baseline was reconciled from main commit `195e
 - Composite membership is an immutable union of EXECUTION_RESULT (PASS/FAIL only) and SUSPENSION_RESULT (genuine finalised BLOCKED-TEST only). Exact completeness and FAIL > BLOCKED-TEST > PASS precedence remain unchanged.
 - Migration 008 creates target, attempt, executed-result, suspension/evidence and composite-source tables; migration 009 adds immutable explicit composite-to-executed-result identity. Database-level finalised-truth immutability remains enforced.
 - Workspace review remains projection-only. EXPLORATORY suspensions do not affect FORMAL progress; future FORMAL BLOCKED-TEST progress can come only from genuine FORMAL suspension records, never an execution verdict.
-- Post-entry suspension assembly resolves the actual attempt, execution, scenario run and every preserved evidence snapshot bidirectionally, requires no ExecutedValidationResult and records linked run/evidence identities in the composite constituent. Composite and standalone finalised-suspension exports use the same preserved source set and keep source-build/source-catalogue identities separate from generation build.
+- Post-entry suspension assembly resolves the actual attempt, execution, scenario run and every preserved evidence snapshot bidirectionally, requires no ExecutedValidationResult and records linked run/evidence identities in the composite constituent. Composite and standalone finalised-suspension exports use the same preserved source set and keep source-build/source-catalogue identities separate from generation build. Standalone verification additionally resolves every available original catalogue/test/case identity through the immutable active/historical catalogue resolver, exempting only the exact VSC-003 unavailable role.
 
 ## QA-041 and controlled catalogue identity
 
@@ -35,7 +35,7 @@ QA-041 is independently accepted. Historical v1.0 catalogue/manifest hashes rema
 
 ## Verification
 
-- backend: 136 passed, including focused QA-045 serialization, QA-048 post-entry/composite/standalone/historical-export and QA-049 classifier-precedence/authority negatives;
+- backend: 142 passed, including focused historical-catalogue suspension export/tamper rejection, exact VSC-003 unavailable-role exemptions and scope-aware reviewer-gate overlap/ambiguity negatives;
 - focused QA-041/DC-005 actual service, persistence, composite and ZIP paths: passed;
 - frontend components: 17 passed;
 - Chromium formal, investigation and Exploration/export workflows: 3 passed;
@@ -46,13 +46,15 @@ QA-041 is independently accepted. Historical v1.0 catalogue/manifest hashes rema
 
 ## Gate
 
-QA-041 and QA-043–QA-047 are independently accepted/closed as recorded in the QA register. The bounded QA-045 serialization correction and QA-048/QA-049 implementation are verified but pending independent re-review; QA-042/DC-005 application therefore remains not accepted. Draft PR #10 must remain unmerged. I9 has not resumed and requires later separate authorisation only after the complete application is independently accepted and incorporated into reviewed main.
+QA-041 and QA-043–QA-047 are independently accepted/closed as recorded in the QA register. The substantive QA-048/QA-049 corrections are independently accepted; their final bounded historical-source and reviewer-scope conformance corrections are implemented and verified pending final independent re-review. QA-042/DC-005 application therefore remains not accepted. Draft PR #10 must remain unmerged. I9 has not resumed and requires later separate authorisation only after the complete application is independently accepted and incorporated into reviewed main.
 
 ## QA-048/QA-049 bounded assurance completion
 
 Post-entry suspensions now resolve one immutable source set spanning suspension, trusted target, terminal attempt, actual execution, scenario run and every captured evidence snapshot. Composite assembly/finalisation rejects cross-linked provenance, retains post-entry run/evidence identities and confirms no ExecutedValidationResult exists. Migration 010 adds an append-only standalone suspension-package register. Standalone FORMAL or EXPLORATORY suspension ZIPs and DC-004 composite ZIPs preserve the same source records, condition/evidence-contract identity, authority, structured evidence and separate source/generation build provenance; later-build export uses preserved records without re-evaluating mutable condition truth.
 
 The VSC classifier now uses the accepted semantic order and records six actual gate outcomes. The routing hint cannot bypass integrity or identity failures; overlap regressions prove VSC-005 and VSC-003 precedence. Runtime/finalisation VSC-004 is restricted to `MISSING_CONTROLLED_TIME`, `WALL_CLOCK_SOURCE_DETECTED` or `NONDETERMINISTIC_DELAY_DEPENDENCY`. Backend evidence records the actual assurance service/module/verifier build plus canonical verification-attempt and failure-report payload hashes. No electrical, network, restoration, catalogue, requirement, event or I9 behaviour changed.
+
+Final conformance adds two gates without changing those accepted meanings. Suspension export resolves original available catalogue/test/case version+hash identities against the actual immutable active/historical package before VERIFIED status; only the exact unavailable VSC-003 role is exempt, and tampered historical sources reject export. Reviewer VSC-002/VSC-001/pre-entry-VSC-004 applicability is selected in precedence order from unique controlled records at the exact target/test/case/field-or-step scope. Multiple same-gate matches reject deterministically. No prose interpretation or condition re-evaluation was introduced.
 
 The separately reviewable machine-application commit is `708c9814fe307a849c7a011e5bfae65d52f5ceca` (`Apply QA-041 and DC-005 validation assurance`). The following derived closeout/status commit does not change implementation behaviour.
 

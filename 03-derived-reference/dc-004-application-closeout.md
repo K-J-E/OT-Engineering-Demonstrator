@@ -152,7 +152,7 @@ EXPLORATORY constituent and composite records.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 136 tests including QA-048/QA-049 corrections; application acceptance remains pending independent re-review |
+| Complete backend unit/integration suite | PASS — 142 tests including final QA-048/QA-049 conformance corrections; application acceptance remains pending final independent re-review |
 | React/Cytoscape component suite | PASS — 17 tests |
 | Chromium formal, investigation and Exploration/export workflows | PASS — 3 tests |
 | Pinned TypeScript/Vite production build | PASS |
@@ -246,3 +246,9 @@ Independent re-review closed QA-043 but required three bounded provenance correc
 Independent re-review accepted QA-044/QA-046/QA-047 and accepted QA-045 subject only to a bounded serialization correction. `ValidationSuspensionRecord.resolved_source_identities` now contains only the target's genuinely resolved evidence. A shared post-entry resolver verifies the complete suspension/target/attempt/execution/run/evidence chain, absence of an ExecutedValidationResult and terminal SUSPENDED state; composite links preserve the actual run/evidence set. Standalone suspension ZIPs and composite ZIPs use that same source set and remain exportable under later generation builds without re-evaluating mutable truth.
 
 The classifier applies the accepted integrity → identity → conflict → behaviour → time precedence after trusted-target verification, records actual PASS/FAIL/NOT_APPLICABLE/NOT_REACHED outcomes in the deterministic fingerprint and retains the concrete backend verifier service/module/build and hashed verification attempt/failure report. QA-048 and QA-049 are corrected and verified but pending independent re-review. PR #10 remains draft/unmerged and I9 remains stopped.
+
+## 15. QA-048/QA-049 final conformance corrections
+
+Independent re-review accepted the QA-045 serialization correction and substantive QA-048/QA-049 treatment. Standalone suspension export now uses the existing DC-004 resolver to prove every available original catalogue/test/case version+hash against an actual immutable active/historical package before VERIFIED status. Exactly the role proven unavailable by VSC-003 remains exempt. A historical v1.0 suspension exports under active v1.1 with its original definition and separate generation build; tampered historical input rejects export.
+
+Reviewer-controlled precedence is now derived from unique exact target/test/case/field-or-step registry scope rather than a supplied record ID. An applicable unresolved conflict prevents a lower DQ or pre-entry-time route from finalising; duplicate same-gate scope records reject deterministically. These final QA-048/QA-049 conformance corrections are verified pending final independent re-review. PR #10 remains draft/unmerged and I9 remains stopped.

@@ -138,6 +138,79 @@ class ControlledEngineeringRegistry:
         return any(item.record_id == record_id for item in self.data.time_reviews)
 
     @staticmethod
+    def _single_scope_record(
+        records: tuple[Any, ...],
+        target: ValidationTargetSelection,
+        scope: str,
+        *,
+        status: str,
+        scope_attribute: str,
+        gate_name: str,
+    ) -> Any | None:
+        matches = tuple(
+            item for item in records
+            if (
+                item.status == status
+                and item.test_id == target.test_id
+                and item.case_id == target.case_id
+                and getattr(item, scope_attribute) == scope
+            )
+        )
+        if len(matches) > 1:
+            raise AssuranceAuthorityError(
+                f"multiple controlled {gate_name} records occupy the same target/case/scope"
+            )
+        return matches[0] if matches else None
+
+    def verify_scoped_conflict(
+        self,
+        target: ValidationTargetSelection,
+        field_id: str,
+    ) -> dict[str, Any] | None:
+        record = self._single_scope_record(
+            self.data.conflict_reviews, target, field_id,
+            status="UNRESOLVED", scope_attribute="field_id",
+            gate_name="baseline-conflict",
+        )
+        if record is None:
+            return None
+        return self.verify_conflict(
+            target, record.record_id, field_id, record.source_assertion_ids
+        )
+
+    def verify_scoped_design_question(
+        self,
+        target: ValidationTargetSelection,
+        field_id: str,
+    ) -> dict[str, Any] | None:
+        record = self._single_scope_record(
+            self.data.design_questions, target, field_id,
+            status="OPEN", scope_attribute="field_id",
+            gate_name="design-question",
+        )
+        if record is None:
+            return None
+        return self.verify_design_question(
+            target, record.record_id, field_id, record.source_assertion_ids
+        )
+
+    def verify_scoped_preentry_time(
+        self,
+        target: ValidationTargetSelection,
+        step_reference: str,
+    ) -> dict[str, Any] | None:
+        record = self._single_scope_record(
+            self.data.time_reviews, target, step_reference,
+            status="OPEN", scope_attribute="step_reference",
+            gate_name="pre-entry-time",
+        )
+        if record is None:
+            return None
+        return self.verify_preentry_time(
+            target, record.record_id, step_reference, record.source_assertion_ids
+        )
+
+    @staticmethod
     def _binds(record: Any, target: ValidationTargetSelection, field_id: str) -> bool:
         return (
             record.test_id == target.test_id

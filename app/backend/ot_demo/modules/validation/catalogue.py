@@ -105,6 +105,49 @@ class ValidationCatalogueResolver:
     def raw_catalogue_sha256(self) -> str:
         return self.active_loader.raw_catalogue_sha256()
 
+    def resolve_catalogue(
+        self,
+        *,
+        catalogue_version: str,
+        catalogue_sha256: str,
+    ) -> tuple[LoadedValidationDefinition, ...]:
+        matches: list[tuple[LoadedValidationDefinition, ...]] = []
+        for loader in self._loaders:
+            loaded = loader.load()
+            if (
+                str(loaded[0].catalogue_version) == str(catalogue_version)
+                and loaded[0].catalogue_sha256 == catalogue_sha256
+            ):
+                matches.append(loaded)
+        if len(matches) != 1:
+            raise ValidationCatalogueError(
+                "catalogue revision identity did not resolve uniquely"
+            )
+        return matches[0]
+
+    def resolve_definition_identity(
+        self,
+        *,
+        test_id: str,
+        test_definition_version: str,
+        test_definition_sha256: str,
+    ) -> LoadedValidationDefinition:
+        matches = [
+            loaded
+            for loader in self._loaders
+            for loaded in loader.load()
+            if (
+                loaded.definition.test_id == test_id
+                and str(loaded.definition.version) == str(test_definition_version)
+                and loaded.definition_sha256 == test_definition_sha256
+            )
+        ]
+        if len(matches) != 1:
+            raise ValidationCatalogueError(
+                "test-definition identity did not resolve uniquely across controlled revisions"
+            )
+        return matches[0]
+
     def resolve(
         self,
         *,

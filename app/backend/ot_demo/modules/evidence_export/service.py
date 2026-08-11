@@ -14,6 +14,7 @@ from ...domain.enums import (
     CompositeConstituentSourceKind,
     CompositeResultStatus,
     EvidenceClass,
+    RequiredInputRole,
     ScenarioMode,
     ScenarioRunStatus,
     ValidationExecutionStatus,
@@ -29,7 +30,11 @@ from ..validation.catalogue import (
     ValidationCatalogueLoader,
     ValidationCatalogueResolver,
 )
-from ..validation.models import ValidationExecutionSummary
+from ..validation.models import (
+    ConstituentCaseDefinition,
+    LoadedValidationDefinition,
+    ValidationExecutionSummary,
+)
 from ..validation.suspension_provenance import (
     ResolvedSuspensionSource,
     SuspensionProvenanceError,
@@ -167,6 +172,9 @@ class EvidenceExportService:
             )
         except SuspensionProvenanceError as error:
             raise EvidenceExportBoundaryError(str(error)) from error
+        resolved_definition, resolved_case, source_resolution = (
+            self._resolve_suspension_catalogue_source(source)
+        )
         package_id = f"SPKG-{uuid4().hex[:12]}"
         archive_name = f"{package_id}-{suspension.inherited_evidence_class.value}.zip"
         archive_path = self._output_directory / archive_name
@@ -177,6 +185,40 @@ class EvidenceExportService:
         records, source_references = self._suspension_record_set(
             source, prefix="records"
         )
+        if source_resolution["catalogue"] == "RESOLVED":
+            records["records/resolved-source-catalogue.json"] = {
+                "catalogue_version": str(source.target.catalogue_version),
+                "catalogue_sha256": source.target.catalogue_sha256,
+                "resolution_authority": "ValidationCatalogueResolver",
+            }
+            source_references = tuple(sorted({
+                *source_references,
+                f"validation-catalogue:{source.target.catalogue_version}:{source.target.catalogue_sha256}",
+            }))
+        if resolved_definition is not None:
+            records["records/resolved-source-test-definition.json"] = {
+                "test_id": resolved_definition.definition.test_id,
+                "test_definition_version": str(resolved_definition.definition.version),
+                "test_definition_sha256": resolved_definition.definition_sha256,
+                "definition": resolved_definition.definition.model_dump(mode="json"),
+            }
+            source_references = tuple(sorted({
+                *source_references,
+                f"test-definition:{resolved_definition.definition.test_id}:{resolved_definition.definition_sha256}",
+            }))
+        if resolved_case is not None:
+            records["records/resolved-source-case-definition.json"] = {
+                "case_id": resolved_case.case_id,
+                "case_definition_version": str(resolved_case.version),
+                "case_definition_sha256": sha256_bytes(
+                    canonical_json_bytes(resolved_case.model_dump(mode="json"))
+                ),
+                "definition": resolved_case.model_dump(mode="json"),
+            }
+            source_references = tuple(sorted({
+                *source_references,
+                f"case-definition:{resolved_case.case_id}:{source.target.case_definition_sha256}",
+            }))
         files = {path: canonical_json_bytes(value) for path, value in records.items()}
         files["README.txt"] = self._readme(suspension.inherited_evidence_class)
         source_build = (
@@ -215,6 +257,7 @@ class EvidenceExportService:
             "source_case_definition_sha256": source.target.case_definition_sha256,
             "source_configuration_id": source.target.configuration_id,
             "source_configuration_version": source.target.configuration_version,
+            "source_resolution": source_resolution,
             "condition_id": suspension.condition_id.value,
             "classifier_version": suspension.classifier_version,
             "evidence_contract_version": suspension.evidence_contract_version,
@@ -252,6 +295,7 @@ class EvidenceExportService:
                 evidence_snapshot_ids=tuple(
                     item.evidence_snapshot_id for item in source.evidence_snapshots
                 ),
+                source_resolution=source_resolution,
                 manifest_sha256=manifest_sha,
                 archive_sha256=sha256_file(archive_path),
                 archive_path=f"evidence/exports/{archive_name}",
@@ -522,6 +566,122 @@ class EvidenceExportService:
                 "stored suspension package archive hash no longer matches its record"
             )
         return candidate
+
+    def _resolve_suspension_catalogue_source(
+        self,
+        source: ResolvedSuspensionSource,
+    ) -> tuple[
+        LoadedValidationDefinition | None,
+        ConstituentCaseDefinition | None,
+        dict[str, str],
+    ]:
+        target = source.target
+        unavailable = target.unresolved_required_role
+        resolution = {
+            "catalogue": "PENDING",
+            "test_definition": "PENDING",
+            "case_definition": "PENDING",
+        }
+        try:
+            catalogue_definitions: tuple[LoadedValidationDefinition, ...] | None
+            if unavailable is RequiredInputRole.CATALOGUE:
+                catalogue_definitions = None
+                resolution["catalogue"] = "EXEMPT_UNAVAILABLE_VSC_003"
+            else:
+                if target.catalogue_version is None or target.catalogue_sha256 is None:
+                    raise ValidationCatalogueError(
+                        "available suspension catalogue identity is incomplete"
+                    )
+                catalogue_definitions = self._catalogue.resolve_catalogue(
+                    catalogue_version=str(target.catalogue_version),
+                    catalogue_sha256=target.catalogue_sha256,
+                )
+                resolution["catalogue"] = "RESOLVED"
+
+            resolved_definition: LoadedValidationDefinition | None
+            if unavailable is RequiredInputRole.TEST_DEFINITION:
+                resolved_definition = None
+                resolution["test_definition"] = "EXEMPT_UNAVAILABLE_VSC_003"
+            else:
+                if (
+                    target.test_definition_version is None
+                    or target.test_definition_sha256 is None
+                ):
+                    raise ValidationCatalogueError(
+                        "available suspension test-definition identity is incomplete"
+                    )
+                if catalogue_definitions is None:
+                    resolved_definition = self._catalogue.resolve_definition_identity(
+                        test_id=target.test_id,
+                        test_definition_version=str(target.test_definition_version),
+                        test_definition_sha256=target.test_definition_sha256,
+                    )
+                else:
+                    matches = tuple(
+                        item for item in catalogue_definitions
+                        if (
+                            item.definition.test_id == target.test_id
+                            and str(item.definition.version)
+                            == str(target.test_definition_version)
+                            and item.definition_sha256
+                            == target.test_definition_sha256
+                        )
+                    )
+                    if len(matches) != 1:
+                        raise ValidationCatalogueError(
+                            "suspension-bound test definition did not resolve uniquely in its source catalogue"
+                        )
+                    resolved_definition = matches[0]
+                resolution["test_definition"] = "RESOLVED"
+
+            resolved_case: ConstituentCaseDefinition | None = None
+            if target.case_id is None:
+                resolution["case_definition"] = "NOT_APPLICABLE"
+            elif unavailable is RequiredInputRole.CASE_DEFINITION:
+                resolution["case_definition"] = "EXEMPT_UNAVAILABLE_VSC_003"
+            else:
+                if (
+                    target.case_definition_version is None
+                    or target.case_definition_sha256 is None
+                ):
+                    raise ValidationCatalogueError(
+                        "available suspension case-definition identity is incomplete"
+                    )
+                parent = resolved_definition
+                if parent is None and catalogue_definitions is not None:
+                    parents = tuple(
+                        item for item in catalogue_definitions
+                        if item.definition.test_id == target.test_id
+                    )
+                    if len(parents) != 1:
+                        raise ValidationCatalogueError(
+                            "case parent did not resolve uniquely in the source catalogue"
+                        )
+                    parent = parents[0]
+                if parent is None:
+                    raise ValidationCatalogueError(
+                        "available case definition has no controlled catalogue parent"
+                    )
+                case_matches = tuple(
+                    item for item in parent.definition.constituent_cases
+                    if (
+                        item.case_id == target.case_id
+                        and str(item.version) == str(target.case_definition_version)
+                        and sha256_bytes(canonical_json_bytes(item.model_dump(mode="json")))
+                        == target.case_definition_sha256
+                    )
+                )
+                if len(case_matches) != 1:
+                    raise ValidationCatalogueError(
+                        "suspension-bound case definition did not resolve uniquely"
+                    )
+                resolved_case = case_matches[0]
+                resolution["case_definition"] = "RESOLVED"
+        except ValidationCatalogueError as error:
+            raise EvidenceExportBoundaryError(
+                "suspension source catalogue/test/case identity did not resolve"
+            ) from error
+        return resolved_definition, resolved_case, resolution
 
     @staticmethod
     def _suspension_record_set(

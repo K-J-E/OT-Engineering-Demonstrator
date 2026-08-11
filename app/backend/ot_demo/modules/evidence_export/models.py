@@ -81,6 +81,7 @@ class SuspensionEvidencePackage(FrozenModel):
     validation_execution_id: UUID | None = None
     scenario_run_id: UUID | None = None
     evidence_snapshot_ids: tuple[UUID, ...] = ()
+    source_resolution: dict[str, str] = Field(default_factory=dict)
     manifest_sha256: Sha256Digest
     archive_sha256: Sha256Digest
     archive_path: str = Field(min_length=1)

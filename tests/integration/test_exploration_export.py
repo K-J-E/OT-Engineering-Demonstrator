@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -46,9 +47,15 @@ from ot_demo.infrastructure.validation_repository import (
     ValidationRecordNotFound,
     ValidationRepository,
 )
-from ot_demo.modules.evidence_export.service import EvidenceExportService
+from ot_demo.modules.evidence_export.service import (
+    EvidenceExportBoundaryError,
+    EvidenceExportService,
+)
 from ot_demo.modules.scenario.models import InitialiseRunRequest, ScenarioCommandRequest
-from ot_demo.modules.validation.catalogue import ValidationCatalogueLoader
+from ot_demo.modules.validation.catalogue import (
+    ValidationCatalogueLoader,
+    ValidationCatalogueResolver,
+)
 from ot_demo.modules.validation.service import ValidationBoundaryError, ValidationService
 from ot_demo.modules.validation.assurance import (
     ControlledArtifact, ControlledConflictReview, ControlledDesignQuestion,
@@ -2127,10 +2134,18 @@ def test_qa048_post_entry_suspension_composite_and_standalone_historical_export(
         assert "records/validation-execution.json" in names
         assert "records/scenario-run.json" in names
         assert "records/condition-definition.json" in names
+        assert "records/resolved-source-catalogue.json" in names
+        assert "records/resolved-source-test-definition.json" in names
+        assert "records/resolved-source-case-definition.json" in names
         assert f"records/evidence/{checkpoint.evidence_snapshot_id}.json" in names
         manifest = json.loads(archive.read("manifest.json"))
         assert manifest["source_application_build_id"] == MANIFEST.application_build_id
         assert manifest["generation_application_build_id"] == MANIFEST.application_build_id
+        assert manifest["source_resolution"] == {
+            "catalogue": "RESOLVED",
+            "test_definition": "RESOLVED",
+            "case_definition": "RESOLVED",
+        }
 
     composite_package = export.generate_composite(final.composite_result_id)
     with ZipFile(tmp_path / composite_package.archive_path) as archive:
@@ -2178,6 +2193,173 @@ def test_qa048_post_entry_suspension_composite_and_standalone_historical_export(
     assert formal_package.evidence_class is EvidenceClass.FORMAL
     assert formal_package.validation_execution_id is None
     assert formal_package.scenario_run_id is None
+
+
+@pytest.mark.i8
+def test_qa048_historical_suspension_export_resolves_original_catalogue_definition(
+    tmp_path: Path,
+) -> None:
+    scenarios = scenario(tmp_path, "qa048-history")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    historical_catalogue = CATALOGUE.parent / "history/v1.0/catalogue.json"
+    historical_validation = ValidationService(
+        repository, ValidationCatalogueLoader(historical_catalogue), scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    target, attempt = historical_validation.create_target_selection(
+        "VT-TOP-DEF-001", created_at=at(8200),
+        requested_fixture_identity="historically-unavailable-fixture",
+    )
+    suspension = historical_validation.evaluate_suspension(
+        attempt.validation_attempt_id,
+        trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="CONTROLLED_FIXTURE", field_id=None, source_assertion_ids=(),
+        proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(8201),
+    )
+    assert str(target.catalogue_version) == "1.0"
+
+    copied_definitions = tmp_path / "controlled-catalogues"
+    shutil.copytree(CATALOGUE.parent, copied_definitions)
+    copied_active = copied_definitions / "catalogue.json"
+    copied_historical = copied_definitions / "history/v1.0/catalogue.json"
+    resolver = ValidationCatalogueResolver(
+        copied_active, (copied_historical,)
+    )
+    later_identity = IDENTITY.model_copy(update={"git_commit": "a" * 40})
+    later_manifest = ApplicationBuildManifest(
+        application_build_id=sha256_bytes(
+            canonical_json_bytes(later_identity.model_dump(mode="json"))
+        ),
+        identity=later_identity,
+    )
+    export = EvidenceExportService(
+        EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios, JsonConfigurationLoader(CONFIGURATIONS), resolver,
+        application_build_manifest=later_manifest,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    package = export.generate_suspension(suspension.suspension_record_id)
+    assert str(package.source_catalogue_version) == "1.0"
+    assert package.source_catalogue_sha256 == target.catalogue_sha256
+    assert package.source_test_definition_sha256 == target.test_definition_sha256
+    assert package.source_application_build_id == MANIFEST.application_build_id
+    assert package.generation_application_build_id == later_manifest.application_build_id
+    assert package.source_resolution == {
+        "catalogue": "RESOLVED",
+        "test_definition": "RESOLVED",
+        "case_definition": "NOT_APPLICABLE",
+    }
+    with ZipFile(tmp_path / package.archive_path) as archive:
+        resolved = json.loads(
+            archive.read("records/resolved-source-test-definition.json")
+        )
+        manifest = json.loads(archive.read("manifest.json"))
+        assert resolved["test_definition_sha256"] == target.test_definition_sha256
+        assert resolved["definition"]["test_id"] == target.test_id
+        assert manifest["source_catalogue_version"] == "1.0"
+        assert manifest["generation_application_build_id"] == later_manifest.application_build_id
+
+    copied_historical.write_text(
+        copied_historical.read_text(encoding="utf-8").replace(
+            '"catalogue_version": "1.0"', '"catalogue_version": "9.9"', 1
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(
+        EvidenceExportBoundaryError,
+        match="source catalogue/test/case identity did not resolve",
+    ):
+        export.generate_suspension(suspension.suspension_record_id)
+
+
+@pytest.mark.i8
+@pytest.mark.parametrize(
+    ("unavailable_role", "expected_resolution"),
+    (
+        (
+            RequiredInputRole.CATALOGUE,
+            {
+                "catalogue": "EXEMPT_UNAVAILABLE_VSC_003",
+                "test_definition": "RESOLVED",
+                "case_definition": "RESOLVED",
+            },
+        ),
+        (
+            RequiredInputRole.TEST_DEFINITION,
+            {
+                "catalogue": "RESOLVED",
+                "test_definition": "EXEMPT_UNAVAILABLE_VSC_003",
+                "case_definition": "RESOLVED",
+            },
+        ),
+        (
+            RequiredInputRole.CASE_DEFINITION,
+            {
+                "catalogue": "RESOLVED",
+                "test_definition": "RESOLVED",
+                "case_definition": "EXEMPT_UNAVAILABLE_VSC_003",
+            },
+        ),
+        (
+            RequiredInputRole.CONFIGURATION,
+            {
+                "catalogue": "RESOLVED",
+                "test_definition": "RESOLVED",
+                "case_definition": "RESOLVED",
+            },
+        ),
+    ),
+)
+def test_qa048_only_exact_unavailable_role_is_exempt_from_source_resolution(
+    tmp_path: Path,
+    unavailable_role: RequiredInputRole,
+    expected_resolution: dict[str, str],
+) -> None:
+    scenarios = scenario(tmp_path, f"qa048-exemption-{unavailable_role.value}")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    target, attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(8250),
+        required_input_role=unavailable_role, presented_identity_evidence={},
+    )
+    suspension = validation.evaluate_suspension(
+        attempt.validation_attempt_id,
+        trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id=unavailable_role.value, field_id=None,
+        source_assertion_ids=(), proposer_actor_id=None, reviewer_actor_id=None,
+        finalised_at=at(8251),
+    )
+    export = EvidenceExportService(
+        EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        repository,
+        InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS),
+        scenarios, JsonConfigurationLoader(CONFIGURATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        application_build_manifest=MANIFEST,
+        output_directory=tmp_path / "evidence/exports",
+    )
+    package = export.generate_suspension(suspension.suspension_record_id)
+    assert package.source_resolution == expected_resolution
+    with ZipFile(tmp_path / package.archive_path) as archive:
+        names = set(archive.namelist())
+        assert (
+            "records/resolved-source-catalogue.json" in names
+        ) == (expected_resolution["catalogue"] == "RESOLVED")
+        assert (
+            "records/resolved-source-test-definition.json" in names
+        ) == (expected_resolution["test_definition"] == "RESOLVED")
+        assert (
+            "records/resolved-source-case-definition.json" in names
+        ) == (expected_resolution["case_definition"] == "RESOLVED")
 
 
 @pytest.mark.i8
@@ -2303,3 +2485,111 @@ def test_qa049_deterministic_classifier_precedence_gate_outcomes_and_authorities
         backend = record.evidence[0].payload["evidence"]["backend_verification"]
         assert backend["verifier_service"] == "RuntimeTimeAuthority"
         assert backend["failure_report"]["failure_code"] == expected_code
+
+
+@pytest.mark.i8
+def test_qa049_reviewer_gate_precedence_is_target_case_scope_aware(
+    tmp_path: Path,
+) -> None:
+    base = assurance_registry()
+    scoped_conflicts = (
+        *base.data.conflict_reviews,
+        ControlledConflictReview(
+            record_id="CR-OVERLAP-DQ", status="UNRESOLVED",
+            test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2",
+            field_id="comparison_expected_values",
+            source_assertion_ids=("SRC-VP", "SRC-DD"),
+            review_record_id="TEST-OVERLAP-REVIEW",
+        ),
+        ControlledConflictReview(
+            record_id="CR-OVERLAP-TIME", status="UNRESOLVED",
+            test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2",
+            field_id="pre-entry-clock",
+            source_assertion_ids=("SRC-VP", "SRC-DD"),
+            review_record_id="TEST-OVERLAP-REVIEW",
+        ),
+    )
+    registry = ControlledEngineeringRegistry(
+        base.data.model_copy(update={"conflict_reviews": scoped_conflicts}), ROOT
+    )
+    scenarios = scenario(tmp_path, "qa049-scope")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST, engineering_registry=registry,
+    )
+    records = []
+    for index, (routing, reference, scope, sources) in enumerate((
+        (
+            SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
+            "DQ-TEST-OPEN", "comparison_expected_values", ("SRC-VP",),
+        ),
+        (
+            SuspensionEvaluationType.BASELINE_CONFLICT,
+            "CR-OVERLAP-DQ", "comparison_expected_values", ("SRC-VP", "SRC-DD"),
+        ),
+        (
+            SuspensionEvaluationType.TIME_AUTHORITY,
+            "TR-TEST-OPEN", "pre-entry-clock", ("SRC-VP",),
+        ),
+    )):
+        target, attempt = validation.create_target_selection(
+            "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2",
+            created_at=at(9200 + index),
+        )
+        record = validation.evaluate_suspension(
+            attempt.validation_attempt_id,
+            trusted_target_selection_id=target.target_selection_id,
+            evaluation_type=routing,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id=reference, field_id=scope, source_assertion_ids=sources,
+            proposer_actor_id="graduate-engineer",
+            reviewer_actor_id="independent-reviewer",
+            finalised_at=at(9210 + index),
+        )
+        assert record.condition_id is ValidationSuspensionCondition.VSC_002
+        assert [item.status.value for item in record.evaluated_classifier_gates] == [
+            "PASS", "NOT_APPLICABLE", "PASS", "FAIL",
+            "NOT_REACHED", "NOT_REACHED",
+        ]
+        records.append(record)
+    assert {item.condition_id for item in records} == {
+        ValidationSuspensionCondition.VSC_002
+    }
+
+    ambiguous_registry = ControlledEngineeringRegistry(
+        base.data.model_copy(update={
+            "conflict_reviews": (
+                *scoped_conflicts,
+                ControlledConflictReview(
+                    record_id="CR-OVERLAP-DUPLICATE", status="UNRESOLVED",
+                    test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2",
+                    field_id="comparison_expected_values",
+                    source_assertion_ids=("SRC-VP", "SRC-DD"),
+                    review_record_id="TEST-OVERLAP-REVIEW-2",
+                ),
+            )
+        }),
+        ROOT,
+    )
+    ambiguous_validation = ValidationService(
+        ValidationRepository(tmp_path / "ambiguous.sqlite3", MIGRATIONS),
+        ValidationCatalogueLoader(CATALOGUE),
+        scenario(tmp_path, "qa049-ambiguous"),
+        application_build_manifest=MANIFEST,
+        engineering_registry=ambiguous_registry,
+    )
+    target, attempt = ambiguous_validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(9300)
+    )
+    with pytest.raises(ValidationBoundaryError, match="multiple controlled baseline-conflict"):
+        ambiguous_validation.evaluate_suspension(
+            attempt.validation_attempt_id,
+            trusted_target_selection_id=target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id="DQ-TEST-OPEN", field_id="comparison_expected_values",
+            source_assertion_ids=("SRC-VP",),
+            proposer_actor_id="graduate-engineer",
+            reviewer_actor_id="independent-reviewer", finalised_at=at(9301),
+        )

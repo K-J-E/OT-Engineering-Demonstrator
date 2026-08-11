@@ -620,14 +620,17 @@ class ValidationService:
                 record_gate("INPUT_IDENTITY", ClassifierGateOutcomeStatus.NOT_REACHED)
 
             if selected is None:
-                conflict_applicable = (
-                    self._engineering_registry.has_conflict(reference_id)
-                    or evaluation_type is SuspensionEvaluationType.BASELINE_CONFLICT
+                payload = self._engineering_registry.verify_scoped_conflict(
+                    target, field_id or ""
                 )
-                if conflict_applicable:
+                if (
+                    payload is None
+                    and evaluation_type is SuspensionEvaluationType.BASELINE_CONFLICT
+                ):
                     payload = self._engineering_registry.verify_conflict(
                         target, reference_id, field_id or "", source_assertion_ids
                     )
+                if payload is not None:
                     failure_code = "INCONSISTENT_BASELINE"
                     record_gate(
                         "BASELINE_CONFLICT", ClassifierGateOutcomeStatus.FAIL,
@@ -645,14 +648,17 @@ class ValidationService:
                 record_gate("BASELINE_CONFLICT", ClassifierGateOutcomeStatus.NOT_REACHED)
 
             if selected is None:
-                behaviour_applicable = (
-                    self._engineering_registry.has_design_question(reference_id)
-                    or evaluation_type is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR
+                payload = self._engineering_registry.verify_scoped_design_question(
+                    target, field_id or ""
                 )
-                if behaviour_applicable:
+                if (
+                    payload is None
+                    and evaluation_type is SuspensionEvaluationType.ENGINEERING_BEHAVIOUR
+                ):
                     payload = self._engineering_registry.verify_design_question(
                         target, reference_id, field_id or "", source_assertion_ids
                     )
+                if payload is not None:
                     failure_code = "UNSPECIFIED_ENGINEERING_BEHAVIOUR"
                     record_gate(
                         "UNSPECIFIED_BEHAVIOUR", ClassifierGateOutcomeStatus.FAIL,
@@ -670,20 +676,27 @@ class ValidationService:
                 record_gate("UNSPECIFIED_BEHAVIOUR", ClassifierGateOutcomeStatus.NOT_REACHED)
 
             if selected is None:
-                time_applicable = (
-                    evaluation_type is SuspensionEvaluationType.TIME_AUTHORITY
-                    or self._engineering_registry.has_time_review(reference_id)
-                    or self._time_authority.has_failure(reference_id)
-                )
-                if time_applicable:
-                    if lifecycle_position is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
+                if lifecycle_position is SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY:
+                    payload = self._engineering_registry.verify_scoped_preentry_time(
+                        target, field_id or ""
+                    )
+                    if (
+                        payload is None
+                        and evaluation_type is SuspensionEvaluationType.TIME_AUTHORITY
+                    ):
                         payload = self._engineering_registry.verify_preentry_time(
                             target, reference_id, field_id or "", source_assertion_ids
                         )
+                    if payload is not None:
                         failure_code = "UNCONTROLLED_WALL_CLOCK_DEPENDENCY"
                         authority_kind = SuspensionAuthorityKind.ENGINEERING_REVIEW
                         verifier_name = "ControlledEngineeringRegistry"
-                    else:
+                else:
+                    payload = None
+                    if (
+                        evaluation_type is SuspensionEvaluationType.TIME_AUTHORITY
+                        or self._time_authority.has_failure(reference_id)
+                    ):
                         result = self._time_authority.evaluate(
                             lifecycle_position, reference_id,
                             str(validation_execution_id) if validation_execution_id else None,
@@ -695,6 +708,7 @@ class ValidationService:
                         failure_code, payload = result
                         authority_kind = SuspensionAuthorityKind.BACKEND_ASSURANCE
                         verifier_name = "RuntimeTimeAuthority"
+                if payload is not None:
                     record_gate(
                         "CONTROLLED_TIME", ClassifierGateOutcomeStatus.FAIL,
                         condition=ValidationSuspensionCondition.VSC_004,
