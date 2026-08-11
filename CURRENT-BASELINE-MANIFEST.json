@@ -1,7 +1,7 @@
 {
   "baseline_date": "2026-08-11",
-  "baseline_name": "Accepted DC-004/DC-005 design baseline with authorised application reconciliation on draft PR #10",
-  "baseline_status": "ACCEPTED IMPLEMENTATION REMAINS I8 — PR #10 RECONCILIATION AND QA-041 + QA-042/DC-005 APPLICATION AUTHORISED — I9 STOPPED",
+  "baseline_name": "Accepted I8 plus independently accepted DC-004/DC-005 machine/application baseline",
+  "baseline_status": "DC-004/DC-005 APPLICATION ACCEPTED AT REVIEWED PR #10 TIP — QA-041 THROUGH QA-049 CLOSED — I9 STOPPED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -19,11 +19,11 @@
   "accepted_design_change": {
     "id": "DC-005",
     "title": "Controlled Validation Suspension and BLOCKED-TEST Determination",
-    "status": "ACCEPTED — authoritative design baseline; application not authorised",
+    "status": "ACCEPTED — authoritative design and independently accepted machine/application baseline",
     "branch": "agent/dc-005-validation-suspension",
     "base_commit": "e4f74611d9f750f4577f36c1c473f79506266347",
     "reviewed_tip": "974c39ac044b1af1342389f531f65281d93db114",
-    "implementation_boundary": "No PR #10, QA-041, machine catalogue, contract, schema, database, API, frontend or I9 change"
+    "implementation_boundary": "Design tip remains preserved; separately authorised machine/application treatment accepted at PR #10 tip eced7c06c27b959cdb29d3aaa9351ca11cb5e258; I9 remains stopped"
   },
   "documents": [
     {
@@ -295,19 +295,19 @@
     }
   ],
   "implementation_baseline": {
-    "accepted_through_increment": "I8",
-    "accepted_reviewed_implementation_tip": "111df44a425731dc7f44c437c1d675e5dac85263",
-    "next_increment": "Independent re-review of reconciled QA-041 + QA-042/DC-005 application on draft PR #10; I9 remains stopped",
+    "accepted_through_increment": "I8 plus accepted DC-004/DC-005 machine/application boundary",
+    "accepted_reviewed_implementation_tip": "eced7c06c27b959cdb29d3aaa9351ca11cb5e258",
+    "next_increment": "I9 remains stopped and requires separate user authorisation from the accepted reviewed-main baseline",
     "next_increment_authorised": false,
-    "dc004_application_status": "ORIGINAL APPLICATION PRESERVED; ACCEPTED MAIN RECONCILED; QA-041 + QA-042/DC-005 CORRECTED AND VERIFIED ON DRAFT PR #10; INDEPENDENT RE-REVIEW REQUIRED",
+    "dc004_application_status": "INDEPENDENTLY ACCEPTED WITH DC-005 APPLICATION AT EXACT REVIEWED PR #10 TIP eced7c06c27b959cdb29d3aaa9351ca11cb5e258; QA-041 THROUGH QA-049 CLOSED; INCORPORATED INTO REVIEWED MAIN",
     "dc004_application_pr": {
       "number": 10,
-      "state": "OPEN/DRAFT",
+      "state": "INDEPENDENTLY ACCEPTED / MERGED",
       "head_branch": "agent/dc-004-application",
-      "observed_head_commit": "708c9814fe307a849c7a011e5bfae65d52f5ceca",
-      "treatment": "Original reviewed implementation commit preserved; accepted main reconciled; bounded assurance corrections verified pending independent re-review"
+      "observed_head_commit": "eced7c06c27b959cdb29d3aaa9351ca11cb5e258",
+      "treatment": "Complete reviewed DC-004/DC-005 application history accepted and incorporated without rewriting; proposal, first-application, QA-correction and build identities preserved"
     },
-    "i9_status": "STOPPED — no resumption authority; reconciled QA-041 + QA-042/DC-005 application requires separate authorisation, implementation and independent acceptance first"
+    "i9_status": "STOPPED — no resumption authority; requires separate user authorisation from the accepted reviewed-main baseline"
   },
   "validation_catalogue_baseline": {
     "active_version": "1.1",
@@ -320,7 +320,7 @@
     "unique_requirement_count": 124,
     "rtm_relationship_count": 286,
     "operational_event_type_count": 15,
-    "application_review_status": "PENDING_INDEPENDENT_REVIEW"
+    "application_review_status": "INDEPENDENTLY_ACCEPTED"
   },
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
@@ -333,7 +333,7 @@
     "Demonstrator Design v0.4 establishes the Step 8 practical local application and accepted DC-004/DC-005 validation-assurance design without changing approved engineering behaviour.",
     "Validation Plan v1.2 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, accepted DC-005 suspension determination, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The original DC-004 application commit is preserved on draft PR #10; accepted main is reconciled and QA-041 + QA-042/DC-005 application is corrected/verified pending independent re-review. I9 remains stopped.",
+    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The complete DC-004/DC-005 machine/application boundary is independently accepted at exact PR #10 tip eced7c06c27b959cdb29d3aaa9351ca11cb5e258 and incorporated without rewriting reviewed commits; QA-041 through QA-049 are closed. I9 remains stopped and requires separate user authorisation.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
     "The five independently reviewed DC-005 proposal identities are preserved separately from their accepted authoritative identities; the accepted versions supersede the prior DC-004-era identities without erasing either history.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."

@@ -1,6 +1,6 @@
 # DC-004 — Multi-Run Exploratory Validation Determination
 
-Status: Applied to machine/application baseline; verification passed; pending independent review
+Status: Accepted authoritative design and independently accepted machine/application baseline
 
 Date raised: 2026-08-10
 
@@ -378,7 +378,7 @@ Future implementation verification shall prove:
 
 ## 14. Acceptance and lifecycle gate
 
-Current disposition: **Applied to the controlled machine/application baseline; verification passed; pending independent review.**
+Current disposition: **Accepted authoritative design and independently accepted controlled machine/application baseline.**
 
 This acceptance baselines the DC-004 design and the authoritative Validation
 Plan Section 19 and Demonstrator Design Section 36 treatments only. It does not
@@ -386,12 +386,15 @@ alter the machine-readable catalogue, database contracts, implementation
 behaviour, controlled configurations or accepted I8 runtime baseline. I9
 remains stopped.
 
-The separately authorised application phase has applied the accepted treatment
-on `agent/dc-004-application`. Catalogue v1.0 remains byte-identical historical
-input; promoted catalogue v1.1, case-bound executions, historical resolution,
-immutable composites, review projection and preserved-record export have passed
-the application verification suite. The application remains pending independent
-review and incorporation into `main`. This application does not authorise I9.
+The separately authorised application phase applied the accepted treatment on
+`agent/dc-004-application`. Final independent application review accepted exact
+reviewed PR #10 tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`.
+Catalogue v1.0 remains byte-identical historical input; corrected active
+catalogue v1.1, case-bound executions, historical resolution, immutable
+composites, review projection and preserved-record export passed the complete
+application verification suite. The accepted history is incorporated into
+reviewed `main` without rewriting the reviewed commits. This application does
+not authorise I9.
 
 ## 15. Review and acceptance verification record
 

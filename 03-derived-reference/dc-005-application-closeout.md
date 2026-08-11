@@ -1,5 +1,5 @@
 ---
-Status: QA-048/QA-049 corrected and verified; pending independent re-review
+Status: Independently accepted DC-005 machine/application baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-11
@@ -10,7 +10,7 @@ Change: DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determinati
 
 ## Boundary and provenance
 
-The accepted DC-005 authoritative baseline was reconciled from main commit `195e21ac0f2e0641f17c0307c0a095591623d7bd` into existing branch `agent/dc-004-application` without rewriting original reviewed DC-004 application commit `a22d428483b8afcbcbaa5309d327c2ac3709f7fa`. Requirements Specification v0.4, Validation Plan v1.2, Demonstrator Design v0.4, System Architecture v0.3 and Workflow Design v0.3 remain byte-identical to main. I8 remains the accepted implementation baseline; this application is pending independent re-review and I9 remains stopped.
+The accepted DC-005 authoritative baseline was reconciled from main commit `195e21ac0f2e0641f17c0307c0a095591623d7bd` into existing branch `agent/dc-004-application` without rewriting original reviewed DC-004 application commit `a22d428483b8afcbcbaa5309d327c2ac3709f7fa`. Requirements Specification v0.4, Validation Plan v1.2, Demonstrator Design v0.4, System Architecture v0.3 and Workflow Design v0.3 remain byte-identical to main. Final independent application review accepted exact PR #10 tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; this application is now the accepted DC-005 machine/application baseline. I9 remains stopped.
 
 ## Applied contracts
 
@@ -46,7 +46,7 @@ QA-041 is independently accepted. Historical v1.0 catalogue/manifest hashes rema
 
 ## Gate
 
-QA-041 and QA-043–QA-047 are independently accepted/closed as recorded in the QA register. The substantive QA-048/QA-049 corrections are independently accepted; their final bounded historical-source and reviewer-scope conformance corrections are implemented and verified pending final independent re-review. QA-042/DC-005 application therefore remains not accepted. Draft PR #10 must remain unmerged. I9 has not resumed and requires later separate authorisation only after the complete application is independently accepted and incorporated into reviewed main.
+Final independent application review accepts the complete DC-004/DC-005 PR #10 boundary at exact reviewed tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`. QA-041 through QA-049 are closed for this application boundary, including QA-042, QA-048 and QA-049. The reviewed history is incorporated into `main` without rewriting commits. I9 has not resumed and still requires separate authorisation from the resulting accepted-main baseline.
 
 ## QA-048/QA-049 bounded assurance completion
 

@@ -1,5 +1,5 @@
 ---
-Status: Applied and verified; pending independent review
+Status: Independently accepted DC-004 machine/application baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-11
@@ -152,7 +152,7 @@ EXPLORATORY constituent and composite records.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 142 tests including final QA-048/QA-049 conformance corrections; application acceptance remains pending final independent re-review |
+| Complete backend unit/integration suite | PASS — 142 tests including final QA-048/QA-049 conformance corrections; independently accepted at reviewed PR #10 tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258` |
 | React/Cytoscape component suite | PASS — 17 tests |
 | Chromium formal, investigation and Exploration/export workflows | PASS — 3 tests |
 | Pinned TypeScript/Vite production build | PASS |
@@ -252,3 +252,13 @@ The classifier applies the accepted integrity → identity → conflict → beha
 Independent re-review accepted the QA-045 serialization correction and substantive QA-048/QA-049 treatment. Standalone suspension export now uses the existing DC-004 resolver to prove every available original catalogue/test/case version+hash against an actual immutable active/historical package before VERIFIED status. Exactly the role proven unavailable by VSC-003 remains exempt. A historical v1.0 suspension exports under active v1.1 with its original definition and separate generation build; tampered historical input rejects export.
 
 Reviewer-controlled precedence is now derived from unique exact target/test/case/field-or-step registry scope rather than a supplied record ID. An applicable unresolved conflict prevents a lower DQ or pre-entry-time route from finalising; duplicate same-gate scope records reject deterministically. These final QA-048/QA-049 conformance corrections are verified pending final independent re-review. PR #10 remains draft/unmerged and I9 remains stopped.
+
+## 16. Final independent application acceptance
+
+Final independent application review accepted the complete PR #10 boundary at
+exact reviewed tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`. DC-004
+machine/application treatment is the accepted implementation baseline and its
+reviewed history is incorporated into `main` without rewriting commits. All
+historical proposal, first-application, QA-correction and build identities in
+this record remain preserved. QA-041 through QA-049 are closed for this
+application boundary. I9 remains stopped and requires separate authorisation.

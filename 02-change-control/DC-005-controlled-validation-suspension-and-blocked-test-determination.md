@@ -1,6 +1,6 @@
 # DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination
 
-Status: Accepted / authoritative design baseline; application not authorised
+Status: Accepted authoritative design and independently accepted machine/application baseline
 
 Date raised: 2026-08-11
 
@@ -36,8 +36,9 @@ engineering outcomes. It applies a controlled terminology clarification to
 124-requirement total, all 286 requirement-to-test relationships, the 24-test
 catalogue and the 15 operational-event types.
 
-This accepted design does not implement QA-041 or QA-042, alter PR #10, resume I9 or
-authorise application work.
+At design acceptance, this design did not itself implement QA-041 or QA-042,
+alter PR #10, resume I9 or authorise application work. The later separately
+authorised and independently reviewed application is recorded in Section 18.
 
 ## 2. Existing authoritative meaning retained
 
@@ -576,3 +577,21 @@ binding, source/hash verification, authority checks and evidence-package
 assembly are repetitive and assurance-heavy. A future tool could pre-validate
 the record and flag contradictions while leaving reviewer judgement and final
 acceptance under engineering control.
+
+## 18. Independently accepted application baseline
+
+Following separate application authority, accepted DC-005 was reconciled onto
+the preserved DC-004 application history and implemented with QA-041 and
+QA-042. Subsequent bounded assurance corrections QA-043 through QA-049 were
+completed without changing the authoritative engineering meaning.
+
+Final independent application review accepted PR #10 at exact reviewed tip
+`eced7c06c27b959cdb29d3aaa9351ca11cb5e258`. DC-004 and DC-005 machine/application
+treatment is therefore the accepted application baseline; QA-041 through
+QA-049 are closed for this boundary. The accepted history is incorporated into
+reviewed `main` without rewriting the reviewed commits.
+
+The five accepted DC-005 authoritative DOCX identities, the historical v1.0
+and corrected active v1.1 catalogue identities, the 24-test/124-requirement/
+286-relationship RTM and the 15 operational-event types remain unchanged. This
+application acceptance does not authorise or resume I9.

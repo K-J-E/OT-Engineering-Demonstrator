@@ -1,5 +1,5 @@
 ---
-Status: Active implementation control plan — DC-005 accepted; PR #10 reconciliation/correction authorised; I8 accepted; I9 stopped
+Status: Active implementation control plan — DC-004/DC-005 application accepted; I8 accepted; I9 stopped
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
 Updated: 2026-08-11
@@ -24,9 +24,9 @@ The current baseline is:
 - Validation Plan v1.2 through Section 20.7, accepted as the current validation-design baseline;
 - DC-001 through DC-005 accepted and applied to their authoritative design artefacts.
 
-Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section 19 authoritative. Its original machine-readable catalogue, contract, persistence and application treatment remains preserved on `agent/dc-004-application` / draft PR #10. Independent review accepted that implementation in substance, left QA-041 pending and accepted QA-042 as a genuine design-control stop.
+Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section 19 authoritative. Its original machine-readable catalogue, contract, persistence and application treatment remains preserved in the accepted PR #10 history. Final independent application review accepted exact reviewed tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`.
 
-Accepted DC-005 makes Requirements Specification v0.4 `REQ-VAL-007`–`REQ-VAL-009`, Validation Plan v1.2 Section 20, Demonstrator Design v0.4 Section 37, System Architecture v0.3 Section 27 and Workflow Design v0.3 Section 28 controlling. Accepted main has been reconciled into the existing draft PR #10 branch; QA-044–QA-047 are independently closed, and the substantive QA-048/QA-049 implementation is accepted. Their final bounded historical-source-resolution and reviewer-scope conformance corrections await final independent re-review. Complete QA-042/DC-005 application acceptance and reviewed-main incorporation remain prerequisites before I9 can be considered for separate authorisation. The stopped `agent/i9-packaging-review` branch is not reused.
+Accepted DC-005 makes Requirements Specification v0.4 `REQ-VAL-007`–`REQ-VAL-009`, Validation Plan v1.2 Section 20, Demonstrator Design v0.4 Section 37, System Architecture v0.3 Section 27 and Workflow Design v0.3 Section 28 controlling. Its complete machine/application treatment is independently accepted at the same reviewed PR #10 tip; QA-041 through QA-049 are closed for this boundary. The reviewed history is incorporated into `main` without rewriting commits. I9 remains stopped and may be considered only under separate user authorisation from that accepted-main baseline. The stopped `agent/i9-packaging-review` branch is not reused.
 
 The detailed source documents remain authoritative. Requirement ranges and catalogue-test references below are navigation and delivery controls, not substitutes for reading the exact rows and test definitions.
 
@@ -44,7 +44,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I6 | Operational UI | **Accepted implementation baseline** |
 | I7 | Investigation/correction | **Accepted implementation baseline** |
 | I8 | Exploration and export | **Accepted implementation baseline** |
-| I9 | Packaging/review | **Authorised, then stopped — PR #10 reconciliation/correction is separately authorised; no I9 resumption authority** |
+| I9 | Packaging/review | **Previously authorised, then stopped — DC-004/DC-005 application is now accepted; no I9 resumption authority without a new separate user authorisation** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 

@@ -57,20 +57,20 @@ DC-004 — Multi-Run Exploratory Validation Determination — is accepted as the
 validation/design treatment. It defines constituent cases, immutable composite determination,
 historical catalogue/test-definition resolution and provenance boundaries without changing the
 24-test catalogue, 124 requirements, 286 RTM relationships, 15 event types or electrical behaviour.
-Its original machine/application commit remains preserved on draft PR #10 and was accepted in
-substance, but remains outside the accepted implementation baseline. Accepted main is reconciled;
-QA-041 + QA-042/DC-005 are corrected and verified pending independent application re-review. I9
-remains stopped.
+Its machine/application history is independently accepted at exact reviewed PR #10 tip
+`eced7c06c27b959cdb29d3aaa9351ca11cb5e258` and incorporated into reviewed `main` without rewriting
+the reviewed commits. Historical catalogue and first-application identities remain preserved. I9
+remains stopped and requires separate user authorisation.
 
 DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination — is accepted as the
 authoritative validation-suspension design baseline. It defines the exact five accepted suspension
 condition identities, a distinct attempt/result lifecycle, deterministic non-overlapping classifier,
 trusted target/provenance anchor, bounded reviewer-authority control, immutable history and DC-004
-composite relationship. Its machine application is corrected and verified on draft PR #10 pending
-independent review; it introduces no electrical, restoration, RTM or event-type change. Requirements Specification v0.4 clarifies only
+composite relationship. Its machine application is independently accepted at reviewed PR #10 tip
+`eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; QA-041 through QA-049 are closed for this application
+boundary. It introduces no electrical, restoration, RTM or event-type change. Requirements Specification v0.4 clarifies only
 `REQ-VAL-007`–`REQ-VAL-009`, retaining their IDs, 124 total requirements and 286 mappings. Active
-catalogue v1.1 changes only to machine-prove QA-041's exact 60,001 ms expectation; PR #10 remains
-draft/unmerged and I9 remains stopped.
+catalogue v1.1 changes only to machine-prove QA-041's exact 60,001 ms expectation. I9 remains stopped.
 
 The accepted detailed Design Brief and Network Model are revision 0.4; accepted Requirements
 Specification is revision 0.4 with 124 unique requirements. Accepted System Architecture and
@@ -98,12 +98,11 @@ formal requirements. DC-003 was applied and cross-document verified before final
 acceptance. Implementation proceeds only through separately authorised increments. I1–I8 are
 accepted implementation baselines. I8 — Exploration and Export passed final independent
 engineering/implementation review, including accepted QA-008 evidence export and independently
-verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 is accepted as
-the authoritative design change. Its separate application branch/PR #10 remains draft and
-unmerged; its original reviewed application commit remains preserved. QA-041 and the accepted
-QA-042/DC-005 application are corrected and verified on that branch, pending full independent
-application re-review. I9 cannot resume until the corrected reviewed baseline is accepted and
-incorporated into `main`.
+verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 and DC-005 are
+accepted authoritative design and machine/application baselines. Final independent review accepted
+the complete PR #10 boundary at exact tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; QA-041 through
+QA-049 are closed and the reviewed history is incorporated into `main`. I9 remains stopped and can
+resume only under separate user authorisation from the resulting accepted-main baseline.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,
