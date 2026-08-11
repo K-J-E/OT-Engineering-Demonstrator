@@ -31,6 +31,7 @@ from ot_demo.domain.enums import (
     ValidationSuspensionCondition,
     CompositeConstituentSourceKind,
     SuspensionEvaluationType,
+    RequiredInputRole,
 )
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
@@ -975,16 +976,35 @@ def test_qa041_exact_stale_age_is_compared_and_61000_ms_substitution_fails(
 
 
 def assurance_registry() -> ControlledEngineeringRegistry:
+    def assertion(assertion_id: str, source_id: str, path: str, version: str, location: str, text: str) -> ControlledSourceAssertion:
+        text_hash = sha256_bytes(" ".join(text.split()).encode("utf-8"))
+        record_hash = sha256_bytes(canonical_json_bytes({
+            "assertion_id": assertion_id, "source_id": source_id, "path": path,
+            "version": version, "sha256": sha256_file(ROOT / path),
+            "location": location, "assertion_text_sha256": text_hash,
+        }))
+        return ControlledSourceAssertion(
+            assertion_id=assertion_id, source_id=source_id, path=path, version=version,
+            sha256=sha256_file(ROOT / path), location=location, assertion_text=text,
+            assertion_text_sha256=text_hash, assertion_record_sha256=record_hash,
+        )
     sources = (
-        ControlledSourceAssertion(assertion_id="SRC-VP", source_id="VP", path="01-engineering-source-documents/OT Project Validation Plan.docx", version="1.2", sha256=sha256_file(ROOT / "01-engineering-source-documents/OT Project Validation Plan.docx"), location="Section 20"),
-        ControlledSourceAssertion(assertion_id="SRC-DD", source_id="DD", path="01-engineering-source-documents/OT Project Demonstrator Design.docx", version="0.4", sha256=sha256_file(ROOT / "01-engineering-source-documents/OT Project Demonstrator Design.docx"), location="Section 37"),
+        assertion("SRC-VP", "VP", "01-engineering-source-documents/OT Project Validation Plan.docx", "1.2", "Section 20.3 / VSC-002", "Two controlled assertions are in conflict for this test-only field."),
+        assertion("SRC-DD", "DD", "01-engineering-source-documents/OT Project Demonstrator Design.docx", "0.4", "Section 37 test fixture", "A second controlled assertion differs for this test-only field."),
     )
+    step_text = "This test-only pre-entry step depends on an uncontrolled clock."
+    step_text_hash = sha256_bytes(" ".join(step_text.split()).encode("utf-8"))
+    step_record_hash = sha256_bytes(canonical_json_bytes({
+        "record_id": "TR-TEST-OPEN", "test_id": "VT-EXP-ROLE-001",
+        "case_id": "EXP-ROLE-A2", "step_reference": "pre-entry-clock",
+        "step_text_sha256": step_text_hash, "source_assertion_ids": ["SRC-VP"],
+    }))
     return ControlledEngineeringRegistry(EngineeringAssuranceRegistryData(
         authority="test-only controlled assurance fixture",
         source_assertions=sources,
         design_questions=(ControlledDesignQuestion(record_id="DQ-TEST-OPEN", status="OPEN", test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", field_id="comparison_expected_values", source_assertion_ids=("SRC-VP",), review_record_id="TEST-REVIEW"),),
         conflict_reviews=(ControlledConflictReview(record_id="CR-TEST-OPEN", status="UNRESOLVED", test_id="VT-EXP-ALL-001", case_id="EXP-ALL-A1", field_id="expected_customer_impact", source_assertion_ids=("SRC-VP", "SRC-DD"), review_record_id="TEST-REVIEW"),),
-        time_reviews=(ControlledTimeReview(record_id="TR-TEST-OPEN", status="OPEN", test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", step_reference="pre-entry-clock", source_assertion_ids=("SRC-VP",), review_record_id="TEST-REVIEW"),),
+        time_reviews=(ControlledTimeReview(record_id="TR-TEST-OPEN", status="OPEN", test_id="VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", step_reference="pre-entry-clock", step_text=step_text, step_text_sha256=step_text_hash, step_record_sha256=step_record_hash, source_assertion_ids=("SRC-VP",), review_record_id="TEST-REVIEW"),),
     ), ROOT)
 
 
@@ -1016,7 +1036,7 @@ def test_dc005_exact_conditions_authority_immutability_and_composite_union(
             trusted_target_selection_id=target.target_selection_id,
             evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
             lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
-            reference_id="fixture", field_id=None, source_assertion_ids=(),
+            reference_id="CONTROLLED_FIXTURE", field_id=None, source_assertion_ids=(),
             proposer_actor_id=None, reviewer_actor_id=None,
             finalised_at=at(2100 + index),
         )
@@ -1265,7 +1285,7 @@ def test_qa043_qa044_backend_facts_and_controlled_record_resolution(tmp_path: Pa
             trusted_target_selection_id=healthy_target.target_selection_id,
             evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
             lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
-            reference_id="fixture", field_id=None, source_assertion_ids=(),
+            reference_id="CONTROLLED_FIXTURE", field_id=None, source_assertion_ids=(),
             proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(3001),
         )
     with pytest.raises(ValidationBoundaryError, match="passed integrity"):
@@ -1294,7 +1314,7 @@ def test_qa043_qa044_backend_facts_and_controlled_record_resolution(tmp_path: Pa
             evaluation_type=SuspensionEvaluationType.ENGINEERING_BEHAVIOUR,
             lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
             reference_id="DQ-001", field_id="exploration_fault_isolation_action_derivation",
-            source_assertion_ids=("SRC-NETWORK-MODEL-18", "SRC-DEMONSTRATOR-DESIGN-37"),
+            source_assertion_ids=("SRC-NETWORK-MODEL-18", "SRC-DEMONSTRATOR-DESIGN-35"),
             proposer_actor_id="graduate-engineer", reviewer_actor_id="independent-reviewer",
             finalised_at=at(3001),
         )
@@ -1309,7 +1329,7 @@ def test_qa043_qa044_backend_facts_and_controlled_record_resolution(tmp_path: Pa
             trusted_target_selection_id=unknown_target.target_selection_id,
             evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
             lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
-            reference_id="fixture", field_id=None, source_assertion_ids=(),
+            reference_id="CONTROLLED_FIXTURE", field_id=None, source_assertion_ids=(),
             proposer_actor_id="backend-integrity-monitor",
             reviewer_actor_id="backend-assurance-reviewer", finalised_at=at(3011),
         )
@@ -1318,19 +1338,23 @@ def test_qa043_qa044_backend_facts_and_controlled_record_resolution(tmp_path: Pa
         trusted_target_selection_id=unknown_target.target_selection_id,
         evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
         lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
-        reference_id="fixture", field_id=None, source_assertion_ids=(),
+        reference_id="CONTROLLED_FIXTURE", field_id=None, source_assertion_ids=(),
         proposer_actor_id=None, reviewer_actor_id=None, finalised_at=at(3011),
     )
     assert identity_record.evidence[0].failure_code == "UNKNOWN_IDENTITY"
     assert identity_record.authority.proposer_actor_id == "backend-integrity-monitor"
     missing_target = healthy_target.model_copy(update={
-        "canonical_selection_payload": {**healthy_target.canonical_selection_payload, "requested_fixture_identity": None}
+        "requested_identity_evidence": {**healthy_target.requested_identity_evidence, "CONTROLLED_FIXTURE": {}},
+        "resolved_identity_evidence": {key: value for key, value in healthy_target.resolved_identity_evidence.items() if key != "CONTROLLED_FIXTURE"},
+        "unresolved_required_role": "CONTROLLED_FIXTURE",
     })
-    assert IdentityResolutionAuthority().evaluate(missing_target, "fixture")[0] == "MISSING_IDENTITY"
+    assert IdentityResolutionAuthority().evaluate(missing_target, "CONTROLLED_FIXTURE")[0] == "MISSING_IDENTITY"
     ambiguous_target = healthy_target.model_copy(update={
-        "canonical_selection_payload": {**healthy_target.canonical_selection_payload, "requested_fixture_identity": "duplicate"}
+        "requested_identity_evidence": {**healthy_target.requested_identity_evidence, "CONTROLLED_FIXTURE": {"fixture_id": "duplicate"}},
+        "resolved_identity_evidence": {key: value for key, value in healthy_target.resolved_identity_evidence.items() if key != "CONTROLLED_FIXTURE"},
+        "unresolved_required_role": "CONTROLLED_FIXTURE",
     })
-    assert IdentityResolutionAuthority(("duplicate", "duplicate")).evaluate(ambiguous_target, "fixture")[0] == "AMBIGUOUS_IDENTITY"
+    assert IdentityResolutionAuthority(("duplicate", "duplicate")).evaluate(ambiguous_target, "CONTROLLED_FIXTURE")[0] == "AMBIGUOUS_IDENTITY"
 
     runtime_run = initialise_exploration(scenarios, "SEC-A2", 3050).snapshot.run
     runtime_execution = validation.start_execution(
@@ -1384,6 +1408,247 @@ def test_qa043_qa044_backend_facts_and_controlled_record_resolution(tmp_path: Pa
         expected_sha256="0" * 64,
     ),))
     assert unreadable_authority.evaluate("missing")[0] == "UNREADABLE"
+
+
+@pytest.mark.i8
+def test_qa045_all_required_identity_roles_and_composite_exception(tmp_path: Path) -> None:
+    scenarios = scenario(tmp_path, "qa045")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    roles = tuple(RequiredInputRole)
+    for index, role in enumerate(roles):
+        healthy_target, healthy_attempt = validation.create_target_selection(
+            "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(4000 + index)
+        )
+        with pytest.raises(ValidationBoundaryError, match="resolves uniquely"):
+            validation.evaluate_suspension(
+                healthy_attempt.validation_attempt_id,
+                trusted_target_selection_id=healthy_target.target_selection_id,
+                evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+                lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+                reference_id=role.value, field_id=None, source_assertion_ids=(),
+                proposer_actor_id=None, reviewer_actor_id=None,
+                finalised_at=at(4100 + index),
+            )
+        missing_target, missing_attempt = validation.create_target_selection(
+            "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(4200 + index),
+            required_input_role=role, presented_identity_evidence={},
+        )
+        assert missing_target.unresolved_required_role is role
+        requested_fields = {
+            RequiredInputRole.APPLICATION_BUILD: ("requested_application_build_id",),
+            RequiredInputRole.CONFIGURATION: ("requested_configuration_id", "requested_configuration_version"),
+            RequiredInputRole.CATALOGUE: ("requested_catalogue_version", "requested_catalogue_sha256"),
+            RequiredInputRole.TEST_DEFINITION: ("requested_test_definition_version", "requested_test_definition_sha256"),
+            RequiredInputRole.CASE_DEFINITION: ("requested_case_definition_sha256",),
+            RequiredInputRole.CONTROLLED_FIXTURE: ("requested_fixture_identity",),
+        }[role]
+        assert all(missing_target.canonical_selection_payload[field] is None for field in requested_fields)
+        missing = validation.evaluate_suspension(
+            missing_attempt.validation_attempt_id,
+            trusted_target_selection_id=missing_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id=role.value, field_id=None, source_assertion_ids=(),
+            proposer_actor_id=None, reviewer_actor_id=None,
+            finalised_at=at(4300 + index),
+        )
+        assert missing.evidence[0].failure_code == "MISSING_IDENTITY"
+        unknown_target, unknown_attempt = validation.create_target_selection(
+            "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(4400 + index),
+            required_input_role=role,
+            presented_identity_evidence={"presented_id": f"unknown-{role.value}"},
+        )
+        unknown = validation.evaluate_suspension(
+            unknown_attempt.validation_attempt_id,
+            trusted_target_selection_id=unknown_target.target_selection_id,
+            evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+            lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+            reference_id=role.value, field_id=None, source_assertion_ids=(),
+            proposer_actor_id=None, reviewer_actor_id=None,
+            finalised_at=at(4500 + index),
+        )
+        assert unknown.evidence[0].failure_code == "UNKNOWN_IDENTITY"
+        if role is not RequiredInputRole.CONTROLLED_FIXTURE:
+            assert not IdentityResolutionAuthority().ambiguity_possible(role)
+
+    ambiguous_authority = IdentityResolutionAuthority(("duplicate", "duplicate"))
+    ambiguous_validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST, identity_authority=ambiguous_authority,
+    )
+    ambiguous_target, ambiguous_attempt = ambiguous_validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-B2", created_at=at(4600),
+        required_input_role=RequiredInputRole.CONTROLLED_FIXTURE,
+        presented_identity_evidence={"fixture_id": "duplicate"},
+    )
+    ambiguous = ambiguous_validation.evaluate_suspension(
+        ambiguous_attempt.validation_attempt_id,
+        trusted_target_selection_id=ambiguous_target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id=RequiredInputRole.CONTROLLED_FIXTURE.value,
+        field_id=None, source_assertion_ids=(), proposer_actor_id=None,
+        reviewer_actor_id=None, finalised_at=at(4601),
+    )
+    assert ambiguous.evidence[0].failure_code == "AMBIGUOUS_IDENTITY"
+
+    executions = tuple(
+        execute_dc004_case(
+            scenarios, validation, test_id="VT-EXP-ROLE-001", case_id=case_id,
+            section_id=section_id, command_base=4700 + index * 100,
+        )
+        for index, (case_id, section_id) in enumerate((
+            ("EXP-ROLE-A2", "SEC-A2"), ("EXP-ROLE-B2", "SEC-B2"),
+            ("EXP-ROLE-A1", "SEC-A1"),
+        ))
+    )
+    target, attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A4", created_at=at(5000),
+        required_input_role=RequiredInputRole.APPLICATION_BUILD,
+        presented_identity_evidence={},
+    )
+    suspension = validation.evaluate_suspension(
+        attempt.validation_attempt_id, trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.IDENTITY_RESOLUTION,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id=RequiredInputRole.APPLICATION_BUILD.value,
+        field_id=None, source_assertion_ids=(), proposer_actor_id=None,
+        reviewer_actor_id=None, finalised_at=at(5001),
+    )
+    composite = validation.assemble_composite(
+        "VT-EXP-ROLE-001",
+        tuple(item.validation_execution_id for item in executions),
+        suspension_record_ids=(suspension.suspension_record_id,), created_at=at(5002),
+    )
+    unavailable_link = next(item for item in composite.constituent_links if item.case_id == "EXP-ROLE-A4")
+    assert unavailable_link.unavailable_required_input_role is RequiredInputRole.APPLICATION_BUILD
+    assert target.target_application_build_id is None
+    assert validation.finalise_composite(
+        composite.composite_result_id, finalised_at=at(5003)
+    ).determination is ValidationVerdict.BLOCKED_TEST
+
+
+@pytest.mark.i8
+def test_qa046_assertion_and_step_fingerprints_are_exact(tmp_path: Path) -> None:
+    registry = assurance_registry()
+    source = registry.data.source_assertions[0]
+    with pytest.raises(ValueError, match="assertion text/location fingerprint"):
+        source.model_copy(update={"assertion_text_sha256": "0" * 64}).__class__.model_validate(
+            {**source.model_dump(), "assertion_text_sha256": "0" * 64}
+        )
+    with pytest.raises(ValueError, match="assertion text/location fingerprint"):
+        ControlledSourceAssertion.model_validate({
+            **source.model_dump(), "location": "Wrong section",
+        })
+    step = registry.data.time_reviews[0]
+    with pytest.raises(ValueError, match="step text/reference fingerprint"):
+        ControlledTimeReview.model_validate({
+            **step.model_dump(), "step_text_sha256": "0" * 64,
+        })
+    scenarios = scenario(tmp_path, "qa046")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST, engineering_registry=registry,
+    )
+    target, attempt = validation.create_target_selection(
+        "VT-EXP-ALL-001", case_id="EXP-ALL-A1", created_at=at(5500)
+    )
+    conflict = validation.evaluate_suspension(
+        attempt.validation_attempt_id, trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.BASELINE_CONFLICT,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="CR-TEST-OPEN", field_id="expected_customer_impact",
+        source_assertion_ids=("SRC-VP", "SRC-DD"),
+        proposer_actor_id="graduate-engineer", reviewer_actor_id="independent-reviewer",
+        finalised_at=at(5501),
+    )
+    assertions = conflict.evidence[0].payload["evidence"]["trusted_source_assertions"]
+    assert all(item["assertion_text_sha256"] and item["assertion_record_sha256"] for item in assertions)
+    target, attempt = validation.create_target_selection(
+        "VT-EXP-ROLE-001", case_id="EXP-ROLE-A2", created_at=at(5510)
+    )
+    time_record = validation.evaluate_suspension(
+        attempt.validation_attempt_id, trusted_target_selection_id=target.target_selection_id,
+        evaluation_type=SuspensionEvaluationType.TIME_AUTHORITY,
+        lifecycle_position=SuspensionLifecyclePosition.PRE_EXECUTION_ENTRY,
+        reference_id="TR-TEST-OPEN", field_id="pre-entry-clock",
+        source_assertion_ids=("SRC-VP",), proposer_actor_id="graduate-engineer",
+        reviewer_actor_id="independent-reviewer", finalised_at=at(5511),
+    )
+    step_evidence = time_record.evidence[0].payload["evidence"]
+    assert step_evidence["controlled_step_text_sha256"] == step.step_text_sha256
+    assert step_evidence["controlled_step_record_sha256"] == step.step_record_sha256
+
+
+@pytest.mark.i8
+def test_qa047_composite_resolves_immutable_executed_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenarios = scenario(tmp_path, "qa047")
+    repository = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation = ValidationService(
+        repository, ValidationCatalogueLoader(CATALOGUE), scenarios,
+        application_build_manifest=MANIFEST,
+    )
+    executions = tuple(
+        execute_dc004_case(
+            scenarios, validation, test_id="VT-EXP-ROLE-001", case_id=case_id,
+            section_id=section_id, command_base=6000 + index * 100,
+        )
+        for index, (case_id, section_id) in enumerate((
+            ("EXP-ROLE-A2", "SEC-A2"), ("EXP-ROLE-B2", "SEC-B2"),
+            ("EXP-ROLE-A1", "SEC-A1"), ("EXP-ROLE-A4", "SEC-A4"),
+        ))
+    )
+    execution_ids = tuple(item.validation_execution_id for item in executions)
+    first_execution = repository.get_execution(execution_ids[0])
+    assert first_execution.executed_result_id is not None
+    actual = repository.get_executed_result(first_execution.executed_result_id)
+    original_get = repository.get_executed_result
+
+    with monkeypatch.context() as patcher:
+        patcher.setattr(repository, "get_executed_result", lambda _: (_ for _ in ()).throw(ValidationRecordNotFound("missing")))
+        with pytest.raises(ValidationBoundaryError, match="cannot be resolved"):
+            validation.assemble_composite("VT-EXP-ROLE-001", execution_ids, created_at=at(6500))
+
+    mutations = (
+        {"validation_execution_id": UUID(int=7001)},
+        {"validation_attempt_id": UUID(int=7003)},
+        {"verdict": ValidationVerdict.FAIL if actual.verdict is ValidationVerdict.PASS else ValidationVerdict.PASS},
+        {"evidence_snapshot_ids": (UUID(int=7002),)},
+        {"result_sha256": "0" * 64},
+    )
+    for offset, mutation in enumerate(mutations):
+        composite = validation.assemble_composite(
+            "VT-EXP-ROLE-001", execution_ids, created_at=at(6510 + offset)
+        )
+        tampered = actual.model_construct(**{**actual.__dict__, **mutation})
+        with monkeypatch.context() as patcher:
+            patcher.setattr(
+                repository, "get_executed_result",
+                lambda result_id, tampered=tampered: tampered if result_id == actual.executed_result_id else original_get(result_id),
+            )
+            with pytest.raises(ValidationBoundaryError, match="provenance is inconsistent"):
+                validation.finalise_composite(composite.composite_result_id, finalised_at=at(6600 + offset))
+
+    complete = validation.assemble_composite(
+        "VT-EXP-ROLE-001", execution_ids, created_at=at(6700)
+    )
+    assert all(link.executed_result_id is not None for link in complete.constituent_links)
+    assert validation.finalise_composite(
+        complete.composite_result_id, finalised_at=at(6701)
+    ).determination is ValidationVerdict.PASS
+    with sqlite3.connect(tmp_path / "validation.sqlite3") as connection:
+        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+            connection.execute(
+                "UPDATE executed_validation_results SET result_sha256=? WHERE executed_result_id=?",
+                ("0" * 64, str(actual.executed_result_id)),
+            )
 
 
 @pytest.mark.i8
@@ -1511,6 +1776,11 @@ def test_dc004_exact_constituents_finalise_and_complete_campaigns_pass(
             str(item.validation_execution_id) for item in role_executions
         }
         assert "records/composite-validation-result.json" in archive.namelist()
+        for execution in role_executions:
+            base = f"records/constituents/{execution.validation_execution_id}"
+            assert f"{base}/executed-validation-result.json" in archive.namelist()
+            assert f"{base}/validation-attempt.json" in archive.namelist()
+            assert f"{base}/scenario-run.json" in archive.namelist()
         for entry in manifest["files"]:
             assert sha256_bytes(archive.read(entry["path"])) == entry["sha256"]
 

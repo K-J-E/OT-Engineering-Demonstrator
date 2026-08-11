@@ -98,7 +98,8 @@ class ValidationRepository:
                     "VALUES (?,?,?,?,?,?,?)",
                     (
                         str(target.target_selection_id), target.test_id, target.case_id,
-                        target.catalogue_sha256, target.test_definition_sha256,
+                        target.catalogue_sha256 or target.intended_identity_evidence["CATALOGUE"]["catalogue_sha256"],
+                        target.test_definition_sha256 or target.intended_identity_evidence["TEST_DEFINITION"]["test_definition_sha256"],
                         instant_to_epoch_ms(target.created_at), target.model_dump_json(),
                     ),
                 )
@@ -203,10 +204,11 @@ class ValidationRepository:
                              link.model_dump_json()),
                         )
                     connection.execute(
-                        "INSERT INTO composite_validation_constituent_sources (composite_result_id,case_id,source_kind,validation_execution_id,suspension_record_id,constituent_verdict,payload_json) VALUES (?,?,?,?,?,?,?)",
+                        "INSERT INTO composite_validation_constituent_sources (composite_result_id,case_id,source_kind,validation_execution_id,executed_result_id,suspension_record_id,constituent_verdict,payload_json) VALUES (?,?,?,?,?,?,?,?)",
                         (str(composite.composite_result_id), link.case_id,
                          link.source_kind.value,
                          str(link.validation_execution_id) if link.validation_execution_id else None,
+                         str(link.executed_result_id) if link.executed_result_id else None,
                          str(link.suspension_record_id) if link.suspension_record_id else None,
                          link.constituent_verdict.value if link.constituent_verdict else None,
                          link.model_dump_json()),
@@ -366,6 +368,12 @@ class ValidationRepository:
 
     def get_suspension(self, record_id: UUID) -> ValidationSuspensionRecord:
         return self._get_json("validation_suspension_records", "suspension_record_id", record_id, ValidationSuspensionRecord)
+
+    def get_executed_result(self, result_id: UUID) -> ExecutedValidationResult:
+        return self._get_json(
+            "executed_validation_results", "executed_result_id", result_id,
+            ExecutedValidationResult,
+        )
 
     def list_suspensions(self) -> tuple[ValidationSuspensionRecord, ...]:
         with self._connect() as connection:

@@ -372,9 +372,11 @@ export interface CompositeValidationResult {
     case_id: string
     source_kind?: 'EXECUTION_RESULT' | 'SUSPENSION_RESULT'
     validation_execution_id: string | null
+    executed_result_id?: string | null
     suspension_record_id?: string | null
     scenario_run_id: string | null
-    case_definition_sha256: string
+    case_definition_sha256: string | null
+    unavailable_required_input_role?: 'APPLICATION_BUILD' | 'CONFIGURATION' | 'CATALOGUE' | 'TEST_DEFINITION' | 'CASE_DEFINITION' | 'CONTROLLED_FIXTURE' | null
     constituent_verdict: string | null
     evidence_snapshot_ids: string[]
   }>

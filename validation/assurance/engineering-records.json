@@ -8,7 +8,10 @@
       "path": "01-engineering-source-documents/OT Project Requirements Specification.docx",
       "version": "0.4",
       "sha256": "ff4d2507e86178214d73c7f2ef19b5aaa9b9821ca1d5e04d8eeeec1ac896e3d4",
-      "location": "REQ-VAL-007"
+      "location": "REQ-VAL-007",
+      "assertion_text": "Each validation attempt that reaches a valid expected-versus-observed comparison shall create an ExecutedValidationResult recording the observed result produced by the demonstrator.",
+      "assertion_text_sha256": "48ea7928ea229d7cd2b926b435564dcd932cf431982f13f66d5673aa7f081e38",
+      "assertion_record_sha256": "47d936f51a5cc8d5a71b0320c884927983f7d782c31cc52c2cb6d32ec9a67094"
     },
     {
       "assertion_id": "SRC-VALIDATION-PLAN-20",
@@ -16,15 +19,32 @@
       "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
       "version": "1.2",
       "sha256": "8cde791aae359a7a3d8f335bbb385aba24ef9e75a4fb9f019e14799f4c3db14b",
-      "location": "Section 20"
+      "location": "Section 20.3 / VSC-002",
+      "assertion_text": "Two or more integrity-valid trusted authoritative controlling assertions with document/version/hash/section and statement hashes that are mutually incompatible for the same field/step, plus an open conflict-review item.",
+      "assertion_text_sha256": "388924235d301bbf010399c9d6685e76031903dc01138dc1580b1d144d7c9e94",
+      "assertion_record_sha256": "b4dd8e25caa1af0e46d2b98ec763307e5f1c6c67ad25530f3b92e2e934766ac4"
     },
     {
-      "assertion_id": "SRC-DEMONSTRATOR-DESIGN-37",
+      "assertion_id": "SRC-DEMONSTRATOR-DESIGN-35",
       "source_id": "OT-PROJECT-DEMONSTRATOR-DESIGN",
       "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
       "version": "0.4",
       "sha256": "f3cbe66b1080096509796e35f62247b5c18f813c4facab68b38bdbeb70fb4c62",
-      "location": "Section 37"
+      "location": "Section 35.3",
+      "assertion_text": "The topology/workflow views list every incident boundary and clearly distinguish SATISFIED/PROVEN OPEN, PROVEN CLOSED with an authorised OPEN action, and UNPROVEN with the exact telemetry deficiency.",
+      "assertion_text_sha256": "b47824b5608785b259cb50db06b1155b0656709ff24ce6a44b4b98d3a9bc82bf",
+      "assertion_record_sha256": "dd6943ee4a935fe5c0ff36cfb60b7734f06b60ac7d44cd829b0b4bbdc3bf5d0d"
+    },
+    {
+      "assertion_id": "SRC-DEMONSTRATOR-DESIGN-36",
+      "source_id": "OT-PROJECT-DEMONSTRATOR-DESIGN",
+      "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
+      "version": "0.4",
+      "sha256": "f3cbe66b1080096509796e35f62247b5c18f813c4facab68b38bdbeb70fb4c62",
+      "location": "Section 36",
+      "assertion_text": "This accepted amendment defines the demonstrator structure needed to determine one multi-run exploratory catalogue test without weakening the accepted one-execution/one-run invariant.",
+      "assertion_text_sha256": "14ab9c4f5a96c1f8fa35dc2f611c478fb1bcbcb7aae2f7a3e39bb39025b989db",
+      "assertion_record_sha256": "6f070998b599443e8764935acc4c1bfcc2a8a294dca6a673239c4780441e13a8"
     },
     {
       "assertion_id": "SRC-NETWORK-MODEL-18",
@@ -32,7 +52,10 @@
       "path": "01-engineering-source-documents/OT Project Network Model.docx",
       "version": "0.4",
       "sha256": "824a0a03d7bd2d58d7d1be1408bddce75b700aad7d5345bbf49b79e3d029b8c9",
-      "location": "Section 18"
+      "location": "Section 18.4",
+      "assertion_text": "The fault is isolated only when every incident boundary is proven OPEN and zero active source paths exist from every available source to the fault section.",
+      "assertion_text_sha256": "9ad92cd96c1e14a209e6ec4bec4d5b176b81a1ffb17ef27b08d500fe7850910f",
+      "assertion_record_sha256": "fdbed8749f2b637f1d6e3e3a23ae93943d57f6cfedf8f318a212bdb060dfdd8c"
     }
   ],
   "design_questions": [
@@ -42,7 +65,7 @@
       "test_id": "VT-EXP-ALL-001",
       "case_id": null,
       "field_id": "exploration_fault_isolation_action_derivation",
-      "source_assertion_ids": ["SRC-NETWORK-MODEL-18", "SRC-DEMONSTRATOR-DESIGN-37"],
+      "source_assertion_ids": ["SRC-NETWORK-MODEL-18", "SRC-DEMONSTRATOR-DESIGN-35"],
       "review_record_id": "DC-003-ACCEPTED-APPLIED"
     },
     {
@@ -51,7 +74,7 @@
       "test_id": "VT-EXP-ALL-001",
       "case_id": null,
       "field_id": "multi_run_composite_determination",
-      "source_assertion_ids": ["SRC-VALIDATION-PLAN-20", "SRC-DEMONSTRATOR-DESIGN-37"],
+      "source_assertion_ids": ["SRC-VALIDATION-PLAN-20", "SRC-DEMONSTRATOR-DESIGN-36"],
       "review_record_id": "DC-004-ACCEPTED-APPLIED"
     }
   ],

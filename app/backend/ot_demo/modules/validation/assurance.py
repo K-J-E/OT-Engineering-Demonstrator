@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
 from ...domain.base import FrozenModel
-from ...domain.enums import SuspensionLifecyclePosition, ValidationSuspensionCondition
+from ...domain.enums import RequiredInputRole, SuspensionLifecyclePosition
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes, sha256_file
 from .models import ValidationTargetSelection
 
@@ -25,6 +26,21 @@ class ControlledSourceAssertion(FrozenModel):
     version: str = Field(min_length=1)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     location: str = Field(min_length=1)
+    assertion_text: str = Field(min_length=1)
+    assertion_text_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    assertion_record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+    @model_validator(mode="after")
+    def validate_fingerprints(self) -> Self:
+        text_hash = _text_sha256(self.assertion_text)
+        record_hash = sha256_bytes(canonical_json_bytes({
+            "assertion_id": self.assertion_id, "source_id": self.source_id,
+            "path": self.path, "version": self.version, "sha256": self.sha256,
+            "location": self.location, "assertion_text_sha256": text_hash,
+        }))
+        if self.assertion_text_sha256 != text_hash or self.assertion_record_sha256 != record_hash:
+            raise ValueError("controlled assertion text/location fingerprint is invalid")
+        return self
 
 
 class ControlledDesignQuestion(FrozenModel):
@@ -53,8 +69,24 @@ class ControlledTimeReview(FrozenModel):
     test_id: str
     case_id: str | None = None
     step_reference: str
+    step_text: str = Field(min_length=1)
+    step_text_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    step_record_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     source_assertion_ids: tuple[str, ...] = Field(min_length=1)
     review_record_id: str
+
+    @model_validator(mode="after")
+    def validate_step_fingerprint(self) -> Self:
+        text_hash = _text_sha256(self.step_text)
+        record_hash = sha256_bytes(canonical_json_bytes({
+            "record_id": self.record_id, "test_id": self.test_id,
+            "case_id": self.case_id, "step_reference": self.step_reference,
+            "step_text_sha256": text_hash,
+            "source_assertion_ids": list(self.source_assertion_ids),
+        }))
+        if self.step_text_sha256 != text_hash or self.step_record_sha256 != record_hash:
+            raise ValueError("controlled step text/reference fingerprint is invalid")
+        return self
 
 
 class EngineeringAssuranceRegistryData(FrozenModel):
@@ -173,6 +205,9 @@ class ControlledEngineeringRegistry:
             "controlled_replacement_unavailable": True,
             "review_record_id": record.review_record_id,
             "authoritative_sources_checked": [item.model_dump(mode="json") for item in sources],
+            "controlled_step_text": record.step_text,
+            "controlled_step_text_sha256": record.step_text_sha256,
+            "controlled_step_record_sha256": record.step_record_sha256,
         }
 
 
@@ -181,30 +216,41 @@ class IdentityResolutionAuthority:
         self.fixture_identities = fixture_identities
 
     def evaluate(self, target: ValidationTargetSelection, required_input_role: str) -> tuple[str, dict[str, Any]] | None:
-        requested = target.canonical_selection_payload.get(f"requested_{required_input_role}_identity")
-        if required_input_role == "fixture":
-            matches = [item for item in self.fixture_identities if item == requested]
+        try:
+            role = RequiredInputRole(required_input_role)
+        except ValueError as error:
+            raise AssuranceAuthorityError("required input role is outside the controlled resolver registry") from error
+        requested = target.requested_identity_evidence.get(role.value, {})
+        intended = target.intended_identity_evidence.get(role.value, {})
+        return self.evaluate_evidence(role, requested, intended)
+
+    def evaluate_evidence(
+        self,
+        role: RequiredInputRole,
+        requested: dict[str, Any],
+        intended: dict[str, Any],
+    ) -> tuple[str, dict[str, Any]] | None:
+        if role is RequiredInputRole.CONTROLLED_FIXTURE:
+            requested_identity = requested.get("fixture_id")
+            matches = [item for item in self.fixture_identities if item == requested_identity]
         else:
-            controlled = {
-                "catalogue": target.catalogue_sha256,
-                "test_definition": target.test_definition_sha256,
-                "case_definition": target.case_definition_sha256,
-                "configuration": target.configuration_id,
-                "application_build": target.target_application_build_id,
-            }
-            if required_input_role not in controlled:
-                raise AssuranceAuthorityError("required input role is outside the controlled resolver registry")
-            expected = controlled[required_input_role]
-            requested = requested if requested is not None else expected
-            matches = [] if expected is None else [expected] if requested == expected else []
-        evidence = {"input_name": required_input_role, "presented_identity_evidence": {"requested_identity": requested}}
-        if requested in {None, ""}:
+            matches = [intended] if requested == intended and requested else []
+        evidence = {"input_name": role.value, "presented_identity_evidence": requested}
+        if not requested or all(item is None or item == "" for item in requested.values()):
             return "MISSING_IDENTITY", {**evidence, "resolution_failure": "Required identity is absent from the trusted target selection."}
         if len(matches) == 0:
             return "UNKNOWN_IDENTITY", {**evidence, "resolution_failure": "No controlled identity matched the trusted target request."}
         if len(matches) > 1:
             return "AMBIGUOUS_IDENTITY", {**evidence, "resolution_failure": "More than one controlled identity matched the trusted target request."}
         return None
+
+    def ambiguity_possible(self, role: RequiredInputRole) -> bool:
+        return role is RequiredInputRole.CONTROLLED_FIXTURE and len(self.fixture_identities) != len(set(self.fixture_identities))
+
+
+def _text_sha256(text: str) -> str:
+    normalised = " ".join(text.split())
+    return sha256_bytes(normalised.encode("utf-8"))
 
 
 class ControlledArtifact(FrozenModel):

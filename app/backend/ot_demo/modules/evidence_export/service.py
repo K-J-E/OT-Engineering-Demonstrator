@@ -196,9 +196,29 @@ class EvidenceExportService:
         }
         for summary in summaries:
             execution_id = summary.execution.validation_execution_id
+            if summary.execution.executed_result_id is None or summary.execution.validation_attempt_id is None:
+                raise EvidenceExportBoundaryError(
+                    "execution constituent is missing its immutable executed-result provenance"
+                )
+            executed_result = self._validation.get_executed_result(
+                summary.execution.executed_result_id
+            )
             records[
                 f"records/constituents/{execution_id}/validation-execution.json"
             ] = summary.execution.model_dump(mode="json")
+            records[
+                f"records/constituents/{execution_id}/executed-validation-result.json"
+            ] = executed_result.model_dump(mode="json")
+            records[
+                f"records/constituents/{execution_id}/validation-attempt.json"
+            ] = self._validation.get_attempt(
+                summary.execution.validation_attempt_id
+            ).model_dump(mode="json")
+            records[
+                f"records/constituents/{execution_id}/scenario-run.json"
+            ] = self._scenarios.run_context(
+                summary.execution.scenario_run_id
+            ).model_dump(mode="json")
             for evidence in summary.evidence_snapshots:
                 records[
                     f"records/constituents/{execution_id}/evidence/{evidence.evidence_snapshot_id}.json"

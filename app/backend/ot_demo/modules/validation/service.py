@@ -22,6 +22,7 @@ from ...domain.enums import (
     SuspensionLifecyclePosition,
     SuspensionRecordStatus,
     SuspensionEvaluationType,
+    RequiredInputRole,
     ValidationVerdict,
 )
 from ...infrastructure.build_identity import ApplicationBuildManifest
@@ -29,6 +30,7 @@ from ...infrastructure.configuration_loader import JsonConfigurationLoader
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ...infrastructure.validation_repository import (
     ValidationRecordConflict,
+    ValidationRecordNotFound,
     ValidationRepository,
 )
 from ..scenario.models import ScenarioSnapshot
@@ -204,6 +206,8 @@ class ValidationService:
         actor_id: str = "graduate-engineer",
         configuration_version: str = "1.1",
         requested_fixture_identity: str | None = "network-one-line.v1",
+        required_input_role: RequiredInputRole | None = None,
+        presented_identity_evidence: dict[str, Any] | None = None,
     ) -> tuple[ValidationTargetSelection, ValidationAttempt]:
         role = self._ACTOR_ROLES.get(actor_id)
         if role is None:
@@ -211,20 +215,81 @@ class ValidationService:
         loaded = self._catalogue.get(test_id)
         case = self._select_case(loaded, case_id)
         configuration = self._configurations.load(f"v{configuration_version}").catalog_entry
+        intended_identities = {
+            RequiredInputRole.APPLICATION_BUILD.value: {
+                "application_build_id": self._application_build_manifest.application_build_id,
+            },
+            RequiredInputRole.CONFIGURATION.value: {
+                "configuration_id": configuration.configuration_id,
+                "configuration_version": str(configuration.version),
+            },
+            RequiredInputRole.CATALOGUE.value: {
+                "catalogue_version": str(loaded.catalogue_version),
+                "catalogue_sha256": loaded.catalogue_sha256,
+            },
+            RequiredInputRole.TEST_DEFINITION.value: {
+                "test_definition_version": str(loaded.definition.version),
+                "test_definition_sha256": loaded.definition_sha256,
+            },
+            RequiredInputRole.CASE_DEFINITION.value: (
+                {
+                    "case_definition_version": str(case.version),
+                    "case_definition_sha256": self._case_sha256(case),
+                }
+                if case else {"not_applicable": "true"}
+            ),
+            RequiredInputRole.CONTROLLED_FIXTURE.value: {
+                "fixture_id": "network-one-line.v1",
+            },
+        }
+        requested_identities = {
+            key: dict(value) for key, value in intended_identities.items()
+        }
+        if required_input_role is RequiredInputRole.CASE_DEFINITION and case is None:
+            raise ValidationBoundaryError("CASE_DEFINITION is not a required input for an unbound test")
+        if requested_fixture_identity != "network-one-line.v1":
+            required_input_role = RequiredInputRole.CONTROLLED_FIXTURE
+            presented_identity_evidence = {"fixture_id": requested_fixture_identity}
+        if required_input_role is not None:
+            requested_identities[required_input_role.value] = dict(
+                presented_identity_evidence or {}
+            )
+        unresolved_role = None
+        if required_input_role is not None:
+            resolution = self._identity_authority.evaluate_evidence(
+                required_input_role,
+                requested_identities[required_input_role.value],
+                intended_identities[required_input_role.value],
+            )
+            if resolution is not None:
+                unresolved_role = required_input_role
+        resolved_identities = {
+            key: dict(value)
+            for key, value in intended_identities.items()
+            if unresolved_role is None or key != unresolved_role.value
+        }
         target_selection_id = uuid4()
         selection_payload = {
             "target_selection_id": str(target_selection_id),
             "test_id": test_id,
             "case_id": case.case_id if case else None,
-            "requested_catalogue_version": str(loaded.catalogue_version),
-            "requested_catalogue_sha256": loaded.catalogue_sha256,
-            "requested_test_definition_version": str(loaded.definition.version),
-            "requested_test_definition_sha256": loaded.definition_sha256,
-            "requested_case_definition_sha256": self._case_sha256(case) if case else None,
-            "requested_configuration_id": configuration.configuration_id,
-            "requested_configuration_version": str(configuration.version),
-            "requested_application_build_id": self._application_build_manifest.application_build_id,
-            "requested_fixture_identity": requested_fixture_identity,
+            "requested_catalogue_version": requested_identities[RequiredInputRole.CATALOGUE.value].get("catalogue_version"),
+            "requested_catalogue_sha256": requested_identities[RequiredInputRole.CATALOGUE.value].get("catalogue_sha256"),
+            "requested_test_definition_version": requested_identities[RequiredInputRole.TEST_DEFINITION.value].get("test_definition_version"),
+            "requested_test_definition_sha256": requested_identities[RequiredInputRole.TEST_DEFINITION.value].get("test_definition_sha256"),
+            "requested_case_definition_sha256": requested_identities[RequiredInputRole.CASE_DEFINITION.value].get("case_definition_sha256"),
+            "requested_configuration_id": requested_identities[RequiredInputRole.CONFIGURATION.value].get("configuration_id"),
+            "requested_configuration_version": requested_identities[RequiredInputRole.CONFIGURATION.value].get("configuration_version"),
+            "requested_application_build_id": requested_identities[RequiredInputRole.APPLICATION_BUILD.value].get("application_build_id"),
+            "requested_fixture_identity": requested_identities[
+                RequiredInputRole.CONTROLLED_FIXTURE.value
+            ].get("fixture_id"),
+            "required_input_role": required_input_role.value if required_input_role else None,
+            "unresolved_required_role": unresolved_role.value if unresolved_role else None,
+            "intended_identity_evidence": intended_identities,
+            "requested_identity_evidence": requested_identities,
+            "resolved_identity_evidence": resolved_identities,
+            "assurance_verifier_application_build_id": self._application_build_manifest.application_build_id,
             "evidence_class": loaded.definition.evidence_class.value,
             "selection_authority_actor_id": actor_id,
             "selection_authority_role": role,
@@ -233,16 +298,21 @@ class ValidationService:
             target_selection_id=target_selection_id,
             test_id=test_id,
             case_id=case.case_id if case else None,
-            test_definition_version=loaded.definition.version,
-            test_definition_sha256=loaded.definition_sha256,
-            catalogue_version=loaded.catalogue_version,
-            catalogue_sha256=loaded.catalogue_sha256,
-            case_definition_version=case.version if case else None,
-            case_definition_sha256=self._case_sha256(case) if case else None,
+            test_definition_version=(None if unresolved_role is RequiredInputRole.TEST_DEFINITION else loaded.definition.version),
+            test_definition_sha256=(None if unresolved_role is RequiredInputRole.TEST_DEFINITION else loaded.definition_sha256),
+            catalogue_version=(None if unresolved_role is RequiredInputRole.CATALOGUE else loaded.catalogue_version),
+            catalogue_sha256=(None if unresolved_role is RequiredInputRole.CATALOGUE else loaded.catalogue_sha256),
+            case_definition_version=(None if unresolved_role is RequiredInputRole.CASE_DEFINITION else case.version if case else None),
+            case_definition_sha256=(None if unresolved_role is RequiredInputRole.CASE_DEFINITION else self._case_sha256(case) if case else None),
             evidence_class=loaded.definition.evidence_class,
-            configuration_id=configuration.configuration_id,
-            configuration_version=configuration.version,
-            target_application_build_id=self._application_build_manifest.application_build_id,
+            configuration_id=(None if unresolved_role is RequiredInputRole.CONFIGURATION else configuration.configuration_id),
+            configuration_version=(None if unresolved_role is RequiredInputRole.CONFIGURATION else configuration.version),
+            target_application_build_id=(None if unresolved_role is RequiredInputRole.APPLICATION_BUILD else self._application_build_manifest.application_build_id),
+            unresolved_required_role=unresolved_role,
+            intended_identity_evidence=intended_identities,
+            requested_identity_evidence=requested_identities,
+            resolved_identity_evidence=resolved_identities,
+            assurance_verifier_application_build_id=self._application_build_manifest.application_build_id,
             canonical_selection_payload=selection_payload,
             canonical_selection_sha256=sha256_bytes(canonical_json_bytes(selection_payload)),
             selected_by_actor_id=actor_id,
@@ -794,6 +864,7 @@ class ValidationService:
                     )
             if execution.status is not ValidationExecutionStatus.FINALISED:
                 unfinished.append(case_id)
+                continue
             elif execution.verdict not in {
                 ValidationVerdict.PASS,
                 ValidationVerdict.FAIL,
@@ -801,11 +872,14 @@ class ValidationService:
                 raise ValidationBoundaryError(
                     f"constituent verdict is outside the aggregate rule: {case_id}"
                 )
+            result = self._verified_executed_result(execution, summary.evidence_snapshots)
             links.append(
                 CompositeConstituentLink(
+                    link_schema_version="1.1",
                     case_id=case_id,
                     source_kind=CompositeConstituentSourceKind.EXECUTION_RESULT,
                     validation_execution_id=execution.validation_execution_id,
+                    executed_result_id=result.executed_result_id,
                     scenario_run_id=execution.scenario_run_id,
                     case_definition_sha256=expected_case_sha,
                     constituent_verdict=execution.verdict,
@@ -822,44 +896,77 @@ class ValidationService:
             case = case_by_id[case_id]
             expected_case_sha = self._case_sha256(case)
             attempt = self._repository.get_attempt(record.validation_attempt_id)
+            unavailable_role = (
+                target.unresolved_required_role
+                if record.condition_id is ValidationSuspensionCondition.VSC_003
+                and record.failed_required_input_role == (
+                    target.unresolved_required_role.value
+                    if target.unresolved_required_role else None
+                )
+                else None
+            )
+            if target.unresolved_required_role is not None and unavailable_role is None:
+                raise ValidationBoundaryError("only a verified VSC-003 role may omit target provenance")
+            intended = target.intended_identity_evidence
+            intended_matches = (
+                intended[RequiredInputRole.CATALOGUE.value]
+                == {"catalogue_version": str(definition.catalogue_version), "catalogue_sha256": definition.catalogue_sha256}
+                and intended[RequiredInputRole.TEST_DEFINITION.value]
+                == {"test_definition_version": str(definition.definition.version), "test_definition_sha256": definition.definition_sha256}
+                and intended[RequiredInputRole.CASE_DEFINITION.value]
+                == {"case_definition_version": str(case.version), "case_definition_sha256": expected_case_sha}
+                and intended[RequiredInputRole.CONFIGURATION.value]
+                == {"configuration_id": corrected.configuration_id, "configuration_version": "1.1"}
+                and intended[RequiredInputRole.APPLICATION_BUILD.value]
+                == {"application_build_id": self._application_build_manifest.application_build_id}
+            )
             if (
                 record.status is not SuspensionRecordStatus.FINALISED
                 or attempt.status is not ValidationAttemptStatus.SUSPENDED
                 or record.target_selection_id != target.target_selection_id
                 or target.test_id != test_id
-                or target.test_definition_version != definition.definition.version
-                or target.test_definition_sha256 != definition.definition_sha256
-                or target.catalogue_version != definition.catalogue_version
-                or target.catalogue_sha256 != definition.catalogue_sha256
-                or target.case_definition_sha256 != expected_case_sha
+                or not intended_matches
+                or (unavailable_role is not RequiredInputRole.TEST_DEFINITION and (
+                    target.test_definition_version != definition.definition.version
+                    or target.test_definition_sha256 != definition.definition_sha256))
+                or (unavailable_role is not RequiredInputRole.CATALOGUE and (
+                    target.catalogue_version != definition.catalogue_version
+                    or target.catalogue_sha256 != definition.catalogue_sha256))
+                or (unavailable_role is not RequiredInputRole.CASE_DEFINITION and target.case_definition_sha256 != expected_case_sha)
                 or target.evidence_class is not EvidenceClass.EXPLORATORY
-                or str(target.configuration_version) != "1.1"
-                or target.configuration_id != corrected.configuration_id
-                or target.target_application_build_id
-                != self._application_build_manifest.application_build_id
+                or (unavailable_role is not RequiredInputRole.CONFIGURATION and (
+                    str(target.configuration_version) != "1.1"
+                    or target.configuration_id != corrected.configuration_id))
+                or (unavailable_role is not RequiredInputRole.APPLICATION_BUILD and target.target_application_build_id
+                    != self._application_build_manifest.application_build_id)
+                or target.assurance_verifier_application_build_id
+                    != self._application_build_manifest.application_build_id
                 or record.verifier_application_build_id
                 != self._application_build_manifest.application_build_id
             ):
                 raise ValidationBoundaryError(
                     f"suspension provenance does not satisfy DC-004/DC-005: {case_id}"
                 )
-            if common_configuration_id is None:
-                common_configuration_id = target.configuration_id
-                common_configuration_version = target.configuration_version
-                common_build_id = target.target_application_build_id
-            elif (
-                target.configuration_id != common_configuration_id
-                or target.configuration_version != common_configuration_version
-                or target.target_application_build_id != common_build_id
-            ):
-                raise ValidationBoundaryError("constituent suspension provenance differs")
+            if target.configuration_id is not None:
+                if common_configuration_id is None:
+                    common_configuration_id = target.configuration_id
+                    common_configuration_version = target.configuration_version
+                elif target.configuration_id != common_configuration_id or target.configuration_version != common_configuration_version:
+                    raise ValidationBoundaryError("constituent suspension configuration provenance differs")
+            if target.target_application_build_id is not None:
+                if common_build_id is None:
+                    common_build_id = target.target_application_build_id
+                elif target.target_application_build_id != common_build_id:
+                    raise ValidationBoundaryError("constituent suspension build provenance differs")
             links.append(
                 CompositeConstituentLink(
+                    link_schema_version="1.1",
                     case_id=case_id,
                     source_kind=CompositeConstituentSourceKind.SUSPENSION_RESULT,
                     suspension_record_id=record.suspension_record_id,
                     scenario_run_id=record.scenario_run_id,
-                    case_definition_sha256=expected_case_sha,
+                    case_definition_sha256=(None if unavailable_role is RequiredInputRole.CASE_DEFINITION else expected_case_sha),
+                    unavailable_required_input_role=unavailable_role,
                     constituent_verdict=ValidationVerdict.BLOCKED_TEST,
                     evidence_snapshot_ids=(),
                 )
@@ -919,6 +1026,7 @@ class ValidationService:
                 sorted(
                     {
                         *(f"validation-execution:{item.validation_execution_id}" for item in links if item.validation_execution_id),
+                        *(f"executed-result:{item.executed_result_id}" for item in links if item.executed_result_id),
                         *(f"validation-suspension:{item.suspension_record_id}" for item in links if item.suspension_record_id),
                         *(f"scenario-run:{item.scenario_run_id}" for item in links if item.scenario_run_id),
                         *(f"evidence-snapshot:{evidence_id}" for item in links for evidence_id in item.evidence_snapshot_ids),
@@ -952,6 +1060,9 @@ class ValidationService:
             if link.source_kind is CompositeConstituentSourceKind.EXECUTION_RESULT:
                 assert link.validation_execution_id is not None
                 execution = self._repository.get_execution(link.validation_execution_id)
+                result = self._verified_executed_result(
+                    execution, self._repository.list_evidence(execution.validation_execution_id)
+                )
                 if (
                     execution.status is not ValidationExecutionStatus.FINALISED
                     or execution.case_id != link.case_id
@@ -959,6 +1070,8 @@ class ValidationService:
                     or execution.case_definition_sha256 != link.case_definition_sha256
                     or execution.verdict != link.constituent_verdict
                     or execution.evidence_snapshot_ids != link.evidence_snapshot_ids
+                    or result.executed_result_id != link.executed_result_id
+                    or result.verdict != link.constituent_verdict
                     or execution.verdict not in {ValidationVerdict.PASS, ValidationVerdict.FAIL}
                 ):
                     raise ValidationBoundaryError(
@@ -972,7 +1085,16 @@ class ValidationService:
                 if (
                     suspension.status is not SuspensionRecordStatus.FINALISED
                     or target.case_id != link.case_id
-                    or target.case_definition_sha256 != link.case_definition_sha256
+                    or target.unresolved_required_role != link.unavailable_required_input_role
+                    or (
+                        link.unavailable_required_input_role is not RequiredInputRole.CASE_DEFINITION
+                        and target.case_definition_sha256 != link.case_definition_sha256
+                    )
+                    or (
+                        suspension.condition_id is ValidationSuspensionCondition.VSC_003
+                        and suspension.failed_required_input_role
+                        != (link.unavailable_required_input_role.value if link.unavailable_required_input_role else None)
+                    )
                     or link.constituent_verdict is not ValidationVerdict.BLOCKED_TEST
                 ):
                     raise ValidationBoundaryError(
@@ -990,6 +1112,37 @@ class ValidationService:
         )
         self._repository.finalise_composite(finalised)
         return finalised
+
+    def _verified_executed_result(
+        self,
+        execution: ValidationExecution,
+        evidence_snapshots: tuple[EvidenceSnapshot, ...],
+    ) -> ExecutedValidationResult:
+        if execution.executed_result_id is None or execution.validation_attempt_id is None:
+            raise ValidationBoundaryError("finalised execution has no immutable ExecutedValidationResult")
+        try:
+            result = self._repository.get_executed_result(execution.executed_result_id)
+            attempt = self._repository.get_attempt(execution.validation_attempt_id)
+        except (ValidationRecordNotFound, ValueError) as error:
+            raise ValidationBoundaryError("immutable ExecutedValidationResult cannot be resolved or verified") from error
+        evidence_ids = tuple(item.evidence_snapshot_id for item in evidence_snapshots)
+        if (
+            result.executed_result_id != execution.executed_result_id
+            or result.validation_attempt_id != execution.validation_attempt_id
+            or result.validation_execution_id != execution.validation_execution_id
+            or attempt.validation_attempt_id != result.validation_attempt_id
+            or attempt.validation_execution_id != execution.validation_execution_id
+            or attempt.scenario_run_id != execution.scenario_run_id
+            or attempt.status is not ValidationAttemptStatus.EXECUTED
+            or result.verdict not in {ValidationVerdict.PASS, ValidationVerdict.FAIL}
+            or result.verdict != execution.verdict
+            or result.evidence_snapshot_ids != execution.evidence_snapshot_ids
+            or result.evidence_snapshot_ids != evidence_ids
+            or any(item.validation_execution_id != execution.validation_execution_id for item in evidence_snapshots)
+            or result.result_sha256 != result.recomputed_sha256()
+        ):
+            raise ValidationBoundaryError("ExecutedValidationResult provenance is inconsistent")
+        return result
 
     def get_composite(self, composite_id: UUID) -> CompositeValidationResult:
         return self._repository.get_composite(composite_id)

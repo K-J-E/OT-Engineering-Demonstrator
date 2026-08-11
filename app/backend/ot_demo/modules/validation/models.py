@@ -22,6 +22,7 @@ from ...domain.enums import (
     SuspensionAuthorityKind,
     SuspensionLifecyclePosition,
     SuspensionRecordStatus,
+    RequiredInputRole,
     ValidationVerdict,
 )
 from ...domain.value_objects import (
@@ -209,21 +210,56 @@ class ValidationTargetSelection(FrozenModel):
     target_selection_id: UUID
     test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
     case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
-    test_definition_version: SemanticVersion
-    test_definition_sha256: Sha256Digest
-    catalogue_version: SemanticVersion
-    catalogue_sha256: Sha256Digest
+    test_definition_version: SemanticVersion | None
+    test_definition_sha256: Sha256Digest | None
+    catalogue_version: SemanticVersion | None
+    catalogue_sha256: Sha256Digest | None
     case_definition_version: SemanticVersion | None = None
     case_definition_sha256: Sha256Digest | None = None
     evidence_class: EvidenceClass
-    configuration_id: ConfigurationId
-    configuration_version: SemanticVersion
-    target_application_build_id: Sha256Digest
+    configuration_id: ConfigurationId | None
+    configuration_version: SemanticVersion | None
+    target_application_build_id: Sha256Digest | None
+    unresolved_required_role: RequiredInputRole | None = None
+    intended_identity_evidence: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    requested_identity_evidence: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    resolved_identity_evidence: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    assurance_verifier_application_build_id: Sha256Digest | None = None
     canonical_selection_payload: dict[str, Any]
     canonical_selection_sha256: Sha256Digest
     selected_by_actor_id: str = Field(min_length=1)
     selected_by_role: str = Field(min_length=1)
     created_at: UtcMillisecondInstant
+
+    @model_validator(mode="after")
+    def validate_exact_unresolved_role(self) -> Self:
+        if not self.intended_identity_evidence:
+            if self.unresolved_required_role is not None:
+                raise ValueError("legacy target cannot declare unresolved identity without evidence")
+            return self
+        role_fields = {
+            RequiredInputRole.APPLICATION_BUILD: (self.target_application_build_id,),
+            RequiredInputRole.CONFIGURATION: (self.configuration_id, self.configuration_version),
+            RequiredInputRole.CATALOGUE: (self.catalogue_version, self.catalogue_sha256),
+            RequiredInputRole.TEST_DEFINITION: (self.test_definition_version, self.test_definition_sha256),
+            RequiredInputRole.CASE_DEFINITION: (self.case_definition_version, self.case_definition_sha256),
+        }
+        for role, values in role_fields.items():
+            applicable = role is not RequiredInputRole.CASE_DEFINITION or self.case_id is not None
+            if not applicable:
+                continue
+            resolved = all(item is not None for item in values)
+            if role is self.unresolved_required_role:
+                if resolved:
+                    raise ValueError("the explicitly unresolved required role must not carry resolved identity")
+            elif not resolved:
+                raise ValueError("only the explicitly unresolved required role may omit provenance")
+        if self.unresolved_required_role is RequiredInputRole.CONTROLLED_FIXTURE:
+            if RequiredInputRole.CONTROLLED_FIXTURE.value in self.resolved_identity_evidence:
+                raise ValueError("unresolved fixture must not appear resolved")
+        if self.unresolved_required_role is not None and self.unresolved_required_role.value not in self.requested_identity_evidence:
+            raise ValueError("unresolved required role must retain presented identity evidence")
+        return self
 
 
 class ValidationAttempt(FrozenModel):
@@ -249,7 +285,22 @@ class ExecutedValidationResult(FrozenModel):
     def validate_pass_fail_only(self) -> Self:
         if self.verdict not in {ValidationVerdict.PASS, ValidationVerdict.FAIL}:
             raise ValueError("ExecutedValidationResult permits PASS or FAIL only")
+        if self.result_sha256 != self.recomputed_sha256():
+            raise ValueError("ExecutedValidationResult controlled payload hash is invalid")
         return self
+
+    def controlled_payload(self) -> dict[str, Any]:
+        return {
+            "validation_attempt_id": str(self.validation_attempt_id),
+            "validation_execution_id": str(self.validation_execution_id),
+            "verdict": self.verdict.value,
+            "evidence_snapshot_ids": [str(item) for item in self.evidence_snapshot_ids],
+            "finalised_at": self.finalised_at.isoformat(),
+        }
+
+    def recomputed_sha256(self) -> str:
+        from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes
+        return sha256_bytes(canonical_json_bytes(self.controlled_payload()))
 
 
 class ValidationSuspensionEvidence(FrozenModel):
@@ -368,14 +419,17 @@ class FinaliseValidationExecutionRequest(FrozenModel):
 
 
 class CompositeConstituentLink(FrozenModel):
+    link_schema_version: SemanticVersion = "1.0"
     case_id: str = Field(pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
     source_kind: CompositeConstituentSourceKind = (
         CompositeConstituentSourceKind.EXECUTION_RESULT
     )
     validation_execution_id: UUID | None = None
+    executed_result_id: UUID | None = None
     suspension_record_id: UUID | None = None
     scenario_run_id: UUID | None = None
-    case_definition_sha256: Sha256Digest
+    case_definition_sha256: Sha256Digest | None
+    unavailable_required_input_role: RequiredInputRole | None = None
     constituent_verdict: ValidationVerdict | None = None
     evidence_snapshot_ids: tuple[UUID, ...] = ()
 
@@ -386,6 +440,12 @@ class CompositeConstituentLink(FrozenModel):
             raise ValueError("execution source requires exactly one execution ID")
         if executed == (self.suspension_record_id is not None):
             raise ValueError("constituent source must be execution XOR suspension")
+        if str(self.link_schema_version) == "1.1" and executed != (self.executed_result_id is not None):
+            raise ValueError("execution source requires its immutable executed result ID")
+        if executed and self.unavailable_required_input_role is not None:
+            raise ValueError("executed result cannot declare unavailable target provenance")
+        if not executed and self.executed_result_id is not None:
+            raise ValueError("suspension source cannot carry executed result identity")
         if executed and self.constituent_verdict not in {
             None,
             ValidationVerdict.PASS,

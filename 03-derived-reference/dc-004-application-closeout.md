@@ -152,7 +152,7 @@ EXPLORATORY constituent and composite records.
 
 | Gate | Result |
 |---|---|
-| Complete backend unit/integration suite | PASS — 131 tests including QA-043/QA-044 corrections; application acceptance remains pending independent re-review |
+| Complete backend unit/integration suite | PASS — 134 tests including QA-045–QA-047 corrections; application acceptance remains pending independent re-review |
 | React/Cytoscape component suite | PASS — 17 tests |
 | Chromium formal, investigation and Exploration/export workflows | PASS — 3 tests |
 | Pinned TypeScript/Vite production build | PASS |
@@ -236,3 +236,7 @@ Accepted DC-005 is applied through migration 008 and the validation module: hash
 ## 12. QA-043/QA-044 assurance correction
 
 Independent re-review accepted QA-041 but held QA-042 application acceptance pending stronger condition authority. The corrected public boundary no longer accepts caller-declared failure codes, evidence payloads or backend actor identities. Backend identity, integrity and runtime-time verifiers establish VSC-003/VSC-005/runtime VSC-004 facts from trusted state, while a deterministic controlled-record mirror resolves VSC-001/VSC-002 DQ/conflict/source identities and actual hashes. The corrections are verified but remain pending independent re-review; PR #10 stays draft/unmerged and I9 remains stopped.
+
+## 13. QA-045–QA-047 provenance completion
+
+Independent re-review closed QA-043 but required three bounded provenance corrections. The revised target supports all six accepted VSC-003 input roles with exactly one resolver-proven unavailable role; composite suspension membership preserves that exception without fabricating the missing value. Reviewer assertions and pre-entry time steps carry exact canonical text/location fingerprints. EXECUTION_RESULT membership now explicitly resolves and verifies the immutable ExecutedValidationResult and its attempt/execution/run/evidence links at both assembly and finalisation. These corrections are verified but pending independent re-review; QA-044 and overall QA-042/DC-005 application acceptance remain open, PR #10 stays draft/unmerged and I9 remains stopped.

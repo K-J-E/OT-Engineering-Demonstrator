@@ -17,7 +17,7 @@ MIGRATIONS = REPOSITORY_ROOT / "app/backend/ot_demo/infrastructure/migrations"
 def test_initial_migration_applies_once_and_is_repeatable(tmp_path: Path) -> None:
     database_path = tmp_path / "i1.sqlite3"
     with sqlite3.connect(database_path) as connection:
-        assert apply_migrations(connection, MIGRATIONS) == (1, 2, 3, 4, 5, 6, 7, 8)
+        assert apply_migrations(connection, MIGRATIONS) == (1, 2, 3, 4, 5, 6, 7, 8, 9)
         assert apply_migrations(connection, MIGRATIONS) == ()
         tables = {
             row[0]
@@ -116,3 +116,7 @@ def test_dc005_migration_is_included_in_the_python_package() -> None:
         "migrations/008_dc005_validation_suspension.sql"
     )
     assert migration.is_file()
+    assurance_migration = files("ot_demo.infrastructure").joinpath(
+        "migrations/009_dc005_composite_executed_result.sql"
+    )
+    assert assurance_migration.is_file()

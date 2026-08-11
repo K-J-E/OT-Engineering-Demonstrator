@@ -32,6 +32,7 @@ from ..domain.enums import (
     ScenarioMode,
     SwitchState,
     SuspensionEvaluationType,
+    RequiredInputRole,
     SuspensionLifecyclePosition,
 )
 from ..infrastructure.validation_repository import ValidationRecordNotFound
@@ -169,6 +170,8 @@ class PrepareValidationAttemptPayload(_ApiRequest):
     configuration_version: str = "1.1"
     actor_id: str = "graduate-engineer"
     requested_fixture_identity: str | None = "network-one-line.v1"
+    required_input_role: RequiredInputRole | None = None
+    presented_identity_evidence: dict | None = None
     created_at: datetime
 
 
@@ -502,6 +505,8 @@ def create_app(
                 configuration_version=request.configuration_version,
                 actor_id=request.actor_id,
                 requested_fixture_identity=request.requested_fixture_identity,
+                required_input_role=request.required_input_role,
+                presented_identity_evidence=request.presented_identity_evidence,
                 created_at=request.created_at,
             )
             return attempt
