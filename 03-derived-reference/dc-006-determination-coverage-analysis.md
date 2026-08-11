@@ -1,5 +1,5 @@
 ---
-Status: Design investigation for independent engineering review
+Status: Proposed design — architecture accepted in principle; bounded DR-01–DR-06 corrections applied pending final independent engineering re-review
 Authority: Derived analysis only — does not amend the accepted baseline
 Baseline: Reviewed main 70781cad986f3700f8e2d94fd20aa8b01482f50b
 Updated: 2026-08-11
@@ -25,7 +25,7 @@ The investigation preserves:
 
 ## 2. Baseline finding
 
-The accepted active catalogue v1.1 contains 24 definitions. Its current identity is:
+The accepted active Validation Catalogue v1.1 contains 24 definitions. Its current identity is:
 
 - catalogue: `VALIDATION-CATALOGUE-V1.1`;
 - catalogue SHA-256: `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865`;
@@ -34,7 +34,7 @@ The accepted active catalogue v1.1 contains 24 definitions. Its current identity
 
 Three catalogue-level paths are already authorised:
 
-1. `VT-TOP-DEF-001` uses the existing structured expected-versus-observed execution comparison. Defective v1.0 and corrected v1.1 are separate one-run executions with immutable failure/repeat linkage.
+1. `VT-TOP-DEF-001` uses the existing structured expected-versus-observed execution comparison. Defective Network Configuration v1.0 and corrected Network Configuration v1.1 are separate one-run executions with immutable failure/repeat linkage; each execution also retains its distinct source Validation Catalogue identity.
 2. `VT-EXP-ALL-001` uses nine accepted DC-004 constituent cases, each bound to one exploratory run/execution, followed by one immutable composite determination.
 3. `VT-EXP-ROLE-001` uses four accepted DC-004 constituent cases, each bound to one exploratory run/execution, followed by one immutable composite determination.
 
@@ -64,6 +64,7 @@ Each required criterion should contain:
 - stable `criterion_id`, version and canonical definition hash;
 - parent test/case identity and evidence class;
 - criterion kind: `MACHINE_COMPARISON` or `ENGINEERING_REVIEW`;
+- exact `requirement_ids` allocated from the parent test's accepted RTM relationship set;
 - context/checkpoint/subject role;
 - predetermined expected value or explicit review proposition;
 - controlled observation-source type and selector;
@@ -71,6 +72,8 @@ Each required criterion should contain:
 - required evidence categories and authoritative source references;
 - units, rounding and set/order semantics where relevant; and
 - reviewer authority profile where engineering judgement is required.
+
+Criterion-to-requirement mapping is a controlled refinement below the accepted RTM. For every parent test, each criterion's `requirement_ids` must be a subset of that test's accepted Section 15 requirement set, and the union across its exact criterion set must equal that parent set. A criterion may support multiple applicable requirements and a requirement may be evidenced through multiple substantive criteria, but no criterion may claim an out-of-parent requirement. Catalogue loading/finalisation shall reject unknown IDs, out-of-parent mappings and incomplete union coverage. This preserves exactly 124 unique requirement IDs and 286 `(test_id, requirement_id)` relationships while retaining immutable criterion→requirement→evidence traceability.
 
 Machine observations must be resolved from existing authoritative backend records through a versioned source-adapter and operator registry. Catalogue data supplies the expected value, source role, field selector and operator. Production logic must not contain a `test_id` outcome switch or a second expected-topology algorithm.
 
@@ -107,7 +110,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 | `VT-CFG-BASE-001` | Gap | Preserved record set | Machine | Direct PASS/FAIL |
 | `VT-TOP-NORMAL-001` | Gap | Scenario execution | Machine | Direct PASS/FAIL |
 | `VT-FML-N0-N5-001` | Gap | One scenario execution, six checkpoints | Machine | One direct PASS/FAIL |
-| `VT-TOP-DEF-001` | Supported | Scenario execution per v1.0/v1.1 run | Machine | Existing direct FAIL/PASS path retained |
+| `VT-TOP-DEF-001` | Supported | Scenario execution per Network Configuration v1.0/v1.1 run | Machine | Existing direct FAIL/PASS path retained |
 | `VT-CFG-INV-001` | Gap | Preserved record set | Machine + reviewer | Direct PASS/FAIL |
 | `VT-TEL-FRESH-001` | Gap | Controlled fixture execution | Machine | Direct PASS/FAIL |
 | `VT-TEL-STALE-001` | Gap | Controlled fixture execution | Machine | Direct PASS/FAIL |
@@ -133,8 +136,8 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 ### 5.1 `VT-TOP-DEF-001`
 
-- **Accepted basis:** formal negative plus repeat; the same post-trip procedure on immutable v1.0 and v1.1 using the same build/inputs.
-- **Existing path:** backend-derived post-trip topology, source attribution, energisation and customer impact are compared with predetermined structured values. Each execution remains bound to one run/configuration. v1.0 produces the preserved 400-customer `FAIL`; v1.1 produces the separately linked 850-customer `PASS`.
+- **Accepted basis:** formal negative plus repeat; the same post-trip procedure on immutable Network Configuration v1.0 and Network Configuration v1.1 using the same build/inputs.
+- **Existing path:** backend-derived post-trip topology, source attribution, energisation and customer impact are compared with predetermined structured values. Each execution remains bound to one run/Network Configuration and its source Validation Catalogue identity. Network Configuration v1.0 produces the preserved 400-customer `FAIL`; Network Configuration v1.1 produces the separately linked 850-customer `PASS`.
 - **Evidence/provenance:** build, catalogue/test definition, configuration/package hash, run, evidence snapshot and comparison records.
 - **DC-004/DC-005:** not composite; a genuine suspension remains possible only under DC-005. Ordinary missing evidence is incomplete.
 - **DC-006 treatment:** express the existing structured fields as ordinary machine criteria in the promoted common schema without changing the engineering values, one-run provenance, failure preservation or repeat relationship.
@@ -143,7 +146,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 - **Accepted basis:** exact nine DC-004 constituent cases and one immutable composite.
 - **Existing path:** each case has predetermined case-level structured values and one exploratory run/execution. The exact complete set determines the composite under DC-004.
-- **Evidence/provenance:** corrected v1.1, common build/catalogue/test identity, case-definition identity, independent run/evidence links, EXPLORATORY class and composite membership.
+- **Evidence/provenance:** corrected Network Configuration v1.1, common build/Validation Catalogue/test identity, case-definition identity, independent run/evidence links, EXPLORATORY class and composite membership.
 - **DC-004/DC-005:** unchanged exact-set completeness and PASS/FAIL/BLOCKED-TEST precedence; suspension may occupy a case only through the accepted trusted target-selection path.
 - **DC-006 treatment:** map existing case fields to the common machine-criterion representation only; do not change the nine case IDs, values, run count or composite rule.
 
@@ -159,7 +162,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 ### 6.1 `VT-CFG-BASE-001` — Controlled configuration and network integrity
 
-- **Accepted objective/method/procedure:** inspection plus functional loading of immutable v1.0/v1.1; verify identifiers, assets, connectivity, states, loads, capacities, customer zones and the single SW-A23 difference.
+- **Accepted objective/method/procedure:** inspection plus functional loading of immutable Network Configuration v1.0/v1.1; verify identifiers, assets, connectivity, states, loads, capacities, customer zones and the single SW-A23 difference.
 - **Expected engineering meaning:** both packages are schema-valid and hash-identified, match the Network Model, and differ only at SW-A23 endpoint 1 (`SEC-B3` versus `SEC-A2`).
 - **Required criteria:** `CFG-01` both identities/manifests/hashes resolve; `CFG-02` both schemas validate; `CFG-03` canonical asset/connectivity/state/load/capacity/customer values equal the independent catalogue oracle; `CFG-04` the difference set contains exactly SW-A23 endpoint 1 with the accepted before/after values; `CFG-05` no other package difference exists.
 - **Observed/evidence source:** configuration loader validation records, package manifests, canonical configuration records and configuration-comparison result. All are machine-comparable.
@@ -171,11 +174,11 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 ### 6.2 `VT-TOP-NORMAL-001` — Corrected normal topology and source attribution
 
-- **Accepted objective/method/procedure:** functional/analysis run of corrected v1.1 at N0.
+- **Accepted objective/method/procedure:** functional/analysis run of corrected Network Configuration v1.1 at N0.
 - **Expected engineering meaning:** eight energised sections; A1–A4 from FDR-A, B1–B4 from FDR-B; derived supplied loads 3,200/4,200 kW; radial, no outage.
-- **Required criteria:** `TOP-N0-01` v1.1/normal switching/source conditions; `TOP-N0-02` exact energised section set; `TOP-N0-03` exact source attribution sets; `TOP-N0-04` derived feeder loads and complete attribution; `TOP-N0-05` radial/no unintended energised loop; `TOP-N0-06` empty de-energised set and zero affected customers.
+- **Required criteria:** `TOP-N0-01` Network Configuration v1.1/normal switching/source conditions; `TOP-N0-02` exact energised section set; `TOP-N0-03` exact source attribution sets; `TOP-N0-04` derived feeder loads and complete attribution; `TOP-N0-05` radial/no unintended energised loop; `TOP-N0-06` empty de-energised set and zero affected customers.
 - **Observed/evidence source:** backend ScenarioSnapshot/TopologyResult/OutageResult/feeder-load projection. All machine-comparable.
-- **Context:** one FORMAL `SCENARIO_EXECUTION`, one `CONTROLLED_RESULT`/N0 checkpoint, one v1.1 run.
+- **Context:** one FORMAL `SCENARIO_EXECUTION`, one `CONTROLLED_RESULT`/N0 checkpoint, one run using corrected Network Configuration v1.1.
 - **Evidence/provenance:** build, configuration, run/revision/time, source paths, topology/outage records and criterion findings.
 - **Determination:** standard incomplete/fail/pass aggregate.
 - **DC-004/DC-005:** no composite; genuine suspension only under DC-005.
@@ -185,9 +188,9 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 - **Accepted objective/method/procedure:** execute the controlled formal sequence at the accepted times and capture N0, N1, N2, N3, N4 and N5.
 - **Expected engineering meaning:** the exact Network Model state answer key, including 850/670/220 affected customers, 1,500 kW transfer, 5,700/6,000 kW, 95.0%, 450 restored and radial N5.
-- **Required criteria:** `FML-TIME-01` exact controlled T+0/10/20/30/40/50/55 schedule and sequence ordering; `FML-N0-01` normal v1.1 topology/source/outage; `FML-N1-01` SEC-A2 fault, BRK-A OPEN, A1–A4 de-energised, B sections energised and 850 affected; `FML-N2-01` SW-A12/SW-A23 trustworthy OPEN, zero active source paths, isolation proven and 850 affected; `FML-N3-01` BRK-A CLOSED, A1 from FDR-A, A2/A3/A4 de-energised and 670 affected; `FML-N4-01` unchanged N3 switching plus A3/A4 candidate, 1,500 kW, 5,700/6,000 kW, 95.0%, 450 proposed restored and PERMITTED; `FML-N5-01` TS-01 CLOSED, A3/A4 from FDR-B, SEC-A2 faulted/de-energised, 450 restored, 220 affected and radial; `FML-EVT-01` required command/derived records retain accepted chronology.
+- **Required criteria:** `FML-TIME-01` exact controlled chronology T+0 N0 initial state → T+10 fault/protection trip to N1 → T+11 alarm acknowledgement → T+20 first isolation action → T+30 N2 after the second isolation action → T+40 N3 → T+50 N4 → T+55 N5; `FML-N0-01` normal corrected Network Configuration v1.1 topology/source/outage; `FML-N1-01` SEC-A2 fault, BRK-A OPEN, A1–A4 de-energised, B sections energised and 850 affected; `FML-N2-01` SW-A12/SW-A23 trustworthy OPEN, zero active source paths, isolation proven and 850 affected; `FML-N3-01` BRK-A CLOSED, A1 from FDR-A, A2/A3/A4 de-energised and 670 affected; `FML-N4-01` unchanged N3 switching plus A3/A4 candidate, 1,500 kW, 5,700/6,000 kW, 95.0%, 450 proposed restored and PERMITTED; `FML-N5-01` TS-01 CLOSED, A3/A4 from FDR-B, SEC-A2 faulted/de-energised, 450 restored, 220 affected and radial; `FML-EVT-01` required command/derived records retain accepted chronology, including the T+11 acknowledgement between trip and the first isolation action.
 - **Observed/evidence source:** the six preserved backend scenario/evidence checkpoints, restoration assessment and operational event records. All criteria are machine-comparable.
-- **Context:** exactly one FORMAL `SCENARIO_EXECUTION`, one `ScenarioRun`, six named checkpoints. N0–N5 are not separate tests, executions or runs.
+- **Context:** exactly one FORMAL `SCENARIO_EXECUTION`, one `ScenarioRun` using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue revision, and six named N0–N5 state checkpoints. The T+11 acknowledgement is chronology/alarm/event evidence, not a seventh state checkpoint. N0–N5 are not separate tests, executions or runs.
 - **Evidence/provenance:** one run identity; per-checkpoint scenario time/revision and record hashes; build/config/catalogue/test/method/criterion identities; full source records.
 - **Determination:** incomplete until every named checkpoint and criterion is present; one mismatch yields one final FAIL; all satisfied yields one final PASS.
 - **DC-004/DC-005:** not a composite. A valid suspension closes the attempt under DC-005 without creating an N0–N5 `ExecutedValidationResult`.
@@ -197,7 +200,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 - **Accepted objective/method/procedure:** inspect the consequence→SCADA→source trace→OMS→configuration comparison path and record DEF-001/correction/repeat/regression.
 - **Expected engineering meaning:** correct telemetry; incorrect A3/A4 source path through SEC-B3/SW-A23; correct OMS result for the received topology; exact endpoint defect; algorithms unchanged; immutable linked failure/correction/repeat/regression.
-- **Required criteria:** `INV-01` preserved v1.0 400/FAIL; `INV-02` initiating BRK-A evidence trustworthy and not causal; `INV-03` preserved A3/A4 path reaches FDR-B through SEC-B3/SW-A23; `INV-04` OMS arithmetic matches the derived de-energised set; `INV-05` exact one-difference comparison; `INV-06` immutable DEF-001/COR-001/direct-repeat/regression links; `INV-07` same backend build across failure/repeat/regression and correct v1.0/v1.1 roles; `INV-R01` independent reviewer confirms the recorded causal conclusion follows the required evidence sequence and does not claim an algorithm change.
+- **Required criteria:** `INV-01` preserved Network Configuration v1.0 400/FAIL; `INV-02` initiating BRK-A evidence trustworthy and not causal; `INV-03` preserved A3/A4 path reaches FDR-B through SEC-B3/SW-A23; `INV-04` OMS arithmetic matches the derived de-energised set; `INV-05` exact one-difference comparison; `INV-06` immutable DEF-001/COR-001/direct-repeat/regression links; `INV-07` same backend build across failure/repeat/regression and correct Network Configuration v1.0/v1.1 roles, with each execution retaining its source Validation Catalogue identity; `INV-R01` independent reviewer confirms the recorded causal conclusion follows the required evidence sequence and does not claim an algorithm change.
 - **Observed/evidence source:** investigation, validation, configuration-comparison, topology/outage and build records are machine-comparable for `INV-01`–`INV-07`; `INV-R01` uses an evidence-bound engineering review finding.
 - **Context:** `PRESERVED_RECORD_SET` anchored to the original failed execution; no additional fictional run.
 - **Evidence/provenance:** complete bidirectional chain, source record hashes, reviewed step IDs, reviewer actors/roles and criterion-definition hashes.
@@ -278,8 +281,8 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 ### 6.12 `VT-RST-RADIAL-001` — Radial/no-loop permissive
 
-- **Accepted basis/meaning:** a controlled proposed-topology fixture forming an unintended energised loop is rejected with loop/source-path evidence; canonical v1.1 remains unchanged.
-- **Required criteria:** `RAD-01` fixture identity/hash and energised-loop condition; `RAD-02` complete trustworthy evidence; `RAD-03` radial permissive fails with offending path evidence; `RAD-04` outcome REJECTED; `RAD-05` close action unavailable; `RAD-06` canonical v1.1 bytes/hash unchanged.
+- **Accepted basis/meaning:** a controlled proposed-topology fixture forming an unintended energised loop is rejected with loop/source-path evidence; canonical Network Configuration v1.1 remains unchanged.
+- **Required criteria:** `RAD-01` fixture identity/hash and energised-loop condition; `RAD-02` complete trustworthy evidence; `RAD-03` radial permissive fails with offending path evidence; `RAD-04` outcome REJECTED; `RAD-05` close action unavailable; `RAD-06` canonical Network Configuration v1.1 bytes/hash unchanged.
 - **Observed source/context:** one controlled fixture result from existing topology/restoration authorities plus pre/post configuration hash evidence; machine-comparable.
 - **Evidence/provenance/determination:** fixture/build/config hashes and standard aggregate.
 - **DC-004/DC-005:** expected REJECTED yields PASS; corrupted fixture may be VSC-005, but a calculated mismatch is FAIL.
@@ -315,7 +318,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.16 `VT-ALM-EVT-001` — Alarm acknowledgement and operational chronology
 
 - **Accepted basis/meaning:** formal workflow creates the approved alarm lifecycle and exact 15-type operational-event catalogue; commands precede derived records at equal time; validation/defect records remain separate.
-- **Required criteria:** `EVT-01` fault creates the expected active/unacknowledged alarm; `EVT-02` acknowledgement records actor/time and preserves electrical revision behaviour; `EVT-03` event types are members of the exact 15-type registry; `EVT-04` equal-time ordering follows event sequence; `EVT-05` every simulated switching action is represented; `EVT-06` validation, defect, correction, composite, suspension and package records are absent from operational events.
+- **Required criteria:** `EVT-01` fault creates the expected active/unacknowledged alarm; `EVT-02` acknowledgement records actor/time and preserves electrical revision behaviour; `EVT-03` the controlled operational-event registry equals exactly `{SCENARIO_INITIALISED, CONFIGURATION_SELECTED, FAULT_INITIATED, TELEMETRY_UPDATED, DEVICE_STATE_CHANGE, ALARM_GENERATED, ALARM_ACKNOWLEDGED, SWITCHING_ACTION, TOPOLOGY_RECALCULATED, OUTAGE_UPDATED, RESTORATION_CANDIDATE_IDENTIFIED, RESTORATION_NO_CANDIDATE, RESTORATION_ASSESSED, RESTORATION_ASSESSMENT_INVALIDATED, SCENARIO_RESET}` with no missing or additional ID; `EVT-04` every emitted operational event is a valid member of that exact registry; `EVT-05` equal-time command/derived ordering follows event sequence; `EVT-06` every simulated isolation/restoration switching action is represented; `EVT-07` validation, defect, correction, composite, suspension and package records are absent from operational events.
 - **Observed source/context:** one formal scenario execution/event set, alarm and command records; machine-comparable.
 - **Evidence/provenance/determination:** event/command/alarm/run/build/config identities and standard aggregate.
 - **DC-004/DC-005:** confirms their records do not become event types; counts remain 15.
@@ -332,18 +335,18 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 
 ### 6.18 `VT-EXP-SEPARATION-001` — Formal/Exploration separation
 
-- **Accepted basis/meaning:** formal remains fixed to SEC-A2; Exploration uses corrected v1.1 and transient selection; modes cannot be converted; exploratory records do not satisfy/contaminate formal progress.
-- **Required criteria:** `SEP-01` formal run fixed SEC-A2 with FORMAL class; `SEP-02` exploratory run uses v1.1, selected section and EXPLORATORY class; `SEP-03` run mode/fault selection immutable and mode conversion rejected; `SEP-04` distinct run/execution/evidence identities; `SEP-05` exploratory execution/composite/suspension insertion leaves all FORMAL progress totals unchanged; `SEP-06` no exploratory evidence is linked as satisfying a formal result.
-- **Observed source/context:** preserved formal/exploratory run, validation, composite/suspension and progress-projection records. Machine-comparable.
+- **Accepted basis/meaning:** formal remains fixed to SEC-A2; Exploration uses corrected Network Configuration v1.1 and transient selection; modes cannot be converted; actual campaign exploratory records do not satisfy or contaminate formal progress.
+- **Required criteria:** `SEP-01` formal run fixed SEC-A2 with FORMAL class; `SEP-02` exploratory run uses corrected Network Configuration v1.1, selected section and EXPLORATORY class; `SEP-03` run mode/fault selection immutable and mode conversion rejected; `SEP-04` distinct run/execution/evidence identities; `SEP-05` the actual campaign exploratory executions/evidence and DC-004 composite records leave all FORMAL definition-without-execution, execution, finalised, PASS, FAIL and BLOCKED-TEST progress totals unchanged; `SEP-06` no exploratory evidence or DC-004 composite membership is linked as satisfying a formal result.
+- **Observed source/context:** preserved formal records, actual campaign exploratory runs/executions/evidence, DC-004 composite records and progress-projection snapshots. Machine-comparable. A legitimate exploratory DC-005 suspension, if one happens to exist independently, may be retained as additional evidence but is not a required campaign member and shall not be manufactured for this test.
 - **Evidence/provenance/determination:** `PRESERVED_RECORD_SET`; exact before/after progress snapshots and record links.
-- **DC-004/DC-005:** explicitly verifies both boundaries without altering either.
+- **DC-004/DC-005:** DC-004 composite records are required evidence for the accepted campaign separation. DC-005 suspension/progress separation remains independently covered by implementation-conformance regression; the catalogue campaign does not create or require an exploratory suspension.
 - **Artefact impact:** record-set criteria only.
 
 ### 6.19 `VT-NFR-REVIEW-001` — Scope, clarity, conceptual boundaries and reviewability
 
 - **Accepted basis/meaning:** structured engineering review of labels, basis links, simulated-operation notices, conceptual module wording, topology diagrams and information separation; understandable, fictional, local, engineering-led and no production/real-control claim.
-- **Required machine criteria:** `NFR-M01` loopback-only runtime/no external service; `NFR-M02` controlled build/config/catalogue/test IDs are visible/traceable; `NFR-M03` prominent fictional/simulated/no-real-control labels; `NFR-M04` configured/observed/derived/evidence records remain structurally separate; `NFR-M05` both feeder structures use the common entity schemas.
-- **Required reviewer criteria:** `NFR-R01` engineering meaning and workflow are understandable; `NFR-R02` OT module wording is clearly conceptual rather than a production-product claim; `NFR-R03` interface remains engineering-first rather than a generic dashboard; `NFR-R04` engineering-basis and evidence paths allow a reviewer to trace requirement→design→result→evidence; `NFR-R05` fictional data and simulated-control boundaries are clear and not misleading.
+- **Required machine criteria:** `NFR-M01` runtime binding is loopback-only and no external operational service endpoint is configured; `NFR-M02` controlled build, Network Configuration, Validation Catalogue and test identity fields are present and their links resolve to the bound records; `NFR-M03` the exact required fictional/simulated/no-real-control labels or notices are present on each controlled surface; `NFR-M04` configured, observed, derived and evidence records remain structurally separate; `NFR-M05` both feeder structures use the common entity schemas. These criteria establish presence, identity, linkage, configuration and structural facts only; they do not decide prominence, understandability, clarity, engineering-first character or whether presentation is misleading.
+- **Required reviewer criteria:** `NFR-R01` engineering meaning and workflow are understandable; `NFR-R02` OT module wording is clearly conceptual rather than a production-product claim; `NFR-R03` interface remains engineering-first rather than a generic dashboard; `NFR-R04` engineering-basis and evidence paths allow a reviewer to trace requirement→design→result→evidence; `NFR-R05` the required fictional/simulated/no-real-control treatment is sufficiently prominent and clear and is not misleading.
 - **Observed/evidence source:** runtime/build/network/presentation metadata for machine criteria; a versioned evidence-bound engineering review checklist with screenshots/record links for reviewer criteria.
 - **Context:** one `ENGINEERING_REVIEW` bound to the exact build/package identities; no fictional scenario run.
 - **Evidence/provenance:** criterion definitions, reviewed surfaces/records and hashes, proposer/final reviewer actor identities and immutable findings.
@@ -354,7 +357,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.20 `VT-DET-REPEAT-001` — Deterministic repeatability
 
 - **Accepted basis/meaning:** repeat selected formal, negative and corrected cases under equal controlled inputs; canonical engineering results/checkpoints equal while generated identities remain distinct and linked.
-- **Minimum controlled member roles:** `DET-FORMAL` = two completed `VT-FML-N0-N5-001` executions; `DET-NEGATIVE` = two completed `VT-TEL-STALE-001` fixture executions; `DET-CORRECTED` = two completed corrected-v1.1 `VT-TOP-DEF-001` executions. These roles remove the current ambiguity in “selected formal, negative and corrected tests” and require authoritative Validation Plan acceptance.
+- **Minimum controlled member roles:** `DET-FORMAL` = two completed `VT-FML-N0-N5-001` executions using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue identities; `DET-NEGATIVE` = two completed `VT-TEL-STALE-001` fixture executions under the same promoted Validation Catalogue method identity; `DET-CORRECTED` = two completed `VT-TOP-DEF-001` executions using corrected Network Configuration v1.1 under the same future promoted DC-006 Validation Catalogue/test/method identities. Independent design review accepts these roles subject to this version-namespace distinction; they remain proposed until final DC-006 acceptance and controlled application.
 - **Required criteria:** `DET-01` exact member roles and distinct identities; `DET-02` same build/configuration/test/method/fixture/clock inputs within each pair; `DET-03` canonical engineering outputs/checkpoints equal after excluding only controlled generated-identity fields; `DET-04` explicit repeat links; `DET-05` original records unchanged.
 - **Observed source/context:** immutable execution/fixture/evidence records and generic canonical-record comparator. Machine-comparable.
 - **Context:** `PRESERVED_RECORD_SET`; no new scenario run is invented by the repeatability test itself.
@@ -365,7 +368,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.21 `VT-PKG-EVIDENCE-001` — Self-contained evidence-package integrity
 
 - **Accepted basis/meaning:** separately export two executions; verify required files, relative links, canonical JSON, figures, README and SHA-256 manifest; source provenance remains traceable and earlier package/execution unchanged.
-- **Minimum controlled package roles:** `PKG-FORMAL` = finalised v1.1 `VT-FML-N0-N5-001` PASS; `PKG-HISTORICAL-DEFECT` = preserved v1.0 `VT-TOP-DEF-001` FAIL exported through its original catalogue/test identity. These roles satisfy the accepted two-package procedure and I9 historical-evidence gate without inventing a free selection.
+- **Minimum controlled package roles:** `PKG-FORMAL` = one finalised `VT-FML-N0-N5-001` PASS using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue/test/method identity; `PKG-HISTORICAL-DEFECT` = one preserved `VT-TOP-DEF-001` FAIL using defective Network Configuration v1.0 and exported through its original historical Validation Catalogue/test-definition identity. These roles satisfy the accepted two-package procedure and I9 historical-evidence gate without inventing a free selection. Independent design review accepts them subject to this version-namespace distinction; they remain proposed until final DC-006 acceptance and controlled application.
 - **Required criteria:** `PKG-01` two distinct non-overwriting package IDs/paths; `PKG-02` exact required file set; `PKG-03` every manifest entry exists and hashes; `PKG-04` canonical records/relative links/figures/README resolve; `PKG-05` source execution/build/config/catalogue/test identities match preserved records; `PKG-06` generation build remains separate from source build; `PKG-07` historical definition resolves by original identity; `PKG-08` generating/verifying the second package leaves the first package and both source executions unchanged.
 - **Observed source/context:** evidence-package registry/archive verifier, historical catalogue resolver and preserved source records. Machine-comparable.
 - **Context:** `PRESERVED_RECORD_SET`; no new scenario run.
@@ -379,15 +382,15 @@ A new controlled catalogue revision is required. The determination method, exact
 
 Before any later promotion:
 
-1. preserve active catalogue v1.1 and manifest byte-for-byte as a new immutable historical package;
-2. keep existing historical v1.0 unchanged;
-3. add the promoted criteria-based catalogue as the next controlled revision (proposed v1.2; final version assigned during controlled application);
+1. preserve active Validation Catalogue v1.1 and manifest byte-for-byte as a new immutable historical package;
+2. keep existing historical Validation Catalogue v1.0 unchanged;
+3. add the promoted criteria-based Validation Catalogue as the next controlled revision (proposed Validation Catalogue v1.2; final version assigned during controlled application);
 4. bind new attempts/executions to the promoted identity;
-5. resolve/review/export completed v1.0/v1.1 records through their stored identities;
+5. resolve/review/export completed Validation Catalogue v1.0/v1.1 records through their stored identities while preserving each execution's separate Network Configuration version and hash;
 6. make unfinished old-catalogue attempts/executions historical/read-only under the existing DC-004/DC-005 rule; and
 7. preserve all existing evidence packages and application-build identities.
 
-The three already-supported tests retain their accepted results and semantics. Their promoted definitions may express existing fields through the common criterion schema, but historical records remain resolved against the exact older definitions under which they were executed.
+The three already-supported tests retain their accepted results and semantics. Their promoted definitions may express existing fields through the common criterion schema, but historical records remain resolved against the exact older Validation Catalogue definitions under which they were executed and are never substituted based on Network Configuration version.
 
 ## 8. Authoritative artefact impact conclusion
 
@@ -407,5 +410,7 @@ The three already-supported tests retain their accepted results and semantics. T
 The gap is not 21 missing engineering answers. The accepted plan already states those answers. The gap is a controlled way to bind varied but legitimate procedure contexts to exact criteria, evidence and authority, then deterministically create one PASS/FAIL result.
 
 One common criteria model can close the gap without 21 test-specific verdict engines. It requires a controlled design change and catalogue revision because execution context, criterion definitions, reviewer authority and aggregation are validation meaning, not packaging implementation detail.
+
+Independent review accepts this architecture in principle and accepts the deterministic-repeat and evidence-package member roles subject to the explicit Network Configuration / Validation Catalogue namespace treatment recorded above. The bounded DR-01–DR-06 corrections are now incorporated for final independent design re-review. DC-006 remains proposed: no authoritative-document application, Validation Catalogue promotion, application/machine change or I9 resumption is authorised.
 
 **V2 Automation Candidate — criteria and evidence assembly.** Mapping repeated source records to fixed criteria, checking completeness and preparing reviewer evidence is assurance-heavy and error-prone. A future tool could propose/bind evidence and highlight missing criteria while V1 retains fixed definitions, deterministic aggregation and independent engineering authority.

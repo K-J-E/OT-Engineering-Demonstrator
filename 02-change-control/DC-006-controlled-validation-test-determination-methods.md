@@ -1,6 +1,6 @@
 # DC-006 — Controlled Validation Test Determination Methods
 
-Status: **Proposed for independent engineering review — not accepted, not applied**
+Status: **Proposed — architecture accepted in principle; bounded DR-01–DR-06 corrections applied pending final independent engineering re-review; not accepted, not applied**
 
 Date raised: 2026-08-11
 
@@ -18,7 +18,7 @@ Supporting analysis: `03-derived-reference/dc-006-determination-coverage-analysi
 
 The accepted Validation Plan defines 24 catalogue tests, their objectives, methods, procedures, expected engineering results, evidence obligations and verdict rules. Accepted implementation currently provides an authorised structured determination path for:
 
-- `VT-TOP-DEF-001` direct v1.0/v1.1 execution comparison;
+- `VT-TOP-DEF-001` direct Network Configuration v1.0/v1.1 execution comparison;
 - `VT-EXP-ALL-001` through the exact nine DC-004 constituent executions and composite; and
 - `VT-EXP-ROLE-001` through the exact four DC-004 constituent executions and composite.
 
@@ -60,6 +60,7 @@ Every promoted catalogue test or constituent case shall own one immutable, versi
 | `required_context_roles` | Exact named runs, fixtures, packages, configurations or preserved-record members required before evaluation. |
 | `required_checkpoint_ids` | Exact checkpoint set where the method is scenario/checkpoint based. |
 | `criteria` | Exact required set of versioned `CriterionDefinition` records. |
+| `requirement_coverage` | Derived union of criterion mappings; must equal the parent test's accepted RTM requirement set. |
 | `aggregate_rule` | Fixed `ALL_SATISFIED_PASS_ANY_NOT_SATISFIED_FAIL`; incomplete has no verdict. |
 | `source_references` | Authoritative document/section/answer-key basis. |
 
@@ -84,6 +85,7 @@ Each `CriterionDefinition` shall contain:
 
 - stable `criterion_id`, version and canonical hash;
 - kind `MACHINE_COMPARISON` or `ENGINEERING_REVIEW`;
+- exact `requirement_ids` allocated from the parent test's accepted RTM relationship set;
 - context role and optional checkpoint ID;
 - predetermined expected value or exact review proposition;
 - authoritative observation source type and controlled selector;
@@ -105,6 +107,18 @@ The proposed machine operator registry is deliberately small and generic:
 The validator shall not calculate topology, outage, restoration, telemetry validity or customer impact independently. It resolves the preserved output of the existing authoritative backend service and compares that output with the catalogue-owned expectation.
 
 The validator shall not select expected values or return results through a `test_id`, section ID, configuration version or case-ID outcome lookup. Test-specific meaning exists only in the controlled definition data.
+
+### 3.3.1 Requirement-to-criterion traceability
+
+Each criterion shall identify only requirement IDs already related to its parent `test_id` by the accepted Section 15 RTM. For each test/case determination method:
+
+1. every criterion `requirement_id` must be a member of the parent test's accepted requirement relationship set;
+2. the union of all criterion `requirement_ids` must equal the parent test's complete accepted relationship set;
+3. a criterion may map to more than one applicable requirement and a requirement may map to more than one substantive criterion;
+4. criterion mapping cannot add, remove or transfer a `(test_id, requirement_id)` RTM relationship; and
+5. catalogue loading/finalisation must reject out-of-parent, missing-union and unknown requirement IDs.
+
+Criterion-level mapping refines traceability beneath the accepted RTM; it does not create a new RTM layer or change the exact 124 unique requirements / 286 `(test_id, requirement_id)` relationships. The immutable result/evidence package shall retain criterion→requirement→evidence links so coverage is justified by the actual criterion findings rather than by test-ID presence alone.
 
 ### 3.4 Controlled observation-source registry
 
@@ -182,7 +196,7 @@ The detailed criterion analysis in the supporting derived record is proposed as 
 
 | Test | Treatment |
 |---|---|
-| `VT-TOP-DEF-001` | Existing v1.0/v1.1 structured comparison is expressed through machine criteria without changing 400/FAIL, 850/PASS, one-run provenance or immutable repeat links. |
+| `VT-TOP-DEF-001` | Existing Network Configuration v1.0/v1.1 structured comparison is expressed through machine criteria without changing 400/FAIL, 850/PASS, one-run provenance or immutable repeat links. Historical execution identity remains separately bound to its source Validation Catalogue revision. |
 | `VT-EXP-ALL-001` | Existing exact nine cases are expressed through case machine criteria; DC-004 composite semantics remain unchanged. |
 | `VT-EXP-ROLE-001` | Existing exact four cases are expressed through case machine criteria; DC-004 composite semantics remain unchanged. |
 
@@ -199,7 +213,7 @@ The detailed criterion analysis in the supporting derived record is proposed as 
 
 ### 4.3 Exact N0–N5 rule
 
-`VT-FML-N0-N5-001` shall remain exactly one FORMAL validation execution bound to one v1.1 `ScenarioRun`. It shall own the six accepted N0–N5 checkpoints plus the accepted controlled-time/event-order criterion. The backend derives one overall result only after every required checkpoint criterion is complete.
+`VT-FML-N0-N5-001` shall remain exactly one FORMAL validation execution bound to one `ScenarioRun` using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue revision. It shall own the six accepted N0–N5 state checkpoints plus the accepted controlled-time/event-order criterion. The exact chronology is T+0 N0 initial state; T+10 fault/protection trip to N1; T+11 alarm acknowledgement; T+20 first isolation action; T+30 N2 after the second isolation action; T+40 N3; T+50 N4; and T+55 N5. T+11 acknowledgement is chronology/alarm/event evidence within the same execution, not a seventh N-state or checkpoint. The backend derives one overall result only after every required checkpoint criterion is complete.
 
 It is prohibited to:
 
@@ -213,7 +227,7 @@ It is prohibited to:
 
 A `CONTROLLED_FIXTURE_EXECUTION` is permitted only for a fixture already authorised by the Validation Plan: exact telemetry ages/qualities/time authority, proposed energised-loop vector, capacity equality/overage or another explicitly accepted lower-level rule-boundary vector. It shall record the fixture definition/version/hash, executing build, input values/units, authoritative service output and canonical result hash. The deterministic alternate-source negative remains a scenario execution under Section 4.2.
 
-It shall not mutate the canonical v1.0/v1.1 configuration packages, create a free-form network/load editor or allow arbitrary validation values.
+It shall not mutate the canonical Network Configuration v1.0/v1.1 packages, create a free-form network/load editor or allow arbitrary validation values.
 
 ### 4.5 Exact deterministic-repeat member roles
 
@@ -221,22 +235,46 @@ To remove the current undefined word “selected,” the proposal fixes `VT-DET-
 
 - `DET-FORMAL`: two completed `VT-FML-N0-N5-001` executions under equal controlled inputs;
 - `DET-NEGATIVE`: two completed `VT-TEL-STALE-001` controlled fixture executions under equal controlled inputs; and
-- `DET-CORRECTED`: two completed corrected-v1.1 `VT-TOP-DEF-001` executions under equal controlled inputs.
+- `DET-CORRECTED`: two completed `VT-TOP-DEF-001` executions using corrected Network Configuration v1.1 under the same future promoted DC-006 Validation Catalogue/test/method identities and equal controlled inputs.
 
 Each pair must have distinct generated identities, explicit repeat linkage, equal build/configuration/test/method/fixture/clock inputs and canonically equal engineering outputs/checkpoints after excluding only definition-authorised generated identity fields.
 
-This selection requires independent engineering acceptance before it becomes authoritative.
+Independent design review accepts these three deterministic-repeat roles subject to the explicit Network Configuration / Validation Catalogue namespace clarification above. They remain proposed, not authoritative, until DC-006 receives final design acceptance and later controlled application.
 
 ### 4.6 Exact evidence-package member roles
 
 To remove the current undefined phrase “two executions,” the proposal fixes `VT-PKG-EVIDENCE-001` to:
 
-- `PKG-FORMAL`: one finalised v1.1 `VT-FML-N0-N5-001` PASS package; and
-- `PKG-HISTORICAL-DEFECT`: one preserved v1.0 `VT-TOP-DEF-001` FAIL package resolved/exported under its original catalogue/test-definition identity.
+- `PKG-FORMAL`: one finalised `VT-FML-N0-N5-001` PASS using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue/test/method identity; and
+- `PKG-HISTORICAL-DEFECT`: one preserved `VT-TOP-DEF-001` FAIL using defective Network Configuration v1.0, resolved/exported under the exact historical Validation Catalogue/test-definition identity stored on that failed execution.
 
 The test verifies distinct non-overwriting package identities/paths, required content, canonical JSON and relative links, file/manifest/archive hashes, source/build/config/test provenance, source-build versus generation-build separation, historical resolution and immutability of the first package/source records after the second export.
 
-This selection also requires independent engineering acceptance before it becomes authoritative. Composite and suspension export controls remain separate regression requirements and are not silently substituted for these two package roles.
+Independent design review accepts these package roles subject to the explicit Network Configuration / Validation Catalogue namespace clarification above. They remain proposed, not authoritative, until DC-006 receives final design acceptance and later controlled application. Composite and suspension export controls remain separate regression requirements and are not silently substituted for these two package roles.
+
+### 4.7 Exact operational-event registry criterion
+
+`VT-ALM-EVT-001` shall contain separate machine criteria that:
+
+1. prove the controlled operational-event registry is exactly the canonical set `{SCENARIO_INITIALISED, CONFIGURATION_SELECTED, FAULT_INITIATED, TELEMETRY_UPDATED, DEVICE_STATE_CHANGE, ALARM_GENERATED, ALARM_ACKNOWLEDGED, SWITCHING_ACTION, TOPOLOGY_RECALCULATED, OUTAGE_UPDATED, RESTORATION_CANDIDATE_IDENTIFIED, RESTORATION_NO_CANDIDATE, RESTORATION_ASSESSED, RESTORATION_ASSESSMENT_INVALIDATED, SCENARIO_RESET}` with no missing or additional ID;
+2. prove every emitted operational event in the controlled execution is a member of that exact registry;
+3. prove equal-time command/derived chronology through event sequence;
+4. prove every simulated isolation/restoration switching action is represented; and
+5. prove validation verdict, defect, correction, composite, suspension and evidence-package records are absent from the operational event stream.
+
+Registry equality is distinct from emitted-event membership: a run need not emit every event type, but the controlled registry itself must remain exactly 15 IDs.
+
+### 4.8 Exploration-separation evidence boundary
+
+`VT-EXP-SEPARATION-001` shall use the actual campaign exploratory executions/evidence and DC-004 composite records to prove that EXPLORATORY activity cannot satisfy or alter FORMAL progress. It shall not create, insert or require an exploratory DC-005 suspension as a campaign member. If a legitimate exploratory suspension already exists through the independent accepted DC-005 path, it may be retained as additional evidence only.
+
+Implementation-conformance regression shall continue to prove that exploratory suspension records cannot affect FORMAL progress, but such regression success is not catalogue campaign verdict evidence and cannot be substituted for the required campaign exploratory execution/evidence and composite records.
+
+### 4.9 Machine/reviewer judgement boundary
+
+For `VT-NFR-REVIEW-001`, machine criteria may prove only controlled facts such as label/notice presence, identity fields and resolvable links, structural separation, loopback-only configuration/no external operational endpoint, and use of common entity schemas. Machine comparison shall not determine whether a presentation is prominent, understandable, clear, engineering-first or not misleading.
+
+Those subjective propositions shall be fixed, versioned, evidence-bound `ENGINEERING_REVIEW` criteria. An eligible independent reviewer records only `SATISFIED` or `NOT_SATISFIED` for each exact proposition; the backend retains sole authority to derive the overall PASS/FAIL result under Section 3.6.
 
 ## 5. DC-004 interaction
 
@@ -285,13 +323,13 @@ DC-006 requires a new controlled catalogue revision because context kinds, exact
 
 Before any later promotion:
 
-1. preserve the exact accepted active v1.1 catalogue and manifest as immutable historical input:
+1. preserve the exact accepted active Validation Catalogue v1.1 and manifest as immutable historical input:
    - catalogue SHA-256 `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865`;
    - manifest SHA-256 `45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3`;
-2. retain historical v1.0 byte-identically;
+2. retain historical Validation Catalogue v1.0 byte-identically;
 3. promote the criteria-based package as the next accepted revision only after authoritative document application and independent machine/application review;
 4. bind new attempts to the promoted identity;
-5. retain completed v1.0/v1.1 review/export through original identities; and
+5. retain completed Validation Catalogue v1.0/v1.1 review/export through original identities while separately preserving each execution's Network Configuration identity; and
 6. enforce historical/read-only treatment for unfinished older definitions.
 
 The catalogue remains exactly 24 tests with the same 124 requirements and exact 286 RTM relationships unless independent review identifies a genuine contradiction. No such contradiction was found in this investigation.
@@ -316,7 +354,7 @@ No authoritative Word document is amended by this proposal.
 
 If DC-006 is independently accepted and later applied to the authoritative artefacts, a separate application phase would be expected to change only validation assurance:
 
-- preserve v1.1 catalogue/manifest as historical input;
+- preserve Validation Catalogue v1.1 catalogue/manifest as historical input;
 - promote the accepted criteria-based catalogue revision;
 - add criterion/method/context contracts and resolver validation;
 - add controlled fixture/record-set/review context records;
@@ -345,26 +383,23 @@ Future design/application verification shall prove at minimum:
 11. expected operational negative outcomes produce PASS when criteria agree;
 12. DC-005 remains the exclusive `BLOCKED-TEST` route and ordinary missing evidence remains incomplete;
 13. DC-004 exact 9/4 cases/composites and FORMAL isolation remain unchanged;
-14. historical v1.0/v1.1 definitions/results remain resolvable/exportable after promotion;
+14. historical Validation Catalogue v1.0/v1.1 definitions/results remain resolvable/exportable after promotion with their separate Network Configuration identities unchanged;
 15. unfinished older executions are read-only;
 16. final findings/membership/results are database-immutable;
 17. deterministic repeat uses the exact accepted member roles and equality profile;
 18. package integrity uses the exact accepted package roles and verifies source/generation provenance;
-19. implementation-conformance test success cannot be imported as a catalogue verdict; and
-20. 24 tests, 124 requirements, 286 RTM relationships and 15 operational-event types remain exact.
+19. each criterion's requirement mapping is a subset of its parent test mapping and each test's criterion union exactly covers that mapping;
+20. Exploration separation uses actual campaign exploratory execution/evidence and DC-004 composite records without manufacturing a suspension;
+21. machine criteria do not decide subjective NFR review qualities;
+22. the operational-event registry equals the exact 15 IDs and emitted events are separately checked for registry membership;
+23. implementation-conformance test success cannot be imported as a catalogue verdict; and
+24. 24 tests, 124 requirements, 286 RTM relationships and 15 operational-event types remain exact.
 
 ## 12. Proposal gate
 
-Current disposition: **Proposed for independent engineering review only.**
+Current disposition: **Architecture accepted in principle; DR-01–DR-06 corrected; proposed pending final independent engineering design re-review.**
 
-Independent review is requested to decide:
-
-1. whether the four context kinds are the minimum safe representation;
-2. whether the generic criterion/operator/source model is sufficiently exact without becoming test-specific code;
-3. whether the reviewer authority/finding model is appropriately bounded;
-4. whether the exact deterministic-repeat member roles in Section 4.5 are accepted;
-5. whether the exact evidence-package roles in Section 4.6 are accepted; and
-6. whether the authoritative artefact impact/version plan in Section 9 is complete.
+Independent review has accepted, in principle, the four-context/common-criteria architecture, deterministic backend aggregate, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles subject to version-namespace clarification. Final design re-review is requested only to confirm the bounded corrections recorded in Sections 3.3.1 and 4.3–4.9 and the corresponding supporting coverage analysis.
 
 No acceptance, document application, catalogue promotion, code/schema/migration/UI change, I9 resumption or merge is authorised by this proposal.
 
