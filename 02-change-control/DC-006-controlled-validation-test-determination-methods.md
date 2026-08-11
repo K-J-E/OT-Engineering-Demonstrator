@@ -1,6 +1,6 @@
 # DC-006 — Controlled Validation Test Determination Methods
 
-Status: **Proposed — architecture accepted in principle; bounded DR-01–DR-06 corrections applied pending final independent engineering re-review; not accepted, not applied**
+Status: **Proposed — architecture accepted in principle; bounded DR-01–DR-07 corrections applied pending final independent engineering acceptance review; not accepted, not applied**
 
 Date raised: 2026-08-11
 
@@ -48,7 +48,9 @@ The following remain controlling:
 
 ### 3.1 Common determination-method definition
 
-Every promoted catalogue test or constituent case shall own one immutable, versioned and hash-controlled `DeterminationMethodDefinition` containing:
+Every promoted **non-composite** catalogue test shall own one immutable, versioned and hash-controlled `DeterminationMethodDefinition`. Each exact constituent case of `VT-EXP-ALL-001` and `VT-EXP-ROLE-001` shall separately own one such method. The two parent composite tests shall not own a direct DC-006 determination method, execution context, `ValidationExecution` or `ExecutedValidationResult`; their sole catalogue-level determination remains the accepted DC-004 `CompositeValidationResult` over the exact required constituent set.
+
+Each permitted test/case method contains:
 
 | Field | Controlled meaning |
 |---|---|
@@ -60,7 +62,7 @@ Every promoted catalogue test or constituent case shall own one immutable, versi
 | `required_context_roles` | Exact named runs, fixtures, packages, configurations or preserved-record members required before evaluation. |
 | `required_checkpoint_ids` | Exact checkpoint set where the method is scenario/checkpoint based. |
 | `criteria` | Exact required set of versioned `CriterionDefinition` records. |
-| `requirement_coverage` | Derived union of criterion mappings; must equal the parent test's accepted RTM requirement set. |
+| `requirement_coverage` | For a non-composite test, the exact criterion union equals that test's accepted RTM set. For a DC-004 case, the case contributes only evidence-supported subsets; the static union over the exact required case set equals the parent composite test's accepted RTM set. |
 | `aggregate_rule` | Fixed `ALL_SATISFIED_PASS_ANY_NOT_SATISFIED_FAIL`; incomplete has no verdict. |
 | `source_references` | Authoritative document/section/answer-key basis. |
 
@@ -77,7 +79,7 @@ The method is controlled test-definition data. A client cannot alter its context
 
 The context kind affects source binding only. It does not create a different verdict model.
 
-Every valid procedure execution retains one immutable `ValidationExecution` and one exact context binding. `scenario_run_id` is mandatory for `SCENARIO_EXECUTION` and absent for the other three context kinds; those contexts instead bind their fixture, record-set or review identity. This is the proposed amendment to the current scenario-only execution contract and prevents fabrication of a run for inspection, fixture or review work. DC-004 constituents remain `SCENARIO_EXECUTION` records with exactly one run each.
+Every valid non-composite procedure execution and every DC-004 constituent-case execution retains one immutable `ValidationExecution` and one exact context binding. `scenario_run_id` is mandatory for `SCENARIO_EXECUTION` and absent for the other three context kinds; those contexts instead bind their fixture, record-set or review identity. This is the proposed amendment to the current scenario-only execution contract and prevents fabrication of a run for inspection, fixture or review work. DC-004 constituents remain `SCENARIO_EXECUTION` records with exactly one run each; their parent composite test owns no additional fictional context or execution.
 
 ### 3.3 Criterion definition
 
@@ -110,15 +112,24 @@ The validator shall not select expected values or return results through a `test
 
 ### 3.3.1 Requirement-to-criterion traceability
 
-Each criterion shall identify only requirement IDs already related to its parent `test_id` by the accepted Section 15 RTM. For each test/case determination method:
+Each criterion shall identify only requirement IDs already related to its parent `test_id` by the accepted Section 15 RTM. Criterion mapping cannot add, remove or transfer a `(test_id, requirement_id)` relationship, and catalogue validation shall reject unknown or out-of-parent requirement IDs.
 
-1. every criterion `requirement_id` must be a member of the parent test's accepted requirement relationship set;
-2. the union of all criterion `requirement_ids` must equal the parent test's complete accepted relationship set;
-3. a criterion may map to more than one applicable requirement and a requirement may map to more than one substantive criterion;
-4. criterion mapping cannot add, remove or transfer a `(test_id, requirement_id)` RTM relationship; and
-5. catalogue loading/finalisation must reject out-of-parent, missing-union and unknown requirement IDs.
+For each **non-composite catalogue test**:
 
-Criterion-level mapping refines traceability beneath the accepted RTM; it does not create a new RTM layer or change the exact 124 unique requirements / 286 `(test_id, requirement_id)` relationships. The immutable result/evidence package shall retain criterion→requirement→evidence links so coverage is justified by the actual criterion findings rather than by test-ID presence alone.
+1. each criterion's `requirement_ids` must be a subset of that test's accepted requirement relationship set; and
+2. the union over that test's exact criterion set must equal its complete accepted requirement relationship set.
+
+For `VT-EXP-ALL-001` and `VT-EXP-ROLE-001`:
+
+1. each exact required constituent case owns its own DC-006 method and criteria under the parent `test_id` plus its controlled `case_id`;
+2. each case criterion mapping must be a subset of the parent test's accepted requirement relationship set and include only requirements actually supported by that case's defined evidence;
+3. no individual case is required to cover the parent test's complete RTM set;
+4. the static union over the criteria of the exact required nine/four constituent cases must equal the parent test's complete accepted requirement relationship set; and
+5. catalogue validation shall reject missing parent coverage, out-of-parent mappings, unknown cases and any requirement whose only mapping belongs to a non-required case.
+
+A criterion may map to more than one applicable requirement and a requirement may map to more than one substantive criterion. Criterion-level mapping refines traceability beneath the accepted RTM; it does not create a new RTM layer or change the exact 124 unique requirements / 286 `(test_id, requirement_id)` relationships.
+
+Defined coverage and achieved validation evidence remain distinct. Criterion definitions retain their intended requirement mappings regardless of execution outcome. A completed PASS or FAIL test/result package shall retain the complete executed criterion-finding/evidence chain. For a DC-004 parent, the complete accepted constituent set is the evidence boundary for claiming parent-test coverage. A valid suspended constituent may yield composite `BLOCKED-TEST` under DC-004/DC-005, but planned mappings dependent on that suspended evidence shall not be represented as successfully verified.
 
 ### 3.4 Controlled observation-source registry
 
@@ -197,8 +208,8 @@ The detailed criterion analysis in the supporting derived record is proposed as 
 | Test | Treatment |
 |---|---|
 | `VT-TOP-DEF-001` | Existing Network Configuration v1.0/v1.1 structured comparison is expressed through machine criteria without changing 400/FAIL, 850/PASS, one-run provenance or immutable repeat links. Historical execution identity remains separately bound to its source Validation Catalogue revision. |
-| `VT-EXP-ALL-001` | Existing exact nine cases are expressed through case machine criteria; DC-004 composite semantics remain unchanged. |
-| `VT-EXP-ROLE-001` | Existing exact four cases are expressed through case machine criteria; DC-004 composite semantics remain unchanged. |
+| `VT-EXP-ALL-001` | Each exact required case owns its case method/criteria; the parent owns no DC-006 method, execution or direct result. The accepted exact-nine DC-004 composite remains the sole parent determination. |
+| `VT-EXP-ROLE-001` | Each exact required case owns its case method/criteria; the parent owns no DC-006 method, execution or direct result. The accepted exact-four DC-004 composite remains the sole parent determination. |
 
 ### 4.2 Proposed context allocation for the 21 stopped tests
 
@@ -282,13 +293,14 @@ DC-004 remains controlling for `VT-EXP-ALL-001` and `VT-EXP-ROLE-001`:
 
 - exact nine/four case sets;
 - one run and one execution per constituent;
+- one DC-006 method/criterion set per exact constituent case and no direct parent method, context, execution or `ExecutedValidationResult`;
 - constituent-owned controlled scenario time;
 - exact completeness and provenance gates;
 - incomplete/no-verdict treatment for missing, duplicate or mismatched cases;
 - aggregate FAIL precedence; and
 - immutable composite/history/export rules.
 
-DC-006 supplies the common constituent criterion/finding representation and does not create a multi-run `ValidationExecution` or a second composite engine.
+DC-006 supplies the common constituent criterion/finding representation and does not create a multi-run `ValidationExecution`, direct parent PASS/FAIL result or second composite engine. Defined case mappings establish the intended static parent RTM coverage, while only the complete executed constituent finding chain can support achieved PASS/FAIL evidence. A valid suspended constituent remains visible in that chain and may drive DC-004 `BLOCKED-TEST`; it does not transform its planned requirement mappings into successfully verified evidence.
 
 ## 6. DC-005 interaction
 
@@ -339,7 +351,7 @@ The catalogue remains exactly 24 tests with the same 124 requirements and exact 
 | Artefact | Proposed controlled amendment | Version if later applied |
 |---|---|---|
 | Requirements Specification | No amendment. Existing `REQ-VAL-003`, `REQ-VAL-006–009` are sufficient. Requirement count remains 124. | Remains v0.4. |
-| Validation Plan | Add Section 21 defining the common method/context/criterion/finding/aggregate model; add exact criteria matrices for all 24 tests; fix N0–N5 as one execution/six checkpoints; accept the exact repeat/package roles; define catalogue-history gate. | Proposed v1.3. |
+| Validation Plan | Add Section 21 defining the common method/context/criterion/finding/aggregate model; add exact criteria matrices for the 22 non-composite tests and exact constituent-case matrices/static parent-coverage rules for the two DC-004 composite tests; fix N0–N5 as one execution/six checkpoints; accept the exact repeat/package roles; define catalogue-history gate. | Proposed v1.3. |
 | System Architecture | Add Section 28 allocating method/criterion ownership, typed source adapters, context membership, machine evaluation, reviewer authority, deterministic aggregation and optional/non-fictional run relationships to Validation/Evidence. | Proposed v0.4. |
 | Workflow Design | Add Section 29 for target/method resolution, context creation, checkpoint/fixture/record-set/review evidence, criterion finding, incomplete handling, independent review finalisation, aggregate result and DC-004/DC-005 branches. | Proposed v0.4. |
 | Demonstrator Design | Add Section 38 for contracts, persistence/immutability, API/actions/read models, review screen treatment, generic selectors/operators, history/export and future implementation increments/gates. | Proposed v0.5. |
@@ -388,18 +400,21 @@ Future design/application verification shall prove at minimum:
 16. final findings/membership/results are database-immutable;
 17. deterministic repeat uses the exact accepted member roles and equality profile;
 18. package integrity uses the exact accepted package roles and verifies source/generation provenance;
-19. each criterion's requirement mapping is a subset of its parent test mapping and each test's criterion union exactly covers that mapping;
-20. Exploration separation uses actual campaign exploratory execution/evidence and DC-004 composite records without manufacturing a suspension;
-21. machine criteria do not decide subjective NFR review qualities;
-22. the operational-event registry equals the exact 15 IDs and emitted events are separately checked for registry membership;
-23. implementation-conformance test success cannot be imported as a catalogue verdict; and
-24. 24 tests, 124 requirements, 286 RTM relationships and 15 operational-event types remain exact.
+19. each non-composite test criterion mapping is a subset of its parent test mapping and its exact criterion union equals that complete mapping;
+20. each DC-004 constituent case maps only requirements supported by its evidence, no individual case is required to cover the parent set, and the static exact-nine/four case union equals the complete parent mapping;
+21. composite catalogue validation rejects missing parent coverage, out-of-parent mappings, unknown/non-required case-only assignments and any direct parent method/context/execution/result;
+22. defined composite coverage remains distinct from achieved evidence, and suspended-case mappings are never reported as successfully verified;
+23. Exploration separation uses actual campaign exploratory execution/evidence and DC-004 composite records without manufacturing a suspension;
+24. machine criteria do not decide subjective NFR review qualities;
+25. the operational-event registry equals the exact 15 IDs and emitted events are separately checked for registry membership;
+26. implementation-conformance test success cannot be imported as a catalogue verdict; and
+27. 24 tests, 124 requirements, 286 RTM relationships and 15 operational-event types remain exact.
 
 ## 12. Proposal gate
 
-Current disposition: **Architecture accepted in principle; DR-01–DR-06 corrected; proposed pending final independent engineering design re-review.**
+Current disposition: **Architecture accepted in principle; DR-01–DR-07 corrected; proposed pending final independent engineering design acceptance review.**
 
-Independent review has accepted, in principle, the four-context/common-criteria architecture, deterministic backend aggregate, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles subject to version-namespace clarification. Final design re-review is requested only to confirm the bounded corrections recorded in Sections 3.3.1 and 4.3–4.9 and the corresponding supporting coverage analysis.
+Independent review has accepted, in principle, the four-context/common-criteria architecture, deterministic backend aggregate, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles subject to version-namespace clarification. Final design acceptance review is requested only to confirm the bounded composite-coverage correction in Sections 3.1, 3.3.1 and 5 and the corresponding supporting coverage analysis; DR-01–DR-06 remain unchanged.
 
 No acceptance, document application, catalogue promotion, code/schema/migration/UI change, I9 resumption or merge is authorised by this proposal.
 
