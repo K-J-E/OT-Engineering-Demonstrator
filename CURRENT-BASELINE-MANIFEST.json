@@ -1,7 +1,7 @@
 {
-  "baseline_date": "2026-08-11",
-  "baseline_name": "Accepted I8 and DC-004/DC-005 application plus accepted DC-006 authoritative-document baseline",
-  "baseline_status": "DC-006 DESIGN AND AUTHORITATIVE-DOCUMENT APPLICATION ACCEPTED AT REVIEWED TECHNICAL TIP c19451134c36d13d54f2185a3eaa0f20fcce95f0 — MACHINE/CATALOGUE APPLICATION PENDING — I9 STOPPED",
+  "baseline_date": "2026-08-12",
+  "baseline_name": "Accepted I8/DC-004/DC-005 baseline plus DC-006 machine application pending independent review",
+  "baseline_status": "DC-006 DESIGN AND AUTHORITATIVE DOCUMENTS ACCEPTED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION COMPLETE ON DEDICATED BRANCH PENDING INDEPENDENT REVIEW — I9 STOPPED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -24,7 +24,7 @@
     "branch": "agent/dc-006-validation-determination-design",
     "base_commit": "70781cad986f3700f8e2d94fd20aa8b01482f50b",
     "reviewed_technical_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0",
-    "implementation_boundary": "Machine Validation Catalogue promotion and application require separate authorisation and independent review; I9 remains stopped"
+    "implementation_boundary": "Machine Validation Catalogue v1.2 and application are implemented on agent/dc-006-validation-determination-application pending independent review; not yet an accepted implementation baseline; I9 remains stopped"
   },
   "documents": [
     {
@@ -342,9 +342,9 @@
     }
   ],
   "implementation_baseline": {
-    "accepted_through_increment": "I8 plus accepted DC-004/DC-005 machine/application boundary; DC-006 authoritative documents accepted",
+    "accepted_through_increment": "I8 plus accepted DC-004/DC-005 machine/application boundary; DC-006 machine application pending independent review",
     "accepted_reviewed_implementation_tip": "eced7c06c27b959cdb29d3aaa9351ca11cb5e258",
-    "next_increment": "DC-006 machine/catalogue application requires separate authorisation and independent review; I9 remains stopped",
+    "next_increment": "Independent review of the dedicated DC-006 machine/catalogue application branch; I9 remains stopped",
     "next_increment_authorised": false,
     "dc004_application_status": "INDEPENDENTLY ACCEPTED WITH DC-005 APPLICATION AT EXACT REVIEWED PR #10 TIP eced7c06c27b959cdb29d3aaa9351ca11cb5e258; QA-041 THROUGH QA-049 CLOSED; INCORPORATED INTO REVIEWED MAIN",
     "dc004_application_pr": {
@@ -355,22 +355,28 @@
       "treatment": "Complete reviewed DC-004/DC-005 application history accepted and incorporated without rewriting; proposal, first-application, QA-correction and build identities preserved"
     },
     "dc006_authoritative_document_status": "ACCEPTED AT REVIEWED TECHNICAL TIP c19451134c36d13d54f2185a3eaa0f20fcce95f0; DR-01–DR-07 AND AA-01–AA-04 CLOSED",
-    "dc006_machine_catalogue_application_status": "NOT AUTHORISED",
+    "dc006_machine_catalogue_application_status": "IMPLEMENTED ON DEDICATED BRANCH PENDING INDEPENDENT REVIEW — NOT AN ACCEPTED BASELINE",
     "i9_status": "STOPPED — no resumption authority"
   },
   "validation_catalogue_baseline": {
-    "active_version": "1.1",
-    "active_catalogue_sha256": "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865",
-    "active_manifest_sha256": "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3",
-    "historical_version": "1.0",
-    "historical_catalogue_sha256": "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1",
-    "historical_manifest_sha256": "8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714",
+    "active_version": "1.2",
+    "active_catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
+    "active_manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
+    "historical_versions": ["1.0", "1.1"],
+    "historical_v1_0_catalogue_sha256": "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1",
+    "historical_v1_0_manifest_sha256": "8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714",
+    "historical_v1_1_catalogue_sha256": "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865",
+    "historical_v1_1_manifest_sha256": "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3",
     "definition_count": 24,
     "unique_requirement_count": 124,
     "rtm_relationship_count": 286,
     "operational_event_type_count": 15,
-    "application_review_status": "INDEPENDENTLY_ACCEPTED_THROUGH_DC005",
-    "dc006_promotion_status": "NOT AUTHORISED — active Validation Catalogue v1.1 and historical v1.0 identities remain unchanged"
+    "determination_method_count": 35,
+    "criterion_definition_count": 214,
+    "direct_criterion_count": 147,
+    "constituent_case_criterion_count": 67,
+    "application_review_status": "DC006_MACHINE_APPLICATION_PENDING_INDEPENDENT_REVIEW",
+    "dc006_promotion_status": "ACTIVE V1.2 ON DEDICATED REVIEW BRANCH; V1.0/V1.1 PRESERVED AS IMMUTABLE HISTORY; NOT YET ACCEPTED INTO MAIN"
   },
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
@@ -383,7 +389,7 @@
     "Demonstrator Design v0.5 establishes the Step 8 practical local application and accepted DC-004/DC-005/DC-006 validation-assurance design without changing approved engineering behaviour.",
     "Validation Plan v1.3 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, accepted DC-005 suspension determination, accepted DC-006 criteria-based determination treatment, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The complete DC-004/DC-005 machine/application boundary is independently accepted at exact PR #10 tip eced7c06c27b959cdb29d3aaa9351ca11cb5e258 and incorporated without rewriting reviewed commits; QA-041 through QA-049 are closed. DC-006 machine/catalogue application is not authorised and I9 remains stopped.",
+    "Implementation is authorised one controlled phase at a time. I1-I8 and the complete DC-004/DC-005 machine/application boundary remain accepted on reviewed main. The separately authorised DC-006 machine/catalogue application is complete on its dedicated branch and pending independent review; it is not yet an accepted implementation baseline. I9 remains stopped.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
     "The five independently reviewed DC-005 proposal identities are preserved separately from their accepted authoritative identities; the accepted versions supersede the prior DC-004-era identities without erasing either history.",
     "For each DC-006-amended authoritative document, the rejected first-application identity, independently reviewed technical-content identity at c19451134c36d13d54f2185a3eaa0f20fcce95f0 and metadata-only administratively accepted identity are preserved separately.",

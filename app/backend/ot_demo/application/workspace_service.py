@@ -475,6 +475,7 @@ class WorkspaceService:
         comparison_available = (
             definition.definition.comparison_expected_values is not None
         )
+        criterion_method_available = definition.definition.determination_method is not None
         finalise_available = (
             execution.status is ValidationExecutionStatus.ACTIVE
             and all_captured
@@ -512,6 +513,8 @@ class WorkspaceService:
                 reason_code=(
                     "AVAILABLE"
                     if finalise_available
+                    else "DC006_CRITERION_DETERMINATION_REQUIRED"
+                    if all_captured and criterion_method_available
                     else "CONTROLLED_COMPARISON_UNAVAILABLE"
                     if all_captured and not comparison_available
                     else "REQUIRED_CHECKPOINTS_MISSING"
@@ -521,6 +524,8 @@ class WorkspaceService:
                 reason=(
                     "All required checkpoints and the accepted comparison are available."
                     if finalise_available
+                    else "All six checkpoints are preserved. Bind their backend-owned source records to the accepted DC-006 method and complete its criteria; the legacy I5 finalisation action cannot bypass that determination."
+                    if all_captured and criterion_method_available
                     else "The accepted I5 definition has no automated comparison; I6 does not invent a verdict."
                     if all_captured and not comparison_available
                     else "All defined evidence checkpoints must be captured before finalisation."

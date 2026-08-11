@@ -34,6 +34,7 @@ from ..domain.enums import (
     SuspensionEvaluationType,
     RequiredInputRole,
     SuspensionLifecyclePosition,
+    CriterionFindingStatus,
 )
 from ..infrastructure.validation_repository import ValidationRecordNotFound
 from ..infrastructure.investigation_repository import InvestigationRecordNotFound
@@ -62,8 +63,18 @@ from ..modules.validation.models import (
     ValidationAttempt,
     ValidationTargetSelection,
     ValidationSuspensionRecord,
+    CriterionFinding,
+    DeterminationCompleteness,
+    DeterminationContext,
+    DeterminationReviewProjection,
+    EngineeringReviewProposal,
+    ExecutedValidationResult,
 )
 from ..modules.validation.service import ValidationBoundaryError, ValidationService
+from ..modules.validation.determination import (
+    DeterminationBoundaryError,
+    DeterminationService,
+)
 from ..modules.workspace.models import WorkspaceBootstrap, WorkspaceProjection
 
 
@@ -174,7 +185,7 @@ class PrepareValidationAttemptPayload(_ApiRequest):
     case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
     configuration_version: str = "1.1"
     actor_id: str = "graduate-engineer"
-    requested_fixture_identity: str | None = "network-one-line.v1"
+    requested_fixture_identity: str | None = None
     required_input_role: RequiredInputRole | None = None
     presented_identity_evidence: dict | None = None
     created_at: datetime
@@ -194,16 +205,46 @@ class SuspendValidationAttemptPayload(_ApiRequest):
     validation_execution_id: UUID | None = None
 
 
+class BindDeterminationContextPayload(_ApiRequest):
+    role_source_record_ids: dict[str, UUID]
+    frozen_at: datetime
+    scenario_run_id: UUID | None = None
+    validation_execution_id: UUID | None = None
+
+
+class EvaluateDeterminationPayload(_ApiRequest):
+    evaluated_at: datetime
+
+
+class ProposeCriterionFindingPayload(_ApiRequest):
+    proposed_finding: CriterionFindingStatus
+    proposer_actor_id: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    proposed_at: datetime
+
+
+class FinaliseCriterionFindingPayload(_ApiRequest):
+    reviewer_actor_id: str = Field(min_length=1)
+    final_finding: CriterionFindingStatus
+    reason: str = Field(min_length=1)
+    finalised_at: datetime
+
+
+class FinaliseDeterminationPayload(_ApiRequest):
+    finalised_at: datetime
+
+
 def create_app(
     coordinator: ScenarioCoordinator | None = None,
     validation_service: ValidationService | None = None,
     workspace_service: WorkspaceService | None = None,
     investigation_service: InvestigationService | None = None,
     evidence_export_service: EvidenceExportService | None = None,
+    determination_service: DeterminationService | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="OT Graduate Demonstrator",
-        version="0.8.0",
+        version="0.9.0",
         description=(
             "Fictional local engineering demonstrator — scenario, validation, investigation, exploration and evidence-export API"
         ),
@@ -248,6 +289,14 @@ def create_app(
                 detail="Evidence export service is not configured for this process.",
             )
         return evidence_export_service
+
+    def determination() -> DeterminationService:
+        if determination_service is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Validation determination service is not configured for this process.",
+            )
+        return determination_service
 
     @app.post("/api/v1/evidence-packages", response_model=EvidencePackage)
     def generate_evidence_package(
@@ -657,6 +706,111 @@ def create_app(
             evidence_class=evidence_class,
             scenario_run_id=scenario_run_id,
         )
+
+    @app.post(
+        "/api/v1/validation/attempts/{attempt_id}/determination-context",
+        response_model=DeterminationContext,
+    )
+    def bind_determination_context(
+        attempt_id: UUID, request: BindDeterminationContextPayload
+    ) -> DeterminationContext:
+        try:
+            return determination().bind_context(
+                validation_attempt_id=attempt_id,
+                role_source_record_ids=request.role_source_record_ids,
+                frozen_at=request.frozen_at,
+                scenario_run_id=request.scenario_run_id,
+                validation_execution_id=request.validation_execution_id,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except DeterminationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/determinations/{context_id}/evaluate",
+        response_model=tuple[CriterionFinding, ...],
+    )
+    def evaluate_determination(
+        context_id: UUID, request: EvaluateDeterminationPayload
+    ) -> tuple[CriterionFinding, ...]:
+        try:
+            return determination().evaluate_machine_criteria(
+                context_id, evaluated_at=request.evaluated_at
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except DeterminationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.get(
+        "/api/v1/validation/determinations/{context_id}",
+        response_model=DeterminationReviewProjection,
+    )
+    def get_determination(context_id: UUID) -> DeterminationReviewProjection:
+        try:
+            return determination().projection(context_id)
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/determinations/{context_id}/criteria/{criterion_id}/proposals",
+        response_model=EngineeringReviewProposal,
+    )
+    def propose_criterion_finding(
+        context_id: UUID,
+        criterion_id: str,
+        request: ProposeCriterionFindingPayload,
+    ) -> EngineeringReviewProposal:
+        try:
+            return determination().propose_review_finding(
+                context_id,
+                criterion_id,
+                proposed_finding=request.proposed_finding,
+                proposer_actor_id=request.proposer_actor_id,
+                reason=request.reason,
+                proposed_at=request.proposed_at,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except DeterminationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/review-proposals/{proposal_id}/finalise",
+        response_model=CriterionFinding,
+    )
+    def finalise_criterion_finding(
+        proposal_id: UUID, request: FinaliseCriterionFindingPayload
+    ) -> CriterionFinding:
+        try:
+            return determination().finalise_review_finding(
+                proposal_id,
+                reviewer_actor_id=request.reviewer_actor_id,
+                final_finding=request.final_finding,
+                reason=request.reason,
+                finalised_at=request.finalised_at,
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except DeterminationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/validation/determinations/{context_id}/finalise",
+        response_model=ExecutedValidationResult,
+    )
+    def finalise_determination(
+        context_id: UUID, request: FinaliseDeterminationPayload
+    ) -> ExecutedValidationResult:
+        try:
+            return determination().finalise_result(
+                context_id, finalised_at=request.finalised_at
+            )
+        except ValidationRecordNotFound as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except DeterminationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
 
     @app.post(
         "/api/v1/validation/composites",

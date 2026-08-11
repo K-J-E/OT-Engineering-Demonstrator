@@ -1,7 +1,9 @@
 {
-  "catalogue_id": "VALIDATION-CATALOGUE-V1.1",
-  "catalogue_version": "1.1",
+  "catalogue_id": "VALIDATION-CATALOGUE-V1.2",
+  "catalogue_version": "1.2",
   "definition_count": 24,
+  "method_count": 35,
+  "criterion_count": 214,
   "catalogue_file": "catalogue.json",
-  "catalogue_sha256": "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865"
+  "catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3"
 }

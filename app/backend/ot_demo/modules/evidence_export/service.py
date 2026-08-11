@@ -25,6 +25,8 @@ from ...infrastructure.evidence_package_repository import EvidencePackageReposit
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes, sha256_file
 from ...infrastructure.investigation_repository import InvestigationRepository
 from ...infrastructure.validation_repository import ValidationRepository
+from ...infrastructure.determination_repository import DeterminationRepository
+from ...infrastructure.validation_repository import ValidationRecordNotFound
 from ..validation.catalogue import (
     ValidationCatalogueError,
     ValidationCatalogueLoader,
@@ -61,6 +63,7 @@ class EvidenceExportService:
         scenarios: ScenarioCoordinator,
         configurations: JsonConfigurationLoader,
         catalogue: ValidationCatalogueResolver | ValidationCatalogueLoader,
+        determination: DeterminationRepository | None = None,
         *,
         application_build_manifest: ApplicationBuildManifest,
         output_directory: Path,
@@ -70,6 +73,7 @@ class EvidenceExportService:
         self._investigations = investigations
         self._scenarios = scenarios
         self._configurations = configurations
+        self._determination = determination
         if isinstance(catalogue, ValidationCatalogueResolver):
             self._catalogue = catalogue
         else:
@@ -830,6 +834,53 @@ class EvidenceExportService:
             records[
                 f"records/evidence-snapshots/{evidence.evidence_snapshot_id}.json"
             ] = evidence.model_dump(mode="json")
+
+        if self._determination is not None and execution.executed_result_id is not None:
+            try:
+                result = self._determination.get_result(execution.executed_result_id)
+            except ValidationRecordNotFound:
+                result = None
+            if result is not None and result.determination_context_id is not None:
+                context = self._determination.get_context(
+                    result.determination_context_id
+                )
+                findings = self._determination.list_findings(
+                    result.determination_context_id
+                )
+                records["records/determination/context.json"] = context.model_dump(
+                    mode="json"
+                )
+                records["records/determination/executed-result.json"] = result.model_dump(
+                    mode="json"
+                )
+                records["records/determination/criterion-findings.json"] = [
+                    item.model_dump(mode="json") for item in findings
+                ]
+                for member in context.members:
+                    source = self._determination.get_source(member.source_record_id)
+                    records[
+                        f"records/determination/sources/{member.role}.json"
+                    ] = source.model_dump(mode="json")
+                source_references = tuple(
+                    sorted(
+                        {
+                            *source_references,
+                            f"determination-context:{context.determination_context_id}",
+                            f"determination-method:{context.method_id}:{context.method_sha256}",
+                            *(
+                                f"criterion-finding:{item.criterion_finding_id}"
+                                for item in findings
+                            ),
+                        }
+                    )
+                )
+                records["records/source-index.json"] = {
+                    "source_record_references": source_references,
+                    "evidence_snapshot_ids": [
+                        str(item.evidence_snapshot_id)
+                        for item in summary.evidence_snapshots
+                    ],
+                }
 
         chain = self._investigation_chain(execution.validation_execution_id)
         if chain is not None:

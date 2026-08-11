@@ -37,8 +37,9 @@ The original uploaded pre-change files were copied byte-for-byte into the initia
 historical hashes are preserved in `BASELINE-MANIFEST.json` and remain recoverable through Git
 history.
 
-The accepted working baseline after DC-001 through DC-006 is represented in the current branch for
-independent incorporation review. DC-006 promotes four reviewed authoritative revisions while
+The accepted working baseline after DC-001 through DC-006 is preserved from reviewed main. The
+current dedicated branch contains the separately authorised DC-006 machine/catalogue application
+for independent review. DC-006 promotes four reviewed authoritative revisions while
 preserving their superseded, rejected first-application, independently reviewed technical-content
 and administratively accepted identities in `CURRENT-BASELINE-MANIFEST.json`.
 
@@ -70,18 +71,20 @@ trusted target/provenance anchor, bounded reviewer-authority control, immutable 
 composite relationship. Its machine application is independently accepted at reviewed PR #10 tip
 `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; QA-041 through QA-049 are closed for this application
 boundary. It introduces no electrical, restoration, RTM or event-type change. Requirements Specification v0.4 clarifies only
-`REQ-VAL-007`–`REQ-VAL-009`, retaining their IDs, 124 total requirements and 286 mappings. Active
-catalogue v1.1 changes only to machine-prove QA-041's exact 60,001 ms expectation. I9 remains stopped.
+`REQ-VAL-007`–`REQ-VAL-009`, retaining their IDs, 124 total requirements and 286 mappings. Accepted
+catalogue v1.1 changed only to machine-prove QA-041's exact 60,001 ms expectation and is now
+preserved byte-for-byte as historical input on the DC-006 application branch. I9 remains stopped.
 
 DC-006 — Controlled Validation Test Determination Methods — is accepted as the authoritative
 validation-determination design and document baseline. Validation Plan v1.3 Section 21, System
 Architecture v0.4 Section 28, Workflow Design v0.4 Section 29 and Demonstrator Design v0.5 Section
 38 define the common criteria/finding model, four context kinds, direct and DC-004 constituent-case
 coverage, reviewer boundary, deterministic PASS/FAIL aggregation and catalogue-history gate. The
-corrected technical application was independently accepted at exact reviewed tip
+corrected authoritative-document application was independently accepted at exact reviewed tip
 `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DR-01–DR-07 and AA-01–AA-04 are closed. The machine
-Validation Catalogue and application remain unchanged pending separate authorisation, and I9 remains
-stopped.
+application now preserves catalogue v1.1 as immutable history and promotes active catalogue v1.2
+with 35 determination methods and 214 criteria on its dedicated branch. That application remains
+pending independent review and is not yet an accepted baseline. I9 remains stopped.
 
 The accepted detailed Design Brief and Network Model are revision 0.4; accepted Requirements
 Specification is revision 0.4 with 124 unique requirements. Accepted System Architecture and
@@ -114,8 +117,9 @@ engineering/implementation review, including accepted QA-008 evidence export and
 verified closure of QA-040. Its reviewed history is incorporated into `main`. DC-004 and DC-005 are
 accepted authoritative design and machine/application baselines. Final independent review accepted
 the complete PR #10 boundary at exact tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; QA-041 through
-QA-049 are closed and the reviewed history is incorporated into `main`. DC-006 machine/catalogue
-application remains separately unauthorised. I9 remains stopped.
+QA-049 are closed and the reviewed history is incorporated into `main`. The separately authorised
+DC-006 machine/catalogue application is complete on its dedicated review branch, but remains
+unaccepted pending independent review and incorporation. I9 remains stopped.
 
 The approved Network Model contains the engineering definitions of defective Network
 Configuration v1.0 and corrected v1.1. Accepted I1 instantiated both as separate immutable,

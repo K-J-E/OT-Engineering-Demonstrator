@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes, sha256_file
 from .models import (
+    CriterionDefinition,
+    DeterminationMethodDefinition,
     LoadedValidationDefinition,
     ValidationCatalogue,
     ValidationCatalogueManifest,
@@ -46,6 +48,25 @@ class ValidationCatalogueLoader:
             raise ValidationCatalogueError(
                 "controlled catalogue manifest identity does not match its payload"
             )
+        methods = [
+            method
+            for definition in catalogue.definitions
+            for method in (
+                (definition.determination_method,)
+                if definition.determination_method is not None
+                else tuple(
+                    case.determination_method
+                    for case in definition.constituent_cases
+                    if case.determination_method is not None
+                )
+            )
+        ]
+        if manifest.method_count != len(methods) or manifest.criterion_count != sum(
+            len(method.criteria) for method in methods
+        ):
+            raise ValidationCatalogueError(
+                "controlled catalogue method/criterion counts do not match its payload"
+            )
         return tuple(
             LoadedValidationDefinition(
                 definition=definition,
@@ -68,6 +89,34 @@ class ValidationCatalogueLoader:
 
     def raw_catalogue_sha256(self) -> str:
         return sha256_file(self.catalogue_path)
+
+    def get_method(
+        self, test_id: str, *, case_id: str | None = None
+    ) -> DeterminationMethodDefinition:
+        loaded = self.get(test_id)
+        if case_id is None:
+            method = loaded.definition.determination_method
+        else:
+            matches = [
+                case.determination_method
+                for case in loaded.definition.constituent_cases
+                if case.case_id == case_id
+            ]
+            method = matches[0] if len(matches) == 1 else None
+        if method is None:
+            raise ValidationCatalogueError(
+                "target does not own a direct DC-006 determination method"
+            )
+        return method
+
+    def get_criterion(
+        self, test_id: str, criterion_id: str, *, case_id: str | None = None
+    ) -> CriterionDefinition:
+        method = self.get_method(test_id, case_id=case_id)
+        matches = [item for item in method.criteria if item.criterion_id == criterion_id]
+        if len(matches) != 1:
+            raise ValidationCatalogueError("criterion identity did not resolve uniquely")
+        return matches[0]
 
     def identity(self) -> tuple[str, str, str]:
         definitions = self.load()
@@ -104,6 +153,60 @@ class ValidationCatalogueResolver:
 
     def raw_catalogue_sha256(self) -> str:
         return self.active_loader.raw_catalogue_sha256()
+
+    def get_method(
+        self, test_id: str, *, case_id: str | None = None
+    ) -> DeterminationMethodDefinition:
+        return self.active_loader.get_method(test_id, case_id=case_id)
+
+    def get_criterion(
+        self, test_id: str, criterion_id: str, *, case_id: str | None = None
+    ) -> CriterionDefinition:
+        return self.active_loader.get_criterion(
+            test_id, criterion_id, case_id=case_id
+        )
+
+    def resolve_method(
+        self,
+        *,
+        test_id: str,
+        case_id: str | None,
+        catalogue_version: str,
+        catalogue_sha256: str,
+        method_id: str,
+        method_version: str,
+        method_sha256: str,
+    ) -> DeterminationMethodDefinition:
+        loaded = self.resolve_catalogue(
+            catalogue_version=catalogue_version,
+            catalogue_sha256=catalogue_sha256,
+        )
+        definitions = [item for item in loaded if item.definition.test_id == test_id]
+        if len(definitions) != 1:
+            raise ValidationCatalogueError("method parent test did not resolve uniquely")
+        definition = definitions[0].definition
+        candidates = (
+            (definition.determination_method,)
+            if case_id is None
+            else tuple(
+                case.determination_method
+                for case in definition.constituent_cases
+                if case.case_id == case_id
+            )
+        )
+        matches = [
+            item
+            for item in candidates
+            if item is not None
+            and item.method_id == method_id
+            and str(item.version) == str(method_version)
+            and item.method_sha256 == method_sha256
+        ]
+        if len(matches) != 1:
+            raise ValidationCatalogueError(
+                "historical determination method identity did not resolve uniquely"
+            )
+        return matches[0]
 
     def resolve_catalogue(
         self,

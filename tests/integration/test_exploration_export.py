@@ -2007,7 +2007,7 @@ def test_dc004_historical_execution_is_resolved_exported_and_active_old_work_is_
     new_execution = promoted.start_execution(
         "VT-TOP-DEF-001", third.snapshot.run.scenario_run_id
     )
-    assert new_execution.catalogue_version == "1.1"
+    assert new_execution.catalogue_version == "1.2"
     assert new_execution.catalogue_sha256 != old_final.catalogue_sha256
 
 

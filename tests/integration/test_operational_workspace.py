@@ -342,5 +342,5 @@ def test_workspace_actions_drive_exact_n0_n5_and_validation_progress_without_ui_
         if item.action_type == "FINALISE_EXECUTION"
     )
     assert finalise.available is False
-    assert finalise.reason_code == "CONTROLLED_COMPARISON_UNAVAILABLE"
-    assert "does not invent a verdict" in finalise.reason
+    assert finalise.reason_code == "DC006_CRITERION_DETERMINATION_REQUIRED"
+    assert "accepted DC-006 method" in finalise.reason

@@ -1,6 +1,6 @@
 # DC-006 — Controlled Validation Test Determination Methods
 
-Status: **Design accepted; authoritative-document application accepted at reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DC006-AA-01–AA-04 closed; machine/catalogue application pending separate authorisation; I9 still stopped**
+Status: **Design and authoritative-document application accepted; authorised machine/catalogue application completed on `agent/dc-006-validation-determination-application` pending independent review; I9 still stopped**
 
 Date raised: 2026-08-11
 
@@ -364,9 +364,9 @@ The catalogue remains exactly 24 tests with the same 124 requirements and exact 
 
 The four accepted authoritative Word revisions supersede Validation Plan v1.2, System Architecture v0.3, Workflow Design v0.3 and Demonstrator Design v0.4. Requirements Specification v0.4, Engineering Design Brief v0.4 and Network Model v0.4 remain unchanged.
 
-## 10. Machine/catalogue application boundary — not authorised
+## 10. Machine/catalogue application boundary
 
-Any later machine/catalogue application requires separate authorisation and may change only validation assurance:
+The separately authorised machine/catalogue application may change only validation assurance:
 
 - preserve Validation Catalogue v1.1 catalogue/manifest as historical input;
 - promote the accepted criteria-based catalogue revision;
@@ -414,11 +414,11 @@ Future design/application verification shall prove at minimum:
 
 ## 12. Acceptance and machine-application gate
 
-Current disposition: **Design accepted; authoritative-document application accepted at reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; AA-01–AA-04 closed; machine/catalogue application pending separate authorisation; I9 still stopped.**
+Current disposition: **Design and authoritative-document application accepted; the separately authorised machine/catalogue application is completed on its dedicated branch pending independent application review; I9 remains stopped.**
 
 Final independent engineering design review accepted the four-context/common-criteria architecture, deterministic backend aggregate, DR-01–DR-07, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles. Independent authoritative-document re-review accepted the corrected four-DOCX technical application at exact tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; the administratively accepted documents are now the current authoritative baselines.
 
-No machine Validation Catalogue promotion, code/schema/migration/UI change or I9 resumption is authorised by this acceptance administration.
+The authoritative-document acceptance did not itself authorise machine work. The user subsequently authorised a bounded machine/catalogue application from exact accepted main `48b2ecab818e43ce587bb52593d99519ac01160a`. That application is not accepted until independent review and incorporation; it grants no I9 resumption.
 
 ## 13. Authoritative-application re-review record
 
@@ -439,6 +439,14 @@ The independently reviewed first-application identities remain preserved in bran
 | Demonstrator Design v0.5 | `5097ba8b39cd3229867835d7f7826c8fdbcdb9706cea0b1cd93c62051fe05d81` | `760859497293aa6cfb3900315329dab0b7c510d024afe15053f58f9fd4f9c9c2` | `f907d0393cba2b636349579bff281073814adbf0f952ef19eeae63517d47ede2` |
 
 The accepted document application defines exactly **214 criteria**: 147 direct-test criteria and 67 exact DC-004 constituent-case criteria. This count is a reviewed identity of the accepted document application, not a permanent project invariant. Exact direct and nine/four composite requirement coverage remains satisfied, and the controlled 24/124/286/15 invariants remain unchanged. This record does not promote a Validation Catalogue, authorise machine work or resume I9.
+
+## 14. Machine/catalogue application record — pending independent review
+
+The dedicated application branch preserves accepted Validation Catalogue v1.1 byte-for-byte under `validation/test-definitions/history/v1.1/` and retains historical v1.0. It promotes active Validation Catalogue v1.2 with catalogue SHA-256 `51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3` and manifest SHA-256 `a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754`.
+
+The application adds the accepted four context kinds, exact 35 method definitions, exact 214 criterion definitions, controlled fixture/surface/structural/event registries, immutable context/source/finding/reviewer/result persistence, backend-owned comparison and aggregation, historical method/criterion resolution, bounded API/read presentation and determination-aware evidence export. Migration `011_dc006_determination.sql` contains the new persistence and database immutability controls. No authoritative DOCX, Network Configuration package, dependency version, electrical algorithm, DC-004/DC-005 semantic or event type changed.
+
+This record is an application-review status only. Independent review has not yet accepted the promoted catalogue or application, the final I9 catalogue campaign has not run, the branch must not be merged before acceptance, and I9 remains stopped.
 
 ## V2 Automation Candidate
 

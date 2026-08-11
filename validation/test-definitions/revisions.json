@@ -1,5 +1,5 @@
 {
-  "active_catalogue_version": "1.1",
+  "active_catalogue_version": "1.2",
   "revisions": [
     {
       "catalogue_version": "1.0",
@@ -12,8 +12,15 @@
       "catalogue_version": "1.1",
       "catalogue_sha256": "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865",
       "manifest_sha256": "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3",
+      "catalogue_path": "history/v1.1/catalogue.json",
+      "status": "IMMUTABLE_HISTORICAL"
+    },
+    {
+      "catalogue_version": "1.2",
+      "catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
+      "manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
       "catalogue_path": "catalogue.json",
-      "status": "ACTIVE_ACCEPTED"
+      "status": "ACTIVE_PENDING_INDEPENDENT_REVIEW"
     }
   ]
 }

@@ -3,6 +3,41 @@ export type EvidenceClass = 'FORMAL' | 'EXPLORATORY'
 export type SwitchState = 'OPEN' | 'CLOSED'
 export type TelemetryQuality = 'GOOD' | 'UNCERTAIN' | 'BAD'
 export type Freshness = 'FRESH' | 'STALE' | 'INVALID_TIMESTAMP'
+export type DeterminationContextKind = 'SCENARIO_EXECUTION' | 'CONTROLLED_FIXTURE_EXECUTION' | 'PRESERVED_RECORD_SET' | 'ENGINEERING_REVIEW'
+export type CriterionKind = 'MACHINE_COMPARISON' | 'ENGINEERING_REVIEW'
+
+export interface CriterionDefinition {
+  criterion_id: string
+  version: string
+  criterion_sha256: string
+  kind: CriterionKind
+  test_id: string
+  case_id: string | null
+  context_checkpoint: string
+  expected_value: unknown
+  source_selector: string
+  operator: string
+  normalisation: string
+  required_evidence: string
+  evidence_roles: string[]
+  requirement_ids: string[]
+}
+
+export interface DeterminationMethodDefinition {
+  method_id: string
+  version: string
+  method_sha256: string
+  test_id: string
+  case_id: string | null
+  evidence_class: EvidenceClass
+  context_kind: DeterminationContextKind
+  required_context_roles: string[]
+  checkpoint_roles: string[]
+  aggregate_rule: string
+  criterion_ids: string[]
+  criteria: CriterionDefinition[]
+  controlled_fixture: null | { fixture_id: string; version: string; fixture_sha256: string }
+}
 export type CommandType =
   | 'INITIATE_FAULT'
   | 'ACKNOWLEDGE_ALARM'
@@ -41,7 +76,9 @@ export interface LoadedValidationDefinition {
       initial_conditions: Record<string, unknown>
       comparison_expected_values: Record<string, unknown>
       checkpoint_obligations: Array<{ checkpoint_id: string; required_content: string[] }>
+      determination_method?: DeterminationMethodDefinition | null
     }>
+    determination_method?: DeterminationMethodDefinition | null
   }
   definition_sha256: string
   catalogue_id: string

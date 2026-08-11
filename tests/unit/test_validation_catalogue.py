@@ -70,10 +70,10 @@ def test_catalogue_contains_exactly_the_24_accepted_definitions() -> None:
     assert len(loaded) == 24
     assert {item.definition.test_id for item in loaded} == ACCEPTED_TEST_IDS
     versions = {item.definition.test_id: item.definition.version for item in loaded}
-    assert versions["VT-EXP-ALL-001"] == "1.1"
-    assert versions["VT-EXP-ROLE-001"] == "1.1"
+    assert versions["VT-EXP-ALL-001"] == "1.2"
+    assert versions["VT-EXP-ROLE-001"] == "1.2"
     assert all(
-        version == "1.0"
+        version == "1.1"
         for test_id, version in versions.items()
         if test_id not in {"VT-EXP-ALL-001", "VT-EXP-ROLE-001"}
     )

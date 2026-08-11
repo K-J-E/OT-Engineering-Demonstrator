@@ -81,4 +81,20 @@ describe('I6 engineering presentation components', () => {
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(3)
     expect(screen.getByText(/no pass\/fail has been created|no VT-FML/i)).toBeVisible()
   })
+
+  it('presents DC-006 defined criteria separately from achieved evidence', () => {
+    const projection = makeProjection()
+    const definition = projection.validation.definitions[0]!.definition
+    definition.determination_method = {
+      method_id: 'DM-FML-N0-N5-001', version: '1.0', method_sha256: 'a'.repeat(64),
+      test_id: definition.test_id, case_id: null, evidence_class: 'FORMAL',
+      context_kind: 'SCENARIO_EXECUTION', required_context_roles: ['FORMAL_CORRECTED_RUN'],
+      checkpoint_roles: ['N0', 'N1', 'N2', 'N3', 'N4', 'N5'], aggregate_rule: 'Backend aggregate only.',
+      criterion_ids: ['FML-N0-01'], controlled_fixture: null,
+      criteria: [{ criterion_id: 'FML-N0-01', version: '1.0', criterion_sha256: 'b'.repeat(64), kind: 'MACHINE_COMPARISON', test_id: definition.test_id, case_id: null, context_checkpoint: 'N0', expected_value: 'N0 expected state', source_selector: 'EvidenceSnapshot[N0]', operator: 'CANONICAL_RECORD_EQUAL', normalisation: 'exact', required_evidence: 'bound source', evidence_roles: ['TOPOLOGY'], requirement_ids: ['REQ-TOP-001'] }],
+    }
+    render(<ValidationView projection={projection} busy={false} onAction={vi.fn()} />)
+    expect(screen.getByText(/DM-FML-N0-N5-001 · SCENARIO_EXECUTION · 1 criteria/i)).toBeVisible()
+    expect(screen.getByText(/defined coverage only; PASS\/FAIL requires/i)).toBeVisible()
+  })
 })

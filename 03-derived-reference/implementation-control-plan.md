@@ -1,8 +1,8 @@
 ---
-Status: Active implementation control plan — DC-006 authoritative documents accepted; machine/catalogue application pending; I8 accepted; I9 stopped
+Status: Active implementation control plan — DC-006 machine/catalogue application pending independent review; I8 accepted; I9 stopped
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
-Updated: 2026-08-11
+Updated: 2026-08-12
 Applies to: Approved Step 8 implementation increments I1–I9
 ---
 
@@ -28,7 +28,7 @@ Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section
 
 Accepted DC-005 makes Requirements Specification v0.4 `REQ-VAL-007`–`REQ-VAL-009`, Validation Plan v1.3 Section 20, Demonstrator Design v0.5 Section 37, System Architecture v0.4 Section 27 and Workflow Design v0.4 Section 28 controlling. Its complete machine/application treatment is independently accepted at the same reviewed PR #10 tip; QA-041 through QA-049 are closed for this boundary. The reviewed history is incorporated into `main` without rewriting commits.
 
-Accepted DC-006 makes Validation Plan v1.3 Section 21, System Architecture v0.4 Section 28, Workflow Design v0.4 Section 29 and Demonstrator Design v0.5 Section 38 controlling. Independent authoritative-document re-review accepted exact technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DR-01–DR-07 and AA-01–AA-04 are closed. Machine Validation Catalogue promotion and application remain pending separate authorisation. I9 remains stopped; the stopped `agent/i9-packaging-review` branch is not reused.
+Accepted DC-006 makes Validation Plan v1.3 Section 21, System Architecture v0.4 Section 28, Workflow Design v0.4 Section 29 and Demonstrator Design v0.5 Section 38 controlling. Independent authoritative-document re-review accepted exact technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DR-01–DR-07 and AA-01–AA-04 are closed. The separately authorised machine/catalogue application is complete on `agent/dc-006-validation-determination-application` pending independent review and is not yet an accepted baseline. I9 remains stopped; the stopped `agent/i9-packaging-review` branch is not reused.
 
 The detailed source documents remain authoritative. Requirement ranges and catalogue-test references below are navigation and delivery controls, not substitutes for reading the exact rows and test definitions.
 
@@ -46,7 +46,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I6 | Operational UI | **Accepted implementation baseline** |
 | I7 | Investigation/correction | **Accepted implementation baseline** |
 | I8 | Exploration and export | **Accepted implementation baseline** |
-| I9 | Packaging/review | **Previously authorised, then stopped — DC-006 authoritative documents are accepted but machine/catalogue application remains separately unauthorised; no I9 resumption authority** |
+| I9 | Packaging/review | **Previously authorised, then stopped — DC-006 machine/catalogue application awaits independent review and incorporation; no I9 resumption authority** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 

@@ -118,7 +118,25 @@ class ValidationService:
         self._engineering_registry = engineering_registry or ControlledEngineeringRegistry.load(
             root / "validation/assurance/engineering-records.json", root
         )
-        self._identity_authority = identity_authority or IdentityResolutionAuthority()
+        if identity_authority is None:
+            fixture_ids = tuple(
+                method.controlled_fixture.fixture_id
+                for loaded in self._catalogue.load()
+                for method in (
+                    (loaded.definition.determination_method,)
+                    if loaded.definition.determination_method is not None
+                    else tuple(
+                        case.determination_method
+                        for case in loaded.definition.constituent_cases
+                        if case.determination_method is not None
+                    )
+                )
+                if method is not None and method.controlled_fixture is not None
+            )
+            identity_authority = IdentityResolutionAuthority(
+                fixture_identities=("network-one-line.v1", *fixture_ids)
+            )
+        self._identity_authority = identity_authority
         if integrity_authority is None:
             active = self._catalogue.get("VT-EXP-ALL-001")
             integrity_authority = IntegrityVerificationAuthority((ControlledArtifact(
@@ -211,7 +229,7 @@ class ValidationService:
         created_at,
         actor_id: str = "graduate-engineer",
         configuration_version: str = "1.1",
-        requested_fixture_identity: str | None = "network-one-line.v1",
+        requested_fixture_identity: str | None = None,
         required_input_role: RequiredInputRole | None = None,
         presented_identity_evidence: dict[str, Any] | None = None,
     ) -> tuple[ValidationTargetSelection, ValidationAttempt]:
@@ -220,6 +238,18 @@ class ValidationService:
             raise ValidationBoundaryError("target selection actor is outside the local role registry")
         loaded = self._catalogue.get(test_id)
         case = self._select_case(loaded, case_id)
+        try:
+            method = self._catalogue.get_method(test_id, case_id=case_id)
+        except ValidationCatalogueError:
+            method = None
+        accepted_fixture_identity = (
+            method.controlled_fixture.fixture_id
+            if method is not None and method.controlled_fixture is not None
+            else "network-one-line.v1"
+        )
+        requested_fixture_identity = (
+            requested_fixture_identity or accepted_fixture_identity
+        )
         configuration = self._configurations.load(f"v{configuration_version}").catalog_entry
         intended_identities = {
             RequiredInputRole.APPLICATION_BUILD.value: {
@@ -245,7 +275,7 @@ class ValidationService:
                 if case else {"not_applicable": "true"}
             ),
             RequiredInputRole.CONTROLLED_FIXTURE.value: {
-                "fixture_id": "network-one-line.v1",
+                "fixture_id": accepted_fixture_identity,
             },
         }
         requested_identities = {
@@ -253,7 +283,7 @@ class ValidationService:
         }
         if required_input_role is RequiredInputRole.CASE_DEFINITION and case is None:
             raise ValidationBoundaryError("CASE_DEFINITION is not a required input for an unbound test")
-        if requested_fixture_identity != "network-one-line.v1":
+        if requested_fixture_identity != accepted_fixture_identity:
             required_input_role = RequiredInputRole.CONTROLLED_FIXTURE
             presented_identity_evidence = {"fixture_id": requested_fixture_identity}
         if required_input_role is not None:

@@ -17,8 +17,10 @@ from ..infrastructure.investigation_repository import InvestigationRepository
 from ..infrastructure.evidence_package_repository import EvidencePackageRepository
 from ..infrastructure.scenario_repository import ScenarioRepository
 from ..infrastructure.validation_repository import ValidationRepository
+from ..infrastructure.determination_repository import DeterminationRepository
 from ..modules.validation.catalogue import ValidationCatalogueResolver
 from ..modules.validation.service import ValidationService
+from ..modules.validation.determination import DeterminationService
 from ..modules.evidence_export.service import EvidenceExportService
 from .main import create_app
 
@@ -53,13 +55,27 @@ def create_local_app(
         (
             repository_root
             / "validation/test-definitions/history/v1.0/catalogue.json",
+            repository_root
+            / "validation/test-definitions/history/v1.1/catalogue.json",
         ),
     )
+    validation_repository = ValidationRepository(
+        runtime_data / "validation.sqlite3", migrations
+    )
     validation_service = ValidationService(
-        ValidationRepository(runtime_data / "validation.sqlite3", migrations),
+        validation_repository,
         catalogue,
         coordinator,
         configuration_loader,
+        application_build_manifest=build_manifest,
+    )
+    determination_repository = DeterminationRepository(
+        runtime_data / "validation.sqlite3", migrations
+    )
+    determination_service = DeterminationService(
+        determination_repository,
+        validation_repository,
+        catalogue,
         application_build_manifest=build_manifest,
     )
     investigation_service = InvestigationService(
@@ -76,6 +92,7 @@ def create_local_app(
         coordinator,
         configuration_loader,
         catalogue,
+        determination=determination_repository,
         application_build_manifest=build_manifest,
         output_directory=(
             evidence_output_directory
@@ -98,4 +115,5 @@ def create_local_app(
         workspace_service,
         investigation_service,
         evidence_export_service,
+        determination_service,
     )

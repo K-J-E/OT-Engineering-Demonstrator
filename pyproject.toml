@@ -41,4 +41,5 @@ markers = [
   "i6: Implementation Increment I6 operational workspace and browser presentation",
   "i7: Implementation Increment I7 investigation and correction",
   "i8: Implementation Increment I8 exploration and evidence export",
+  "dc006: DC-006 controlled validation determination application",
 ]
