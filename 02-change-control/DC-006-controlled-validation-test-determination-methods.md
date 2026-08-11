@@ -1,6 +1,6 @@
 # DC-006 — Controlled Validation Test Determination Methods
 
-Status: **Design decision independently accepted; authoritative document application pending independent review**
+Status: **Design decision independently accepted; corrected authoritative-document application pending independent re-review after DC006-AA-01–AA-04**
 
 Date raised: 2026-08-11
 
@@ -26,7 +26,7 @@ The remaining 21 definitions cannot yet create an `ExecutedValidationResult` bec
 
 DC-006 establishes one common criteria-based determination method for all non-composite catalogue tests and exact DC-004 constituents. It changes validation-assurance design only. It does not change any network configuration, electrical state, topology, outage, customer, telemetry, DC-003 isolation, restoration, event, defect/correction, DC-004 aggregate or DC-005 suspension outcome.
 
-The design decision and DR-01–DR-07 are independently accepted. The proposed Validation Plan v1.3, System Architecture v0.4, Workflow Design v0.4 and Demonstrator Design v0.5 Word-document revisions apply that decision and remain pending independent authoritative-document review. No machine catalogue, schema/migration/API/frontend change, I9 resumption or implementation authority is granted.
+The design decision and DR-01–DR-07 are independently accepted. The first authoritative application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` was not accepted; the proposed Validation Plan v1.3, System Architecture v0.4, Workflow Design v0.4 and Demonstrator Design v0.5 revisions now incorporate bounded DC006-AA-01–AA-04 corrections and remain pending independent authoritative-document re-review. No machine catalogue, schema/migration/API/frontend change, I9 resumption or implementation authority is granted.
 
 ## 2. Existing authoritative meaning retained
 
@@ -95,7 +95,7 @@ Each `CriterionDefinition` shall contain:
 - exact evidence categories and source references; and
 - reviewer authority profile where judgement is required.
 
-The proposed machine operator registry is deliberately small and generic:
+The accepted primitive operator registry is deliberately small and generic; every criterion uses exactly one primitive, while units, rounding, ordering, exclusions and expected-finding profiles are separate definition-owned normalisation data:
 
 - `SCALAR_EQUAL`;
 - `NUMERIC_EQUAL` with controlled unit/rounding rule;
@@ -105,6 +105,8 @@ The proposed machine operator registry is deliberately small and generic:
 - `PRESENT` / `ABSENT`;
 - `IDENTITY_HASH_AGREEMENT`; and
 - `CANONICAL_RECORD_EQUAL` with a fixed definition-owned exclusion profile for generated identities.
+
+Reviewer criteria additionally use primitive `REVIEW_FINDING_EQUAL` with the normalisation `expected finding = SATISFIED`. Compound assertions are split into criteria or use deterministic derived selectors; no compound, parameterised or test-specific operator is authorised.
 
 The validator shall not calculate topology, outage, restoration, telemetry validity or customer impact independently. It resolves the preserved output of the existing authoritative backend service and compares that output with the catalogue-owned expectation.
 
@@ -236,7 +238,7 @@ It is prohibited to:
 
 ### 4.4 Exact fixture boundary
 
-A `CONTROLLED_FIXTURE_EXECUTION` is permitted only for a fixture already authorised by the Validation Plan: exact telemetry ages/qualities/time authority, proposed energised-loop vector, capacity equality/overage or another explicitly accepted lower-level rule-boundary vector. It shall record the fixture definition/version/hash, executing build, input values/units, authoritative service output and canonical result hash. The deterministic alternate-source negative remains a scenario execution under Section 4.2.
+A `CONTROLLED_FIXTURE_EXECUTION` is permitted only for a fixture already authorised by the Validation Plan: exact telemetry ages/qualities/time authority, proposed energised-loop vector, capacity equality/overage or another explicitly accepted lower-level rule-boundary vector. Every fixture method shall record the fixture definition/version/hash, fixture input/result, executing build and applicable immutable Network Configuration identity/hash provenance. Telemetry fixtures also bind controlled fixture time and telemetry-validity evidence; topology/capacity fixtures bind the applicable telemetry, topology and restoration fixture inputs/results. No fixture method creates or references a ScenarioRun. The deterministic alternate-source negative remains a scenario execution under Section 4.2.
 
 It shall not mutate the canonical Network Configuration v1.0/v1.1 packages, create a free-form network/load editor or allow arbitrary validation values.
 
@@ -417,6 +419,26 @@ Current disposition: **Design decision independently accepted; authoritative doc
 Final independent engineering design review accepted the four-context/common-criteria architecture, deterministic backend aggregate, DR-01–DR-07, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles. The four proposed authoritative DOCX revisions have been produced from that accepted decision and now require independent application review before they may be accepted or treated as the current baseline.
 
 No machine Validation Catalogue promotion, code/schema/migration/UI change, I9 resumption or merge is authorised by this authoritative-document application phase.
+
+## 13. Authoritative-application re-review record
+
+Independent application review preserved the accepted DC-006 design but rejected the first document application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` pending four bounded corrections. The corrected proposal now records:
+
+1. `VT-TOP-DEF-001` as one common method executed separately against one defective Network Configuration v1.0 run/result (`FAIL`) and one corrected Network Configuration v1.1 run/result (`PASS`), with no cross-run `SCENARIO_EXECUTION` or meta-PASS;
+2. exact fixture definition/version/hash, input/result, executing-build and configuration/hash evidence for every controlled fixture method, with no fictional ScenarioRun evidence;
+3. exactly one accepted primitive operator per criterion, with compound facts split and normalisation stored separately; and
+4. the exact eight controlled review surfaces, fixed simulated/no-control notice and surface identity profiles, plus a frozen concrete Structural Record Set and owner mapping.
+
+The independently reviewed first-application identities remain preserved in branch history and are not relabelled as accepted. The corrected proposed identities are:
+
+| Proposed authoritative artefact | First application at `6dc4404…` | Corrected AA-01–AA-04 proposal |
+|---|---|---|
+| Validation Plan v1.3 | `9c4b434222205410d5f2cc6d67c02f5b34c5a77f3e7ef2e6e6cfc4e74836fabb` | `142d33d593592b53f9a7c3dd46edcf032d05c5d1168d0169aa3ba8fd8c449085` |
+| System Architecture v0.4 | `ae5f0bb671ba12a5f7fed7e4c3c46509e860113ebe29c7af16783d462936b617` | `20a4279c83412aa58649efc0dac0e8e888dfa2971281c6fffcaa2a4ec730f56c` |
+| Workflow Design v0.4 | `e7dcdd734979a03b0fc85ff24fa767a441cad9a4febc283b4e95d42aad94716d` | `ed71a4ba33018db372689840e2bd59dca34c952d8d7e2d0d136ec594fd280284` |
+| Demonstrator Design v0.5 | `5097ba8b39cd3229867835d7f7826c8fdbcdb9706cea0b1cd93c62051fe05d81` | `760859497293aa6cfb3900315329dab0b7c510d024afe15053f58f9fd4f9c9c2` |
+
+The revised proposal defines exactly **214 criteria**: 147 direct-test criteria and 67 exact DC-004 constituent-case criteria. Exact direct and nine/four composite requirement coverage remains satisfied, and the controlled 24/124/286/15 invariants remain unchanged. This record does not accept the proposed Word revisions, promote a Validation Catalogue, authorise machine work or resume I9.
 
 ## V2 Automation Candidate
 

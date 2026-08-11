@@ -1,5 +1,5 @@
 ---
-Status: Proposed design — architecture accepted in principle; bounded DR-01–DR-07 corrections applied pending final independent engineering acceptance review
+Status: Accepted DC-006 design — corrected authoritative-document application pending independent re-review after DC006-AA-01–AA-04
 Authority: Derived analysis only — does not amend the accepted baseline
 Baseline: Reviewed main 70781cad986f3700f8e2d94fd20aa8b01482f50b
 Updated: 2026-08-11
@@ -83,7 +83,7 @@ Defined coverage is not achieved validation evidence. Criterion definitions reta
 
 Machine observations must be resolved from existing authoritative backend records through a versioned source-adapter and operator registry. Catalogue data supplies the expected value, source role, field selector and operator. Production logic must not contain a `test_id` outcome switch or a second expected-topology algorithm.
 
-The minimum generic operator set is: exact scalar equality, numeric equality after controlled unit conversion/rounding, boolean equality, canonical set equality, ordered-sequence equality, required presence/absence, identity/hash agreement, and canonical-record equality with an explicit exclusion list for generated identities. Special engineering calculations remain owned by the existing topology/outage/restoration/telemetry authorities; the validator only reads their preserved outputs.
+The exact primitive operator registry is `SCALAR_EQUAL`, `NUMERIC_EQUAL`, `BOOLEAN_EQUAL`, `CANONICAL_SET_EQUAL`, `ORDERED_SEQUENCE_EQUAL`, `PRESENT`, `ABSENT`, `IDENTITY_HASH_AGREEMENT`, `CANONICAL_RECORD_EQUAL` and `REVIEW_FINDING_EQUAL`. Every criterion uses exactly one primitive. Unit/rounding/order/exclusion/expected-finding profiles are separate definition-owned normalisation data; compound assertions are split into criteria or use deterministic derived selectors. Special engineering calculations remain owned by the existing topology/outage/restoration/telemetry authorities; the validator only reads their preserved outputs.
 
 ### 3.3 Criterion findings and reviewer control
 
@@ -147,6 +147,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 - **Evidence/provenance:** build, catalogue/test definition, configuration/package hash, run, evidence snapshot and comparison records.
 - **DC-004/DC-005:** not composite; a genuine suspension remains possible only under DC-005. Ordinary missing evidence is incomplete.
 - **DC-006 treatment:** express the existing structured fields as ordinary machine criteria in the promoted common schema without changing the engineering values, one-run provenance, failure preservation or repeat relationship.
+- **Exact execution rule after AA-01:** the same common method is applied separately to the current post-trip run. The Network Configuration v1.0 ScenarioRun/ValidationExecution retains its own `FAIL`; a different corrected Network Configuration v1.1 ScenarioRun/ValidationExecution retains its own `PASS`. No criterion context contains both runs and no meta-PASS is derived. Current-record DEF-001/COR-001/repeat link fields remain immutable, while cross-run chain completeness is assessed by `VT-CFG-INV-001` and deterministic-repeat evidence.
 
 ### 5.2 `VT-EXP-ALL-001`
 
@@ -290,7 +291,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.12 `VT-RST-RADIAL-001` — Radial/no-loop permissive
 
 - **Accepted basis/meaning:** a controlled proposed-topology fixture forming an unintended energised loop is rejected with loop/source-path evidence; canonical Network Configuration v1.1 remains unchanged.
-- **Required criteria:** `RAD-01` fixture identity/hash and energised-loop condition; `RAD-02` complete trustworthy evidence; `RAD-03` radial permissive fails with offending path evidence; `RAD-04` outcome REJECTED; `RAD-05` close action unavailable; `RAD-06` canonical Network Configuration v1.1 bytes/hash unchanged.
+- **Required criteria:** `RAD-01A` fixture definition identity/version/hash, executing build and configuration/hash provenance agree; `RAD-01B` fixture input/result proves the energised-loop/multiple-source condition; `RAD-02` complete trustworthy evidence; `RAD-03` radial permissive fails with offending path evidence; `RAD-04` outcome REJECTED; `RAD-05` close action unavailable; `RAD-06` canonical Network Configuration v1.1 bytes/hash unchanged.
 - **Observed source/context:** one controlled fixture result from existing topology/restoration authorities plus pre/post configuration hash evidence; machine-comparable.
 - **Evidence/provenance/determination:** fixture/build/config hashes and standard aggregate.
 - **DC-004/DC-005:** expected REJECTED yields PASS; corrupted fixture may be VSC-005, but a calculated mismatch is FAIL.
@@ -353,7 +354,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.19 `VT-NFR-REVIEW-001` — Scope, clarity, conceptual boundaries and reviewability
 
 - **Accepted basis/meaning:** structured engineering review of labels, basis links, simulated-operation notices, conceptual module wording, topology diagrams and information separation; understandable, fictional, local, engineering-led and no production/real-control claim.
-- **Required machine criteria:** `NFR-M01` runtime binding is loopback-only and no external operational service endpoint is configured; `NFR-M02` controlled build, Network Configuration, Validation Catalogue and test identity fields are present and their links resolve to the bound records; `NFR-M03` the exact required fictional/simulated/no-real-control labels or notices are present on each controlled surface; `NFR-M04` configured, observed, derived and evidence records remain structurally separate; `NFR-M05` both feeder structures use the common entity schemas. These criteria establish presence, identity, linkage, configuration and structural facts only; they do not decide prominence, understandability, clarity, engineering-first character or whether presentation is misleading.
+- **Required machine criteria:** `NFR-M01` runtime binding is loopback-only and no external operational service endpoint is configured; `NFR-M02` controlled build, Network Configuration, Validation Catalogue and test identity fields are present and resolve; `NFR-M03` the controlled surface registry equals the exact eight Section 14 views; `NFR-M04` the exact frozen Structural Record Set and owner mapping resolves; `NFR-M05` both feeders use common schemas; `NFR-M06` every exact surface contains the fixed visible notice `Simulated operation only — no real equipment control` and its frozen identity profile; `NFR-M07` no structural record is omitted, duplicated across owners or implementation-selected. These criteria establish presence, identity, linkage, configuration and structural facts only; they do not decide prominence, understandability, clarity, engineering-first character or whether presentation is misleading.
 - **Required reviewer criteria:** `NFR-R01` engineering meaning and workflow are understandable; `NFR-R02` OT module wording is clearly conceptual rather than a production-product claim; `NFR-R03` interface remains engineering-first rather than a generic dashboard; `NFR-R04` engineering-basis and evidence paths allow a reviewer to trace requirement→design→result→evidence; `NFR-R05` the required fictional/simulated/no-real-control treatment is sufficiently prominent and clear and is not misleading.
 - **Observed/evidence source:** runtime/build/network/presentation metadata for machine criteria; a versioned evidence-bound engineering review checklist with screenshots/record links for reviewer criteria.
 - **Context:** one `ENGINEERING_REVIEW` bound to the exact build/package identities; no fictional scenario run.
@@ -420,5 +421,16 @@ The gap is not 21 missing engineering answers. The accepted plan already states 
 One common criteria model can close the gap without 21 test-specific verdict engines. It requires a controlled design change and catalogue revision because execution context, criterion definitions, reviewer authority and aggregation are validation meaning, not packaging implementation detail.
 
 Independent review accepts this architecture in principle and accepts the deterministic-repeat and evidence-package member roles subject to the explicit Network Configuration / Validation Catalogue namespace treatment recorded above. The bounded DR-01–DR-07 corrections are now incorporated for final independent design acceptance review. DC-006 remains proposed: no authoritative-document application, Validation Catalogue promotion, application/machine change or I9 resumption is authorised.
+
+## 10. Authoritative-document application review corrections
+
+The DC-006 design and DR-01–DR-07 remain accepted. The first authoritative application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` was not accepted; the bounded AA-01–AA-04 corrections are incorporated in the revised four proposed DOCX amendments pending independent authoritative-document re-review:
+
+- **AA-01:** `VT-TOP-DEF-001` now uses one common six-criterion method independently per current run. Network Configuration v1.0 retains a separate one-run `FAIL`; corrected Network Configuration v1.1 retains a separate one-run `PASS`. There is no cross-run scenario context or aggregate meta-result. The criterion union still exactly covers the parent test's accepted RTM set.
+- **AA-02:** all eight controlled fixture methods bind exact fixture definition/version/hash, fixture input/result, executing build and applicable immutable Network Configuration/hash provenance. No fixture method contains `SCENARIO_RUN_AND_REVISION` or any fictional run evidence role.
+- **AA-03:** all criteria use one accepted primitive operator. `EVT-04` compares the derived unregistered-event set with empty using `CANONICAL_SET_EQUAL`; `RAD-01A` and `RAD-01B` separately use `IDENTITY_HASH_AGREEMENT` and `BOOLEAN_EQUAL`; `SEP-04` compares cross-class identity collisions with empty using `CANONICAL_SET_EQUAL`.
+- **AA-04:** `CONTROLLED_SURFACE_SET` is frozen to Start / Run Setup, Operational Workspace, Telemetry & Events, Restoration Assessment, Formal Validation, Evidence Library, Defect Investigation and Engineering Basis. Every member must show the fixed simulated/no-control notice and its definition-owned identity profile. `STRUCTURAL_RECORD_SET` is frozen to the concrete Section 8 plus DC-004/DC-005/DC-006 record membership and one controlling owner recorded in the proposed amendments.
+
+The corrected application contains **214 criteria**: 147 criteria across 22 non-composite tests and 67 across the exact nine/four DC-004 constituent cases. The controlled invariants remain exactly 24 tests, 124 unique requirements, 286 `(test_id, requirement_id)` relationships and 15 operational-event types. No authoritative baseline, machine catalogue, code/schema/migration, dependency or I9 authority is granted by this corrected application.
 
 **V2 Automation Candidate — criteria and evidence assembly.** Mapping repeated source records to fixed criteria, checking completeness and preparing reviewer evidence is assurance-heavy and error-prone. A future tool could propose/bind evidence and highlight missing criteria while V1 retains fixed definitions, deterministic aggregation and independent engineering authority.
