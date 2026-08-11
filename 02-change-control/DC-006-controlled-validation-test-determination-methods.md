@@ -1,6 +1,6 @@
 # DC-006 — Controlled Validation Test Determination Methods
 
-Status: **Design decision independently accepted; corrected authoritative-document application pending independent re-review after DC006-AA-01–AA-04**
+Status: **Design accepted; authoritative-document application accepted at reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DC006-AA-01–AA-04 closed; machine/catalogue application pending separate authorisation; I9 still stopped**
 
 Date raised: 2026-08-11
 
@@ -26,7 +26,7 @@ The remaining 21 definitions cannot yet create an `ExecutedValidationResult` bec
 
 DC-006 establishes one common criteria-based determination method for all non-composite catalogue tests and exact DC-004 constituents. It changes validation-assurance design only. It does not change any network configuration, electrical state, topology, outage, customer, telemetry, DC-003 isolation, restoration, event, defect/correction, DC-004 aggregate or DC-005 suspension outcome.
 
-The design decision and DR-01–DR-07 are independently accepted. The first authoritative application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` was not accepted; the proposed Validation Plan v1.3, System Architecture v0.4, Workflow Design v0.4 and Demonstrator Design v0.5 revisions now incorporate bounded DC006-AA-01–AA-04 corrections and remain pending independent authoritative-document re-review. No machine catalogue, schema/migration/API/frontend change, I9 resumption or implementation authority is granted.
+The design decision and DR-01–DR-07 are independently accepted. The first authoritative application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` was not accepted. Independent re-review accepted the corrected Validation Plan v1.3, System Architecture v0.4, Workflow Design v0.4 and Demonstrator Design v0.5 technical content at exact tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DC006-AA-01–AA-04 are closed. No machine catalogue, schema/migration/API/frontend change, I9 resumption or implementation authority is granted.
 
 ## 2. Existing authoritative meaning retained
 
@@ -252,7 +252,7 @@ To remove the current undefined word “selected,” the proposal fixes `VT-DET-
 
 Each pair must have distinct generated identities, explicit repeat linkage, equal build/configuration/test/method/fixture/clock inputs and canonically equal engineering outputs/checkpoints after excluding only definition-authorised generated identity fields.
 
-Independent design review accepts these three deterministic-repeat roles subject to the explicit Network Configuration / Validation Catalogue namespace clarification above. They remain proposed, not authoritative, until DC-006 receives final design acceptance and later controlled application.
+Independent design review accepts these three deterministic-repeat roles subject to the explicit Network Configuration / Validation Catalogue namespace clarification above. They are authoritative within the accepted DC-006 document baseline; machine/catalogue application remains separately unauthorised.
 
 ### 4.6 Exact evidence-package member roles
 
@@ -263,7 +263,7 @@ To remove the current undefined phrase “two executions,” the proposal fixes 
 
 The test verifies distinct non-overwriting package identities/paths, required content, canonical JSON and relative links, file/manifest/archive hashes, source/build/config/test provenance, source-build versus generation-build separation, historical resolution and immutability of the first package/source records after the second export.
 
-Independent design review accepts these package roles subject to the explicit Network Configuration / Validation Catalogue namespace clarification above. They remain proposed, not authoritative, until DC-006 receives final design acceptance and later controlled application. Composite and suspension export controls remain separate regression requirements and are not silently substituted for these two package roles.
+Independent design review accepts these package roles subject to the explicit Network Configuration / Validation Catalogue namespace clarification above. They are authoritative within the accepted DC-006 document baseline; machine/catalogue application remains separately unauthorised. Composite and suspension export controls remain separate regression requirements and are not silently substituted for these two package roles.
 
 ### 4.7 Exact operational-event registry criterion
 
@@ -348,25 +348,25 @@ Before any later promotion:
 
 The catalogue remains exactly 24 tests with the same 124 requirements and exact 286 RTM relationships unless independent review identifies a genuine contradiction. No such contradiction was found in this investigation.
 
-## 9. Authoritative artefact impact
+## 9. Authoritative artefact application
 
-| Artefact | Proposed controlled amendment | Version if later applied |
+| Artefact | Accepted DC-006 treatment | Current version |
 |---|---|---|
-| Requirements Specification | No amendment. Existing `REQ-VAL-003`, `REQ-VAL-006–009` are sufficient. Requirement count remains 124. | Remains v0.4. |
-| Validation Plan | Add Section 21 defining the common method/context/criterion/finding/aggregate model; add exact criteria matrices for the 22 non-composite tests and exact constituent-case matrices/static parent-coverage rules for the two DC-004 composite tests; fix N0–N5 as one execution/six checkpoints; accept the exact repeat/package roles; define catalogue-history gate. | Proposed v1.3. |
-| System Architecture | Add Section 28 allocating method/criterion ownership, typed source adapters, context membership, machine evaluation, reviewer authority, deterministic aggregation and optional/non-fictional run relationships to Validation/Evidence. | Proposed v0.4. |
-| Workflow Design | Add Section 29 for target/method resolution, context creation, checkpoint/fixture/record-set/review evidence, criterion finding, incomplete handling, independent review finalisation, aggregate result and DC-004/DC-005 branches. | Proposed v0.4. |
-| Demonstrator Design | Add Section 38 for contracts, persistence/immutability, API/actions/read models, review screen treatment, generic selectors/operators, history/export and future implementation increments/gates. | Proposed v0.5. |
-| Engineering Design Brief | No change. | Remains v0.4. |
-| Network Model | No change. | Remains v0.4. |
-| DC-004 / DC-005 | No change to accepted semantics; add cross-reference during later administrative application only if review requires it. | Existing records retained. |
-| Derived control/source-map/manifests | Update only after accepted authoritative application and again after separately reviewed machine application. | Future controlled administration. |
+| Requirements Specification | No amendment. Existing `REQ-VAL-003`, `REQ-VAL-006–009` are sufficient. Requirement count remains 124. | v0.4 unchanged. |
+| Validation Plan | Section 21 defines the common method/context/criterion/finding/aggregate model; exact criteria matrices for the 22 non-composite tests and exact constituent-case matrices/static parent-coverage rules for the two DC-004 composite tests; N0–N5 as one execution/six checkpoints; exact repeat/package roles; and the catalogue-history gate. | Accepted v1.3. |
+| System Architecture | Section 28 allocates method/criterion ownership, typed source adapters, context membership, machine evaluation, reviewer authority, deterministic aggregation and optional/non-fictional run relationships to Validation/Evidence. | Accepted v0.4. |
+| Workflow Design | Section 29 defines target/method resolution, context creation, checkpoint/fixture/record-set/review evidence, criterion finding, incomplete handling, independent review finalisation, aggregate result and DC-004/DC-005 branches. | Accepted v0.4. |
+| Demonstrator Design | Section 38 defines contracts, persistence/immutability, API/actions/read models, review screen treatment, generic selectors/operators, history/export and future implementation increments/gates. | Accepted v0.5. |
+| Engineering Design Brief | No change. | v0.4 unchanged. |
+| Network Model | No change. | v0.4 unchanged. |
+| DC-004 / DC-005 | No change to accepted semantics. | Existing records retained. |
+| Derived control/source-map/manifests | Updated to identify the accepted DC-006 authoritative-document baseline; machine-application records remain unchanged until separately authorised. | Current administrative baseline. |
 
-No authoritative Word document is amended by this proposal.
+The four accepted authoritative Word revisions supersede Validation Plan v1.2, System Architecture v0.3, Workflow Design v0.3 and Demonstrator Design v0.4. Requirements Specification v0.4, Engineering Design Brief v0.4 and Network Model v0.4 remain unchanged.
 
-## 10. Future application boundary — not authorised
+## 10. Machine/catalogue application boundary — not authorised
 
-If DC-006 is independently accepted and later applied to the authoritative artefacts, a separate application phase would be expected to change only validation assurance:
+Any later machine/catalogue application requires separate authorisation and may change only validation assurance:
 
 - preserve Validation Catalogue v1.1 catalogue/manifest as historical input;
 - promote the accepted criteria-based catalogue revision;
@@ -378,7 +378,7 @@ If DC-006 is independently accepted and later applied to the authoritative artef
 - extend validation/evidence review and export; and
 - run focused/history/full-regression verification before independent review.
 
-It must not change topology, outage, restoration, telemetry, DC-003, network packages, operational events or I9 packaging behaviour. I9 remains stopped until both authoritative application and machine/application review are separately accepted into main.
+It must not change topology, outage, restoration, telemetry, DC-003, network packages, operational events or I9 packaging behaviour. I9 remains stopped until machine/catalogue application is separately authorised, independently reviewed and incorporated into the accepted baseline.
 
 ## 11. Proposed verification obligations
 
@@ -412,13 +412,13 @@ Future design/application verification shall prove at minimum:
 26. implementation-conformance test success cannot be imported as a catalogue verdict; and
 27. 24 tests, 124 requirements, 286 RTM relationships and 15 operational-event types remain exact.
 
-## 12. Proposal gate
+## 12. Acceptance and machine-application gate
 
-Current disposition: **Design decision independently accepted; authoritative document application pending independent review.**
+Current disposition: **Design accepted; authoritative-document application accepted at reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; AA-01–AA-04 closed; machine/catalogue application pending separate authorisation; I9 still stopped.**
 
-Final independent engineering design review accepted the four-context/common-criteria architecture, deterministic backend aggregate, DR-01–DR-07, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles. The four proposed authoritative DOCX revisions have been produced from that accepted decision and now require independent application review before they may be accepted or treated as the current baseline.
+Final independent engineering design review accepted the four-context/common-criteria architecture, deterministic backend aggregate, DR-01–DR-07, DC-004/DC-005 boundaries, historical catalogue treatment, authoritative artefact impact and the exact deterministic-repeat/evidence-package roles. Independent authoritative-document re-review accepted the corrected four-DOCX technical application at exact tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; the administratively accepted documents are now the current authoritative baselines.
 
-No machine Validation Catalogue promotion, code/schema/migration/UI change, I9 resumption or merge is authorised by this authoritative-document application phase.
+No machine Validation Catalogue promotion, code/schema/migration/UI change or I9 resumption is authorised by this acceptance administration.
 
 ## 13. Authoritative-application re-review record
 
@@ -429,16 +429,16 @@ Independent application review preserved the accepted DC-006 design but rejected
 3. exactly one accepted primitive operator per criterion, with compound facts split and normalisation stored separately; and
 4. the exact eight controlled review surfaces, fixed simulated/no-control notice and surface identity profiles, plus a frozen concrete Structural Record Set and owner mapping.
 
-The independently reviewed first-application identities remain preserved in branch history and are not relabelled as accepted. The corrected proposed identities are:
+The independently reviewed first-application identities remain preserved in branch history and are not relabelled as accepted. The accepted reviewed technical identities and subsequent metadata-only administrative identities are:
 
-| Proposed authoritative artefact | First application at `6dc4404…` | Corrected AA-01–AA-04 proposal |
-|---|---|---|
-| Validation Plan v1.3 | `9c4b434222205410d5f2cc6d67c02f5b34c5a77f3e7ef2e6e6cfc4e74836fabb` | `142d33d593592b53f9a7c3dd46edcf032d05c5d1168d0169aa3ba8fd8c449085` |
-| System Architecture v0.4 | `ae5f0bb671ba12a5f7fed7e4c3c46509e860113ebe29c7af16783d462936b617` | `20a4279c83412aa58649efc0dac0e8e888dfa2971281c6fffcaa2a4ec730f56c` |
-| Workflow Design v0.4 | `e7dcdd734979a03b0fc85ff24fa767a441cad9a4febc283b4e95d42aad94716d` | `ed71a4ba33018db372689840e2bd59dca34c952d8d7e2d0d136ec594fd280284` |
-| Demonstrator Design v0.5 | `5097ba8b39cd3229867835d7f7826c8fdbcdb9706cea0b1cd93c62051fe05d81` | `760859497293aa6cfb3900315329dab0b7c510d024afe15053f58f9fd4f9c9c2` |
+| Authoritative artefact | Rejected first application at `6dc4404…` | Accepted reviewed technical content at `c194511…` | Administratively accepted identity |
+|---|---|---|---|
+| Validation Plan v1.3 | `9c4b434222205410d5f2cc6d67c02f5b34c5a77f3e7ef2e6e6cfc4e74836fabb` | `142d33d593592b53f9a7c3dd46edcf032d05c5d1168d0169aa3ba8fd8c449085` | `626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0` |
+| System Architecture v0.4 | `ae5f0bb671ba12a5f7fed7e4c3c46509e860113ebe29c7af16783d462936b617` | `20a4279c83412aa58649efc0dac0e8e888dfa2971281c6fffcaa2a4ec730f56c` | `76c768df708dac528d8be0c585975adcfb8ac4f1c43c402c463b4a343b6db47c` |
+| Workflow Design v0.4 | `e7dcdd734979a03b0fc85ff24fa767a441cad9a4febc283b4e95d42aad94716d` | `ed71a4ba33018db372689840e2bd59dca34c952d8d7e2d0d136ec594fd280284` | `aa5886103c57b182fd9868c6d0d2f27966640a73eb188979efd13813d1fda479` |
+| Demonstrator Design v0.5 | `5097ba8b39cd3229867835d7f7826c8fdbcdb9706cea0b1cd93c62051fe05d81` | `760859497293aa6cfb3900315329dab0b7c510d024afe15053f58f9fd4f9c9c2` | `f907d0393cba2b636349579bff281073814adbf0f952ef19eeae63517d47ede2` |
 
-The revised proposal defines exactly **214 criteria**: 147 direct-test criteria and 67 exact DC-004 constituent-case criteria. Exact direct and nine/four composite requirement coverage remains satisfied, and the controlled 24/124/286/15 invariants remain unchanged. This record does not accept the proposed Word revisions, promote a Validation Catalogue, authorise machine work or resume I9.
+The accepted document application defines exactly **214 criteria**: 147 direct-test criteria and 67 exact DC-004 constituent-case criteria. This count is a reviewed identity of the accepted document application, not a permanent project invariant. Exact direct and nine/four composite requirement coverage remains satisfied, and the controlled 24/124/286/15 invariants remain unchanged. This record does not promote a Validation Catalogue, authorise machine work or resume I9.
 
 ## V2 Automation Candidate
 

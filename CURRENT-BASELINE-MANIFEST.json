@@ -1,7 +1,7 @@
 {
   "baseline_date": "2026-08-11",
-  "baseline_name": "Accepted I8 plus independently accepted DC-004/DC-005 machine/application baseline",
-  "baseline_status": "DC-004/DC-005 APPLICATION ACCEPTED AT REVIEWED PR #10 TIP — QA-041 THROUGH QA-049 CLOSED — I9 STOPPED",
+  "baseline_name": "Accepted I8 and DC-004/DC-005 application plus accepted DC-006 authoritative-document baseline",
+  "baseline_status": "DC-006 DESIGN AND AUTHORITATIVE-DOCUMENT APPLICATION ACCEPTED AT REVIEWED TECHNICAL TIP c19451134c36d13d54f2185a3eaa0f20fcce95f0 — MACHINE/CATALOGUE APPLICATION PENDING — I9 STOPPED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -14,16 +14,17 @@
     "DC-002 — Selectable Fault Location in Exploration Mode",
     "DC-003 — Generic Active-Fault Isolation Boundary Derivation",
     "DC-004 — Multi-Run Exploratory Validation Determination",
-    "DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination"
+    "DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination",
+    "DC-006 — Controlled Validation Test Determination Methods"
   ],
   "accepted_design_change": {
-    "id": "DC-005",
-    "title": "Controlled Validation Suspension and BLOCKED-TEST Determination",
-    "status": "ACCEPTED — authoritative design and independently accepted machine/application baseline",
-    "branch": "agent/dc-005-validation-suspension",
-    "base_commit": "e4f74611d9f750f4577f36c1c473f79506266347",
-    "reviewed_tip": "974c39ac044b1af1342389f531f65281d93db114",
-    "implementation_boundary": "Design tip remains preserved; separately authorised machine/application treatment accepted at PR #10 tip eced7c06c27b959cdb29d3aaa9351ca11cb5e258; I9 remains stopped"
+    "id": "DC-006",
+    "title": "Controlled Validation Test Determination Methods",
+    "status": "ACCEPTED — design and authoritative-document application accepted; DR-01–DR-07 and AA-01–AA-04 closed",
+    "branch": "agent/dc-006-validation-determination-design",
+    "base_commit": "70781cad986f3700f8e2d94fd20aa8b01482f50b",
+    "reviewed_technical_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0",
+    "implementation_boundary": "Machine Validation Catalogue promotion and application require separate authorisation and independent review; I9 remains stopped"
   },
   "documents": [
     {
@@ -97,83 +98,116 @@
     },
     {
       "path": "01-engineering-source-documents/OT Project System Architecture.docx",
-      "sha256": "1e1ca4a2b8a054fcfa998bf33f809a6bcfdaf5e9647ffd285c9fe61a783aeb7d",
-      "bytes": 548281,
-      "paragraphs": 325,
-      "tables": 13,
+      "sha256": "76c768df708dac528d8be0c585975adcfb8ac4f1c43c402c463b4a343b6db47c",
+      "bytes": 553499,
+      "paragraphs": 348,
+      "tables": 19,
       "inline_shapes": 2,
-      "version": "0.3",
-      "status": "Draft — accepted authoritative architecture baseline through DC-005",
-      "completed_through_section": "27.4",
-      "accepted_design_change": "DC-005",
+      "version": "0.4",
+      "status": "Draft — accepted authoritative architecture baseline through DC-006",
+      "completed_through_section": "28.7",
+      "accepted_design_change": "DC-006",
       "supersedes_authoritative_identity": {
-        "version": "0.2",
-        "sha256": "249e2370e0072cfc8324740a76a0b77647b1db2d93aef2364f4fa8b6a8a87a77",
-        "bytes": 546251,
-        "paragraphs": 311,
-        "tables": 12,
-        "completed_through_section": "26.5"
+        "version": "0.3",
+        "sha256": "1e1ca4a2b8a054fcfa998bf33f809a6bcfdaf5e9647ffd285c9fe61a783aeb7d",
+        "bytes": 548281,
+        "paragraphs": 325,
+        "tables": 13,
+        "completed_through_section": "27.4"
       },
       "independently_reviewed_proposal_identity": {
         "version": "0.3",
         "sha256": "83bb1b5f1e224943a76e0f91ea4cc37b4e71e95016b2fbae7e668c9068e17c21",
         "bytes": 548273,
         "reviewed_tip": "974c39ac044b1af1342389f531f65281d93db114"
+      },
+      "rejected_dc006_first_application_identity": {
+        "version": "0.4",
+        "sha256": "ae5f0bb671ba12a5f7fed7e4c3c46509e860113ebe29c7af16783d462936b617",
+        "reviewed_tip": "6dc44046408593af3fb2c3a19d5412bf9a81fc23"
+      },
+      "independently_reviewed_dc006_technical_identity": {
+        "version": "0.4",
+        "sha256": "20a4279c83412aa58649efc0dac0e8e888dfa2971281c6fffcaa2a4ec730f56c",
+        "bytes": 553459,
+        "reviewed_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0"
       }
     },
     {
       "path": "01-engineering-source-documents/OT Project Workflow Design.docx",
-      "sha256": "3b7250fa802f5cd4e0c8c224f17e51af10a1e6d0f1a323b28bbd19cedfedd2a8",
-      "bytes": 622810,
-      "paragraphs": 266,
-      "tables": 34,
+      "sha256": "aa5886103c57b182fd9868c6d0d2f27966640a73eb188979efd13813d1fda479",
+      "bytes": 626883,
+      "paragraphs": 289,
+      "tables": 39,
       "inline_shapes": 2,
-      "version": "0.3",
-      "status": "Draft — accepted authoritative workflow baseline through DC-005",
-      "completed_through_section": "28.5",
+      "version": "0.4",
+      "status": "Draft — accepted authoritative workflow baseline through DC-006",
+      "completed_through_section": "29.9",
       "verified_requirements_allocated": 124,
-      "accepted_design_change": "DC-005",
+      "accepted_design_change": "DC-006",
       "supersedes_authoritative_identity": {
-        "version": "0.2",
-        "sha256": "f09f7e983e208b6c9f9b9f19d41d35df1b347c195e9c78fe63032d0df30b1547",
-        "bytes": 620162,
-        "paragraphs": 252,
-        "tables": 31,
-        "completed_through_section": "27.4"
+        "version": "0.3",
+        "sha256": "3b7250fa802f5cd4e0c8c224f17e51af10a1e6d0f1a323b28bbd19cedfedd2a8",
+        "bytes": 622810,
+        "paragraphs": 266,
+        "tables": 34,
+        "completed_through_section": "28.5"
       },
       "independently_reviewed_proposal_identity": {
         "version": "0.3",
         "sha256": "8c0ea11d595c1b1d719f927918894797ada3cccdad15c9a36764857c7642423e",
         "bytes": 622805,
         "reviewed_tip": "974c39ac044b1af1342389f531f65281d93db114"
+      },
+      "rejected_dc006_first_application_identity": {
+        "version": "0.4",
+        "sha256": "e7dcdd734979a03b0fc85ff24fa767a441cad9a4febc283b4e95d42aad94716d",
+        "reviewed_tip": "6dc44046408593af3fb2c3a19d5412bf9a81fc23"
+      },
+      "independently_reviewed_dc006_technical_identity": {
+        "version": "0.4",
+        "sha256": "ed71a4ba33018db372689840e2bd59dca34c952d8d7e2d0d136ec594fd280284",
+        "bytes": 626848,
+        "reviewed_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0"
       }
     },
     {
       "path": "01-engineering-source-documents/OT Project Demonstrator Design.docx",
-      "sha256": "f3cbe66b1080096509796e35f62247b5c18f813c4facab68b38bdbeb70fb4c62",
-      "bytes": 851657,
-      "paragraphs": 379,
-      "tables": 35,
+      "sha256": "f907d0393cba2b636349579bff281073814adbf0f952ef19eeae63517d47ede2",
+      "bytes": 856867,
+      "paragraphs": 401,
+      "tables": 42,
       "inline_shapes": 2,
-      "version": "0.4",
-      "status": "Draft — accepted authoritative demonstrator-design baseline through DC-005",
-      "completed_through_section": "37.6",
+      "version": "0.5",
+      "status": "Draft — accepted authoritative demonstrator-design baseline through DC-006",
+      "completed_through_section": "38.8",
       "verified_requirements_allocated": 124,
       "demonstrator_design_decisions": 23,
-      "accepted_design_change": "DC-005",
+      "accepted_design_change": "DC-006",
       "supersedes_authoritative_identity": {
-        "version": "0.3",
-        "sha256": "f2614e894dae64785ec01e0c6fbdc1e141f302608beeb3d7d07eebed3427bef5",
-        "bytes": 849329,
-        "paragraphs": 360,
-        "tables": 33,
-        "completed_through_section": "36.8"
+        "version": "0.4",
+        "sha256": "f3cbe66b1080096509796e35f62247b5c18f813c4facab68b38bdbeb70fb4c62",
+        "bytes": 851657,
+        "paragraphs": 379,
+        "tables": 35,
+        "completed_through_section": "37.6"
       },
       "independently_reviewed_proposal_identity": {
         "version": "0.4",
         "sha256": "b30323b93fcbc23f0f6cd76feb9a1646314051d177a8f94c54b6aac0813771e8",
         "bytes": 851645,
         "reviewed_tip": "974c39ac044b1af1342389f531f65281d93db114"
+      },
+      "rejected_dc006_first_application_identity": {
+        "version": "0.5",
+        "sha256": "5097ba8b39cd3229867835d7f7826c8fdbcdb9706cea0b1cd93c62051fe05d81",
+        "reviewed_tip": "6dc44046408593af3fb2c3a19d5412bf9a81fc23"
+      },
+      "independently_reviewed_dc006_technical_identity": {
+        "version": "0.5",
+        "sha256": "760859497293aa6cfb3900315329dab0b7c510d024afe15053f58f9fd4f9c9c2",
+        "bytes": 856820,
+        "reviewed_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0"
       },
       "prior_dc004_identity_history": {
         "superseded_v0.2_sha256": "fe76e7446c0fd29cbb16c3a8bd634273a6ac219c06a248fbea0196ce24f0d74e",
@@ -183,31 +217,44 @@
     },
     {
       "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
-      "sha256": "8cde791aae359a7a3d8f335bbb385aba24ef9e75a4fb9f019e14799f4c3db14b",
-      "bytes": 847666,
-      "paragraphs": 171,
-      "tables": 31,
+      "sha256": "626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0",
+      "bytes": 891961,
+      "paragraphs": 274,
+      "tables": 106,
       "inline_shapes": 0,
-      "version": "1.2",
-      "status": "Accepted authoritative validation-design baseline through DC-005",
-      "completed_through_section": "20.7",
+      "version": "1.3",
+      "status": "Accepted authoritative validation-design baseline through DC-006",
+      "completed_through_section": "21.7",
       "validation_catalogue_tests": 24,
       "verified_requirements_mapped": 124,
       "validation_plan_decisions": 18,
-      "accepted_design_change": "DC-005",
+      "criterion_definition_count": 214,
+      "criterion_definition_count_note": "Reviewed identity of the accepted DC-006 document application; not a permanent project invariant",
+      "accepted_design_change": "DC-006",
       "supersedes_authoritative_identity": {
-        "version": "1.1",
-        "sha256": "c6aa4edd824d6e084fd3335c22556b7dc9e86948fdce5628ae32fc05eccb2f9c",
-        "bytes": 842611,
-        "paragraphs": 145,
-        "tables": 27,
-        "completed_through_section": "19.9"
+        "version": "1.2",
+        "sha256": "8cde791aae359a7a3d8f335bbb385aba24ef9e75a4fb9f019e14799f4c3db14b",
+        "bytes": 847666,
+        "paragraphs": 171,
+        "tables": 31,
+        "completed_through_section": "20.7"
       },
       "independently_reviewed_proposal_identity": {
         "version": "1.2",
         "sha256": "85dddab031aab7d2a5600fc844396474f042fa6dc2cbe5af243a23ebb504ca7d",
         "bytes": 847644,
         "reviewed_tip": "974c39ac044b1af1342389f531f65281d93db114"
+      },
+      "rejected_dc006_first_application_identity": {
+        "version": "1.3",
+        "sha256": "9c4b434222205410d5f2cc6d67c02f5b34c5a77f3e7ef2e6e6cfc4e74836fabb",
+        "reviewed_tip": "6dc44046408593af3fb2c3a19d5412bf9a81fc23"
+      },
+      "independently_reviewed_dc006_technical_identity": {
+        "version": "1.3",
+        "sha256": "142d33d593592b53f9a7c3dd46edcf032d05c5d1168d0169aa3ba8fd8c449085",
+        "bytes": 891943,
+        "reviewed_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0"
       },
       "prior_dc004_identity_history": {
         "superseded_v1.0_sha256": "c5725efd885b541e51a81945ed959bd8ba6f9f255a7f04dc01e7579b92858fef",
@@ -295,9 +342,9 @@
     }
   ],
   "implementation_baseline": {
-    "accepted_through_increment": "I8 plus accepted DC-004/DC-005 machine/application boundary",
+    "accepted_through_increment": "I8 plus accepted DC-004/DC-005 machine/application boundary; DC-006 authoritative documents accepted",
     "accepted_reviewed_implementation_tip": "eced7c06c27b959cdb29d3aaa9351ca11cb5e258",
-    "next_increment": "I9 remains stopped and requires separate user authorisation from the accepted reviewed-main baseline",
+    "next_increment": "DC-006 machine/catalogue application requires separate authorisation and independent review; I9 remains stopped",
     "next_increment_authorised": false,
     "dc004_application_status": "INDEPENDENTLY ACCEPTED WITH DC-005 APPLICATION AT EXACT REVIEWED PR #10 TIP eced7c06c27b959cdb29d3aaa9351ca11cb5e258; QA-041 THROUGH QA-049 CLOSED; INCORPORATED INTO REVIEWED MAIN",
     "dc004_application_pr": {
@@ -307,7 +354,9 @@
       "observed_head_commit": "eced7c06c27b959cdb29d3aaa9351ca11cb5e258",
       "treatment": "Complete reviewed DC-004/DC-005 application history accepted and incorporated without rewriting; proposal, first-application, QA-correction and build identities preserved"
     },
-    "i9_status": "STOPPED — no resumption authority; requires separate user authorisation from the accepted reviewed-main baseline"
+    "dc006_authoritative_document_status": "ACCEPTED AT REVIEWED TECHNICAL TIP c19451134c36d13d54f2185a3eaa0f20fcce95f0; DR-01–DR-07 AND AA-01–AA-04 CLOSED",
+    "dc006_machine_catalogue_application_status": "NOT AUTHORISED",
+    "i9_status": "STOPPED — no resumption authority"
   },
   "validation_catalogue_baseline": {
     "active_version": "1.1",
@@ -320,22 +369,25 @@
     "unique_requirement_count": 124,
     "rtm_relationship_count": 286,
     "operational_event_type_count": 15,
-    "application_review_status": "INDEPENDENTLY_ACCEPTED"
+    "application_review_status": "INDEPENDENTLY_ACCEPTED_THROUGH_DC005",
+    "dc006_promotion_status": "NOT AUTHORISED — active Validation Catalogue v1.1 and historical v1.0 identities remain unchanged"
   },
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
     "BASELINE-MANIFEST.json preserves the original pre-DC-001/DC-002 integrity record.",
-    "Detailed engineering design documents remain working Drafts because later controlled implementation findings and final client-facing packaging may require revision; Validation Plan v1.2 is the accepted validation-design baseline through DC-005.",
+    "Detailed engineering design documents remain working Drafts because later controlled implementation findings and final client-facing packaging may require revision; Validation Plan v1.3 is the accepted validation-design baseline through DC-006.",
     "DC-003 is applied and cross-document verified across the Engineering Design Brief, Network Model, System Architecture, Workflow Design, Demonstrator Design and Validation Plan without changing the Requirements Specification or its 124 unique requirements.",
     "Network Model Sections 16–18 form the approved engineering answer key for the formal state sequence, DEF-001 and generic active-fault isolation boundary derivation.",
-    "System Architecture v0.3 establishes the Step 6 logical components, information ownership, interfaces, scenario boundaries and accepted DC-005 suspension-assurance architecture without changing operational engineering behaviour.",
-    "Workflow Design v0.3 establishes the Step 7 controlled operational and engineering workflows, the 60-second telemetry-age parameter, final event catalogue and accepted DC-005 suspension workflow while allocating all 124 formal requirements.",
-    "Demonstrator Design v0.4 establishes the Step 8 practical local application and accepted DC-004/DC-005 validation-assurance design without changing approved engineering behaviour.",
-    "Validation Plan v1.2 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, accepted DC-005 suspension determination, evidence strategy and an exact 124-row requirements-to-verification matrix.",
+    "System Architecture v0.4 establishes the Step 6 logical components, information ownership, interfaces, scenario boundaries and accepted DC-005/DC-006 validation-assurance architecture without changing operational engineering behaviour.",
+    "Workflow Design v0.4 establishes the Step 7 controlled operational and engineering workflows, the 60-second telemetry-age parameter, final event catalogue and accepted DC-005/DC-006 determination workflows while allocating all 124 formal requirements.",
+    "Demonstrator Design v0.5 establishes the Step 8 practical local application and accepted DC-004/DC-005/DC-006 validation-assurance design without changing approved engineering behaviour.",
+    "Validation Plan v1.3 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, accepted DC-005 suspension determination, accepted DC-006 criteria-based determination treatment, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The complete DC-004/DC-005 machine/application boundary is independently accepted at exact PR #10 tip eced7c06c27b959cdb29d3aaa9351ca11cb5e258 and incorporated without rewriting reviewed commits; QA-041 through QA-049 are closed. I9 remains stopped and requires separate user authorisation.",
+    "Implementation is authorised one controlled phase at a time. I1-I8 are accepted on reviewed main. The complete DC-004/DC-005 machine/application boundary is independently accepted at exact PR #10 tip eced7c06c27b959cdb29d3aaa9351ca11cb5e258 and incorporated without rewriting reviewed commits; QA-041 through QA-049 are closed. DC-006 machine/catalogue application is not authorised and I9 remains stopped.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
     "The five independently reviewed DC-005 proposal identities are preserved separately from their accepted authoritative identities; the accepted versions supersede the prior DC-004-era identities without erasing either history.",
+    "For each DC-006-amended authoritative document, the rejected first-application identity, independently reviewed technical-content identity at c19451134c36d13d54f2185a3eaa0f20fcce95f0 and metadata-only administratively accepted identity are preserved separately.",
+    "The accepted Validation Plan contains 214 criteria (147 direct-test plus 67 exact DC-004 constituent-case criteria); this is a reviewed identity of the accepted document application, not a permanent project invariant.",
     "Future accepted design changes or further planned document development require this current manifest to be regenerated."
   ]
 }

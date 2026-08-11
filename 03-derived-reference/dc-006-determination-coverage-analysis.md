@@ -1,6 +1,6 @@
 ---
-Status: Accepted DC-006 design — corrected authoritative-document application pending independent re-review after DC006-AA-01–AA-04
-Authority: Derived analysis only — does not amend the accepted baseline
+Status: Accepted DC-006 design and authoritative-document application; machine/catalogue application pending separate authorisation; I9 stopped
+Authority: Derived analysis only — authoritative meaning remains in the accepted detailed documents and change record
 Baseline: Reviewed main 70781cad986f3700f8e2d94fd20aa8b01482f50b
 Updated: 2026-08-11
 ---
@@ -9,7 +9,7 @@ Updated: 2026-08-11
 
 ## 1. Purpose and investigation boundary
 
-This analysis records the I9 validation-design stop and determines the minimum controlled determination contract needed to execute the accepted 24-test Validation Plan catalogue without turning implementation-conformance tests into catalogue verdict evidence. It is an assurance/design aid only. The accepted Requirements Specification, Validation Plan, Demonstrator Design, System Architecture, Workflow Design, Network Model, DC-004, DC-005 and machine catalogue remain unchanged.
+This analysis records the I9 validation-design stop and the accepted minimum controlled determination contract needed to execute the 24-test Validation Plan catalogue without turning implementation-conformance tests into catalogue verdict evidence. It is an assurance/navigation aid only. Validation Plan v1.3, Demonstrator Design v0.5, System Architecture v0.4 and Workflow Design v0.4 are now the accepted DC-006 authoritative-document baselines; Requirements Specification v0.4, Engineering Design Brief v0.4, Network Model v0.4 and the machine Validation Catalogue remain unchanged.
 
 The investigation preserves:
 
@@ -366,7 +366,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.20 `VT-DET-REPEAT-001` — Deterministic repeatability
 
 - **Accepted basis/meaning:** repeat selected formal, negative and corrected cases under equal controlled inputs; canonical engineering results/checkpoints equal while generated identities remain distinct and linked.
-- **Minimum controlled member roles:** `DET-FORMAL` = two completed `VT-FML-N0-N5-001` executions using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue identities; `DET-NEGATIVE` = two completed `VT-TEL-STALE-001` fixture executions under the same promoted Validation Catalogue method identity; `DET-CORRECTED` = two completed `VT-TOP-DEF-001` executions using corrected Network Configuration v1.1 under the same future promoted DC-006 Validation Catalogue/test/method identities. Independent design review accepts these roles subject to this version-namespace distinction; they remain proposed until final DC-006 acceptance and controlled application.
+- **Minimum controlled member roles:** `DET-FORMAL` = two completed `VT-FML-N0-N5-001` executions using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue identities; `DET-NEGATIVE` = two completed `VT-TEL-STALE-001` fixture executions under the same promoted Validation Catalogue method identity; `DET-CORRECTED` = two completed `VT-TOP-DEF-001` executions using corrected Network Configuration v1.1 under the same future promoted DC-006 Validation Catalogue/test/method identities. Independent review accepts these roles subject to this version-namespace distinction; they are authoritative in the accepted document baseline and await separately authorised machine/catalogue application.
 - **Required criteria:** `DET-01` exact member roles and distinct identities; `DET-02` same build/configuration/test/method/fixture/clock inputs within each pair; `DET-03` canonical engineering outputs/checkpoints equal after excluding only controlled generated-identity fields; `DET-04` explicit repeat links; `DET-05` original records unchanged.
 - **Observed source/context:** immutable execution/fixture/evidence records and generic canonical-record comparator. Machine-comparable.
 - **Context:** `PRESERVED_RECORD_SET`; no new scenario run is invented by the repeatability test itself.
@@ -377,7 +377,7 @@ DC-004 remains separate. Constituent `ExecutedValidationResult` or valid suspens
 ### 6.21 `VT-PKG-EVIDENCE-001` — Self-contained evidence-package integrity
 
 - **Accepted basis/meaning:** separately export two executions; verify required files, relative links, canonical JSON, figures, README and SHA-256 manifest; source provenance remains traceable and earlier package/execution unchanged.
-- **Minimum controlled package roles:** `PKG-FORMAL` = one finalised `VT-FML-N0-N5-001` PASS using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue/test/method identity; `PKG-HISTORICAL-DEFECT` = one preserved `VT-TOP-DEF-001` FAIL using defective Network Configuration v1.0 and exported through its original historical Validation Catalogue/test-definition identity. These roles satisfy the accepted two-package procedure and I9 historical-evidence gate without inventing a free selection. Independent design review accepts them subject to this version-namespace distinction; they remain proposed until final DC-006 acceptance and controlled application.
+- **Minimum controlled package roles:** `PKG-FORMAL` = one finalised `VT-FML-N0-N5-001` PASS using corrected Network Configuration v1.1 under the future promoted DC-006 Validation Catalogue/test/method identity; `PKG-HISTORICAL-DEFECT` = one preserved `VT-TOP-DEF-001` FAIL using defective Network Configuration v1.0 and exported through its original historical Validation Catalogue/test-definition identity. These roles satisfy the accepted two-package procedure and I9 historical-evidence gate without inventing a free selection. Independent review accepts them subject to this version-namespace distinction; they are authoritative in the accepted document baseline and await separately authorised machine/catalogue application.
 - **Required criteria:** `PKG-01` two distinct non-overwriting package IDs/paths; `PKG-02` exact required file set; `PKG-03` every manifest entry exists and hashes; `PKG-04` canonical records/relative links/figures/README resolve; `PKG-05` source execution/build/config/catalogue/test identities match preserved records; `PKG-06` generation build remains separate from source build; `PKG-07` historical definition resolves by original identity; `PKG-08` generating/verifying the second package leaves the first package and both source executions unchanged.
 - **Observed source/context:** evidence-package registry/archive verifier, historical catalogue resolver and preserved source records. Machine-comparable.
 - **Context:** `PRESERVED_RECORD_SET`; no new scenario run.
@@ -403,13 +403,13 @@ The three already-supported tests retain their accepted results and semantics. T
 
 ## 8. Authoritative artefact impact conclusion
 
-| Artefact | Proposed DC-006 impact | Reason |
+| Artefact | Accepted DC-006 impact | Reason |
 |---|---|---|
-| Requirements Specification v0.4 | No wording or ID change proposed. | `REQ-VAL-003`, `006`, `007`, `008` and `009` already require a defined objective/expected result and evidence-supported expected-versus-observed PASS/FAIL. |
-| Validation Plan v1.2 | New proposed v1.3 Section 21 plus exact determination matrices. | Must authorise context kinds; exact criteria for the 22 non-composite tests; constituent-case criteria and static parent-coverage rules for the two DC-004 composite tests; reviewer findings; aggregate rule; multi-checkpoint N0–N5 treatment; fixture/record-set roles; and catalogue history gate. |
-| System Architecture v0.3 | New proposed v0.4 Section 28. | Must allocate criteria definitions, source adapters, context binding, reviewer authority, deterministic aggregation and optional/non-fictional run relationships. |
-| Workflow Design v0.3 | New proposed v0.4 Section 29. | Must define preparation, evidence capture, criterion evaluation/review, incomplete handling, PASS/FAIL finalisation and DC-004/DC-005 interaction. |
-| Demonstrator Design v0.4 | New proposed v0.5 Section 38. | Must define contracts, persistence/immutability, API/read models, review actions, historical resolution and implementation boundary. |
+| Requirements Specification v0.4 | No wording or ID change. | `REQ-VAL-003`, `006`, `007`, `008` and `009` already require a defined objective/expected result and evidence-supported expected-versus-observed PASS/FAIL. |
+| Validation Plan v1.3 | Accepted Section 21 plus exact determination matrices. | Authorises context kinds; exact criteria for the 22 non-composite tests; constituent-case criteria and static parent-coverage rules for the two DC-004 composite tests; reviewer findings; aggregate rule; multi-checkpoint N0–N5 treatment; fixture/record-set roles; and catalogue history gate. |
+| System Architecture v0.4 | Accepted Section 28. | Allocates criteria definitions, source adapters, context binding, reviewer authority, deterministic aggregation and optional/non-fictional run relationships. |
+| Workflow Design v0.4 | Accepted Section 29. | Defines preparation, evidence capture, criterion evaluation/review, incomplete handling, PASS/FAIL finalisation and DC-004/DC-005 interaction. |
+| Demonstrator Design v0.5 | Accepted Section 38. | Defines contracts, persistence/immutability, API/read models, review actions, historical resolution and implementation boundary. |
 | Engineering Design Brief / Network Model | No change. | No electrical, topology, outage, restoration, telemetry or engineering answer-key change. |
 | DC-004 / DC-005 | No semantic change; cross-reference only. | Composite and suspension semantics remain controlling. |
 | Machine catalogue/application/schema | Future separately authorised application only. | Not modified by this investigation/proposal. |
@@ -420,17 +420,17 @@ The gap is not 21 missing engineering answers. The accepted plan already states 
 
 One common criteria model can close the gap without 21 test-specific verdict engines. It requires a controlled design change and catalogue revision because execution context, criterion definitions, reviewer authority and aggregation are validation meaning, not packaging implementation detail.
 
-Independent review accepts this architecture in principle and accepts the deterministic-repeat and evidence-package member roles subject to the explicit Network Configuration / Validation Catalogue namespace treatment recorded above. The bounded DR-01–DR-07 corrections are now incorporated for final independent design acceptance review. DC-006 remains proposed: no authoritative-document application, Validation Catalogue promotion, application/machine change or I9 resumption is authorised.
+Independent review accepts this architecture, the deterministic-repeat and evidence-package member roles, DR-01–DR-07 and the corrected authoritative-document application at exact reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`. Validation Catalogue promotion, application/machine change and I9 resumption remain separately unauthorised.
 
 ## 10. Authoritative-document application review corrections
 
-The DC-006 design and DR-01–DR-07 remain accepted. The first authoritative application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` was not accepted; the bounded AA-01–AA-04 corrections are incorporated in the revised four proposed DOCX amendments pending independent authoritative-document re-review:
+The DC-006 design and DR-01–DR-07 remain accepted. The first authoritative application at `6dc44046408593af3fb2c3a19d5412bf9a81fc23` was not accepted. Independent re-review accepted the bounded AA-01–AA-04 corrections at exact reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; AA-01–AA-04 are closed:
 
 - **AA-01:** `VT-TOP-DEF-001` now uses one common six-criterion method independently per current run. Network Configuration v1.0 retains a separate one-run `FAIL`; corrected Network Configuration v1.1 retains a separate one-run `PASS`. There is no cross-run scenario context or aggregate meta-result. The criterion union still exactly covers the parent test's accepted RTM set.
 - **AA-02:** all eight controlled fixture methods bind exact fixture definition/version/hash, fixture input/result, executing build and applicable immutable Network Configuration/hash provenance. No fixture method contains `SCENARIO_RUN_AND_REVISION` or any fictional run evidence role.
 - **AA-03:** all criteria use one accepted primitive operator. `EVT-04` compares the derived unregistered-event set with empty using `CANONICAL_SET_EQUAL`; `RAD-01A` and `RAD-01B` separately use `IDENTITY_HASH_AGREEMENT` and `BOOLEAN_EQUAL`; `SEP-04` compares cross-class identity collisions with empty using `CANONICAL_SET_EQUAL`.
-- **AA-04:** `CONTROLLED_SURFACE_SET` is frozen to Start / Run Setup, Operational Workspace, Telemetry & Events, Restoration Assessment, Formal Validation, Evidence Library, Defect Investigation and Engineering Basis. Every member must show the fixed simulated/no-control notice and its definition-owned identity profile. `STRUCTURAL_RECORD_SET` is frozen to the concrete Section 8 plus DC-004/DC-005/DC-006 record membership and one controlling owner recorded in the proposed amendments.
+- **AA-04:** `CONTROLLED_SURFACE_SET` is frozen to Start / Run Setup, Operational Workspace, Telemetry & Events, Restoration Assessment, Formal Validation, Evidence Library, Defect Investigation and Engineering Basis. Every member must show the fixed simulated/no-control notice and its definition-owned identity profile. `STRUCTURAL_RECORD_SET` is frozen to the concrete Section 8 plus DC-004/DC-005/DC-006 record membership and one controlling owner recorded in the accepted amendments.
 
-The corrected application contains **214 criteria**: 147 criteria across 22 non-composite tests and 67 across the exact nine/four DC-004 constituent cases. The controlled invariants remain exactly 24 tests, 124 unique requirements, 286 `(test_id, requirement_id)` relationships and 15 operational-event types. No authoritative baseline, machine catalogue, code/schema/migration, dependency or I9 authority is granted by this corrected application.
+The accepted document application contains **214 criteria**: 147 criteria across 22 non-composite tests and 67 across the exact nine/four DC-004 constituent cases. This count is a reviewed identity of the accepted document application, not a permanent project invariant. The controlled invariants remain exactly 24 tests, 124 unique requirements, 286 `(test_id, requirement_id)` relationships and 15 operational-event types. No machine catalogue, code/schema/migration, dependency or I9 authority is granted by this acceptance.
 
 **V2 Automation Candidate — criteria and evidence assembly.** Mapping repeated source records to fixed criteria, checking completeness and preparing reviewer evidence is assurance-heavy and error-prone. A future tool could propose/bind evidence and highlight missing criteria while V1 retains fixed definitions, deterministic aggregation and independent engineering authority.

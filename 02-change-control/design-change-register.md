@@ -7,6 +7,7 @@
 | DC-003 | Generic Active-Fault Isolation Boundary Derivation | Applied / cross-document verified / accepted baseline | 2026-08-09 |
 | DC-004 | Multi-Run Exploratory Validation Determination | Accepted authoritative design and independently accepted machine/application baseline at reviewed PR #10 tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; I9 stopped | 2026-08-11 |
 | DC-005 | Controlled Validation Suspension and BLOCKED-TEST Determination | Accepted authoritative design and independently accepted machine/application baseline at reviewed PR #10 tip `eced7c06c27b959cdb29d3aaa9351ca11cb5e258`; QA-042 and QA-048–QA-049 closed; I9 stopped | 2026-08-11 |
+| DC-006 | Controlled Validation Test Determination Methods | Design accepted; authoritative-document application accepted at reviewed technical tip `c19451134c36d13d54f2185a3eaa0f20fcce95f0`; DR-01–DR-07 and AA-01–AA-04 closed; machine/catalogue application pending separate authorisation; I9 stopped | 2026-08-11 |
 
 ## Change-control rule
 
