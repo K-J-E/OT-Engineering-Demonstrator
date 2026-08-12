@@ -1,6 +1,6 @@
 # DC-007 — VT-TOP-DEF-001 Current-Run Criterion Provenance Clarification
 
-Status: **Design accepted — Validation Plan v1.4 authoritative-document application prepared and pending independent review; machine application pending separate authorisation**
+Status: **Design and Validation Plan v1.4 accepted — Validation Catalogue v1.2 machine candidate applied; pending independent machine-catalogue review**
 
 Independent technical acceptance: exact reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`
 
@@ -16,7 +16,7 @@ Origin: QA-053 semantic-executability stop during DC-006 machine/application rev
 
 Authoritative baseline: Reviewed main `48b2ecab818e43ce587bb52593d99519ac01160a`
 
-Authoritative-document application baseline: Accepted reviewed main `cffe833e5c6ee691c48e6def0f74ac6437560fb6`
+Authoritative-document application baseline: Accepted reviewed main `60f7431ac1e8aa271845fd79ddc81a00766098b8`
 
 Stopped implementation baseline: PR #12 branch head `a214b78fb425ca9a40108745d660f10888565080`
 
@@ -35,7 +35,7 @@ This makes exact source-derived observation translation impossible without impor
 
 DC-007 changes the controlled expected-value wording of `DEF-02`, `DEF-03` and `DEF-04` by removing only those cross-configuration explanatory clauses. Existing selectors, operators, normalisation and criterion-to-requirement mappings remain unchanged. The underlying engineering answer key and expected v1.0/v1.1 outcomes remain unchanged, as do the method structure, test procedure and evidence classes.
 
-This proposal grants no authority to amend authoritative DOCX files, modify the machine Validation Catalogue, change application code or resume I9.
+At proposal stage this record granted no implementation authority. Validation Plan v1.4 was subsequently accepted on reviewed main, and a later bounded authorisation permits only the machine-catalogue application recorded in Section 9; application behaviour, QA-053 implementation and I9 remain outside that authority.
 
 ## 2. Accepted architecture retained
 
@@ -237,14 +237,16 @@ DC-007 preserves exactly:
 
 - DC-007 technical design is independently accepted at reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`.
 - `DC007-DR-01` and `DC007-DR-02` are closed.
-- Validation Plan v1.4 authoritative-document application has been generated from accepted reviewed main `cffe833e5c6ee691c48e6def0f74ac6437560fb6` with SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f`; independent authoritative-document review is pending.
-- Accepted Validation Plan v1.3 remains byte-identical at SHA-256 `626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0` and remains the current accepted baseline until v1.4 acceptance.
+- Validation Plan v1.4 is the accepted authoritative validation baseline on reviewed main `60f7431ac1e8aa271845fd79ddc81a00766098b8`, with SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f`.
+- Superseded accepted Validation Plan v1.3 remains byte-identical in repository history at SHA-256 `626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0`.
+- The corrected, still-unaccepted Validation Catalogue v1.2 machine candidate has catalogue SHA-256 `2ebe3400a480fcd31c9317551316d20df4b1d828eb325cf131c73ee13ec970a1` and manifest SHA-256 `4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42`; independent machine-catalogue review is pending.
+- The rejected/unaccepted earlier v1.2 candidate identities remain recorded as catalogue SHA-256 `51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3` and manifest SHA-256 `a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754`; they are not an accepted historical catalogue package.
 - PR #12 remains draft and unmerged.
-- Its uncommitted QA-054, QA-055 and partial QA-053 work remains WIP and shall not be committed or pushed before separately authorised machine/catalogue application and QA-053 resumption.
+- Its separately preserved, uncommitted QA-054, QA-055 and partial QA-053 work remains WIP and is not part of this machine-catalogue application.
 - QA-053 implementation remains stopped.
-- No machine catalogue/application work is authorised by this document application.
+- This application changes only the controlled machine catalogue package, its deterministic builder/tests and catalogue/change-control identity records. It does not implement the `CONTROLLED_PACKAGE_IDENTITY` placeholder correction or any other QA-053 behaviour.
 - I9 remains stopped.
 
-The next gate is independent authoritative-document review of the generated Validation Plan v1.4. Candidate catalogue rebuild and resumption of QA-053 require separate authorisation after that gate.
+The next gate is independent machine-catalogue review of the corrected Validation Catalogue v1.2 candidate. QA-053 resumption and I9 remain separately unauthorised.
 
 **V2 Automation Candidate:** a criterion-provenance linter could compare every expected proposition with its declared selector/source membership and flag unsupported cross-run clauses before catalogue publication.

@@ -39,6 +39,15 @@ def test_v11_is_byte_identical_history_and_v12_is_active() -> None:
         "1.1",
         "1.2",
     ]
+    assert revisions["superseded_unaccepted_candidates"] == [
+        {
+            "catalogue_version": "1.2",
+            "catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
+            "manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
+            "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+            "reason": "Replaced before acceptance by the DC-007 current-run provenance correction.",
+        }
+    ]
 
 
 @pytest.mark.dc006
@@ -218,6 +227,58 @@ def test_vt_top_def_preserves_one_execution_method_and_no_meta_result() -> None:
         "CURRENT_EXECUTION_PROVENANCE",
     )
     assert all("CORRECTED_POST_TRIP_RUN" not in role for role in method.required_context_roles)
+    assert str(method.version) == "1.1"
+    criteria = {item.criterion_id: item for item in method.criteria}
+    assert {
+        criterion_id: str(criteria[criterion_id].version)
+        for criterion_id in ("DEF-02", "DEF-03", "DEF-04")
+    } == {"DEF-02": "1.1", "DEF-03": "1.1", "DEF-04": "1.1"}
+    assert criteria["DEF-02"].expected_value == (
+        "The current post-trip run uses corrected Network Configuration v1.1 with "
+        "BRK-A GOOD/FRESH/OPEN and the controlled formal fault/input fingerprint."
+    )
+    assert criteria["DEF-03"].expected_value == (
+        "For the current run, A1–A4 are de-energised, no A3/A4 source attribution "
+        "exists and exactly 850 customers are affected."
+    )
+    assert criteria["DEF-04"].expected_value == (
+        "The current source-path/configuration evidence contains the corrected SW-A23 "
+        "endpoint SEC-A2 and no active path from FDR-B through SEC-B3/SW-A23 to A3/A4."
+    )
+    assert {
+        criterion_id: (
+            criteria[criterion_id].source_selector,
+            criteria[criterion_id].operator.value,
+            criteria[criterion_id].normalisation,
+            criteria[criterion_id].requirement_ids,
+        )
+        for criterion_id in ("DEF-02", "DEF-03", "DEF-04")
+    } == {
+        "DEF-02": (
+            "CurrentScenarioExecutionAdapter.{configuration_identity,post_trip_input_fingerprint,telemetry[BRK-A]}",
+            "CANONICAL_RECORD_EQUAL",
+            "exact canonical representation",
+            (
+                "REQ-VAL-011", "REQ-VAL-012", "REQ-CFG-006", "REQ-CFG-008",
+                "REQ-CFG-009", "REQ-CFG-010", "REQ-CFG-012",
+            ),
+        ),
+        "DEF-03": (
+            "CurrentScenarioExecutionAdapter.post_trip.{topology,outage,expected_observed_comparison}",
+            "CANONICAL_RECORD_EQUAL",
+            "exact canonical representation",
+            (
+                "REQ-TOP-003", "REQ-OUT-001", "REQ-OUT-002", "REQ-OUT-003",
+                "REQ-OUT-007", "REQ-CFG-004", "REQ-CFG-005", "REQ-CFG-012",
+            ),
+        ),
+        "DEF-04": (
+            "CurrentScenarioExecutionAdapter.{configuration_difference_role,source_paths}",
+            "CANONICAL_RECORD_EQUAL",
+            "exact canonical representation",
+            ("REQ-CFG-001", "REQ-CFG-004", "REQ-CFG-007", "REQ-CFG-008"),
+        ),
+    }
     expected = " ".join(str(item.expected_value) for item in method.criteria)
-    assert "separate execution deterministically FAILS" in expected
-    assert "corrected v1.1 satisfies this criterion and can PASS" in expected
+    assert "separate execution deterministically FAILS" not in expected
+    assert "corrected v1.1 satisfies this criterion and can PASS" not in expected

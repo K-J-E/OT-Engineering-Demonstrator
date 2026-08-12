@@ -1,7 +1,7 @@
-"""Build the accepted DC-006 Validation Catalogue v1.2 package.
+"""Build the DC-006/DC-007 Validation Catalogue v1.2 candidate package.
 
-The accepted Validation Plan Section 21 is the controlled source for the exact
-method and criterion definitions.  This utility promotes the active v1.1
+The accepted Validation Plan v1.4 Section 21 is the controlled source for the
+exact method and criterion definitions.  This utility promotes the active v1.1
 catalogue without changing its 24 test IDs, 124 requirements, 286 RTM
 relationships, or engineering answer keys.  It uses only the Python standard
 library and is intentionally not part of the runtime dependency set.
@@ -28,7 +28,14 @@ VALIDATION_PLAN = ROOT / "01-engineering-source-documents/OT Project Validation 
 
 ACCEPTED_V1_1_CATALOGUE_SHA256 = "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865"
 ACCEPTED_V1_1_MANIFEST_SHA256 = "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3"
-ACCEPTED_VALIDATION_PLAN_SHA256 = "626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0"
+ACCEPTED_VALIDATION_PLAN_SHA256 = "0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f"
+SUPERSEDED_UNACCEPTED_V1_2 = {
+    "catalogue_version": "1.2",
+    "catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
+    "manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
+    "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+    "reason": "Replaced before acceptance by the DC-007 current-run provenance correction.",
+}
 FIXED_NOTICE = "Simulated operation only — no real equipment control"
 CONTROLLED_SURFACES = [
     ("Start / Run Setup", "Fixed notice; mode; test and Validation Catalogue identity; Network Configuration identity; Exploration fault selection where applicable; backend build identity; initial-condition preview; full run identity after creation."),
@@ -246,6 +253,25 @@ def make_method(test: dict[str, Any], parsed: dict[str, Any], case_id: str | Non
     return method
 
 
+def apply_dc007_version_increments(test: dict[str, Any]) -> None:
+    """Apply only the controlled DC-007 identity increments to VT-TOP-DEF-001."""
+
+    if test["test_id"] != "VT-TOP-DEF-001":
+        return
+    method = test["determination_method"]
+    if method is None:
+        raise ValueError("VT-TOP-DEF-001 must own its direct determination method")
+    test["version"] = next_version(test["version"])
+    method["version"] = next_version(method["version"])
+    for criterion in method["criteria"]:
+        if criterion["criterion_id"] in {"DEF-02", "DEF-03", "DEF-04"}:
+            criterion["version"] = next_version(criterion["version"])
+            criterion["criterion_sha256"] = definition_hash(
+                criterion, "criterion_sha256"
+            )
+    method["method_sha256"] = definition_hash(method, "method_sha256")
+
+
 def audit(catalogue: dict[str, Any]) -> None:
     methods: list[dict[str, Any]] = []
     rtm: set[tuple[str, str]] = set()
@@ -315,6 +341,7 @@ def main() -> None:
         test["version"] = next_version(test["version"])
         if test["test_id"] in direct:
             test["determination_method"] = make_method(test, direct[test["test_id"]], None)
+            apply_dc007_version_increments(test)
         else:
             test["determination_method"] = None
             for case in test["constituent_cases"]:
@@ -351,6 +378,13 @@ def main() -> None:
     }
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     revisions = json.loads(REVISIONS.read_text(encoding="utf-8"))
+    unaccepted = revisions.setdefault("superseded_unaccepted_candidates", [])
+    if not any(
+        item.get("catalogue_sha256") == SUPERSEDED_UNACCEPTED_V1_2["catalogue_sha256"]
+        and item.get("manifest_sha256") == SUPERSEDED_UNACCEPTED_V1_2["manifest_sha256"]
+        for item in unaccepted
+    ):
+        unaccepted.append(SUPERSEDED_UNACCEPTED_V1_2)
     if revisions.get("active_catalogue_version") == "1.2":
         revisions["revisions"] = [
             item for item in revisions["revisions"] if item["catalogue_version"] != "1.2"

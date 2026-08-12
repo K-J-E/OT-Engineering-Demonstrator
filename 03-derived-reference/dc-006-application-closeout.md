@@ -18,15 +18,16 @@ This branch changes validation assurance only. It does not alter topology, sourc
 
 ## 2. Validation Catalogue promotion and preservation
 
-- Active Validation Catalogue v1.2 catalogue SHA-256: `51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3`.
-- Active Validation Catalogue v1.2 manifest SHA-256: `a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754`.
+- Corrected active-candidate Validation Catalogue v1.2 catalogue SHA-256: `2ebe3400a480fcd31c9317551316d20df4b1d828eb325cf131c73ee13ec970a1`.
+- Corrected active-candidate Validation Catalogue v1.2 manifest SHA-256: `4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42`.
+- Superseded/rejected unaccepted v1.2 candidate catalogue/manifest SHA-256: `51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3` / `a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754`. These identities are retained as unaccepted candidate history, not as an accepted catalogue revision.
 - Preserved historical v1.1 catalogue SHA-256: `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865`.
 - Preserved historical v1.1 manifest SHA-256: `45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3`.
 - Preserved historical v1.0 catalogue/manifest SHA-256: `e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1` / `8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714`.
 
 The promoted package retains exactly 24 test IDs, 124 unique requirement IDs, 286 accepted test-to-requirement relationships and 15 operational-event IDs. It contains exactly 35 determination methods: 22 non-composite methods and 13 exact DC-004 constituent-case methods. It contains exactly 214 criteria: 147 direct-test criteria and 67 constituent-case criteria. The two composite parent tests own no direct DC-006 method, context, execution or direct result.
 
-Machine catalogue validation enforces the direct-test requirement unions, exact nine/four constituent sets, case-subset and static parent-union rules, globally unique criterion IDs, exact four-context and ten-operator registries, exact eight controlled surfaces, frozen 45-record ownership set, eight controlled fixtures and exact 15-event registry. The builder derives the promoted records from the accepted Validation Plan Section 21 while checking the accepted DOCX hash and preserving the v1.1 bytes before promotion.
+Machine catalogue validation enforces the direct-test requirement unions, exact nine/four constituent sets, case-subset and static parent-union rules, globally unique criterion IDs, exact four-context and ten-operator registries, exact eight controlled surfaces, frozen 45-record ownership set, eight controlled fixtures and exact 15-event registry. The builder derives the promoted records from accepted Validation Plan v1.4 Section 21 while checking exact DOCX SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f` and preserving the v1.1 bytes before promotion.
 
 ## 3. Applied machine contracts
 
@@ -85,7 +86,7 @@ These are implementation-conformance results only. They are not Validation Catal
 - Requirements Specification v0.4: `ff4d2507e86178214d73c7f2ef19b5aaa9b9821ca1d5e04d8eeeec1ac896e3d4`.
 - Engineering Design Brief v0.4: `c65b0db3cf157a1ab1dc64f29cc86c49eda9f909952180abc0bbc20c52e9bfeb`.
 - Network Model v0.4: `824a0a03d7bd2d58d7d1be1408bddce75b700aad7d5345bbf49b79e3d029b8c9`.
-- Validation Plan/System Architecture/Workflow Design/Demonstrator Design: `626514e3…98f8f0` / `76c768df…db47c` / `aa588610…a479` / `f907d039…ede2` — unchanged accepted DC-006 identities.
+- Validation Plan v1.4/System Architecture/Workflow Design/Demonstrator Design: `0cf0d383…e4f5f` / `76c768df…db47c` / `aa588610…a479` / `f907d039…ede2`; only the separately accepted DC-007 Validation Plan amendment supersedes the earlier v1.3 identity.
 - Network Configuration v1.0 manifest/network: `d0243fae…c12d` / `67cb237d…7ab3`.
 - Network Configuration v1.1 manifest/network: `e0f16f3a…7662` / `7d65b7fb…3281`.
 - Backend and frontend dependency locks: `0c68ce8f…1a64` / `b628f98c…3177`; package versions unchanged. `pyproject.toml` changes only by registering the `dc006` test marker.
@@ -93,6 +94,8 @@ These are implementation-conformance results only. They are not Validation Catal
 ## 7. Findings and review gate
 
 Final independent re-review closed QA-050 at reviewed tip `4ba232a14b4a5a6a8349fe5bc5eab1631ba5cb47`; QA-051 and QA-052 remain closed at `c7879bd59a745e1f361cdf756c9271b93c79b661`. The bounded QA-053–QA-055 conformance corrections are implemented on the same branch without changing accepted criterion meaning, catalogue bytes/hashes, engineering algorithms, authoritative documents, dependencies, DC-004/DC-005 semantics or I9 state. QA-053–QA-055 remain **corrected — pending final independent application re-review**, and the branch must not be described as accepted or merged until that review is complete.
+
+The later DC-007 machine-catalogue application corrects only the unaccepted v1.2 candidate definitions and identities described in Section 2. It does not include, resume or independently close the separately preserved local QA-053/QA-054/QA-055 WIP; QA-053 and I9 remain stopped pending their separate gates.
 
 The branch tip, clean application build ID and draft PR number are recorded in the publication handoff after the final commit/push. I9 remains stopped and requires separate re-authorisation only after any accepted DC-006 application is incorporated into reviewed main.
 
