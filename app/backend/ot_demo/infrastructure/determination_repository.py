@@ -41,7 +41,14 @@ class DeterminationRepository:
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
-    def insert_source(self, record: DeterminationSourceRecord) -> None:
+    def insert_produced_source(
+        self,
+        record: DeterminationSourceRecord,
+        *,
+        producer_kind: str,
+        origin_identity: str,
+        origin_identity_sha256: str,
+    ) -> None:
         try:
             with self._connect() as connection:
                 connection.execute(
@@ -55,8 +62,31 @@ class DeterminationRepository:
                         instant_to_epoch_ms(record.created_at), record.model_dump_json(),
                     ),
                 )
+                connection.execute(
+                    "INSERT INTO determination_source_origin_bindings "
+                    "(validation_attempt_id,source_role,source_record_id,producer_kind,"
+                    "origin_identity,origin_identity_sha256,created_at_ms) "
+                    "VALUES (?,?,?,?,?,?,?)",
+                    (
+                        str(record.validation_attempt_id), record.source_role,
+                        str(record.source_record_id), producer_kind, origin_identity,
+                        origin_identity_sha256, instant_to_epoch_ms(record.created_at),
+                    ),
+                )
         except sqlite3.IntegrityError as error:
-            raise ValidationRecordConflict("determination source identity conflicts") from error
+            raise ValidationRecordConflict(
+                "attempt/role already owns a backend-produced authority source"
+            ) from error
+
+    def source_ids_for_attempt(self, attempt_id: UUID) -> dict[str, UUID]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT source_role,source_record_id "
+                "FROM determination_source_origin_bindings "
+                "WHERE validation_attempt_id=? ORDER BY source_role",
+                (str(attempt_id),),
+            ).fetchall()
+        return {row["source_role"]: UUID(row["source_record_id"]) for row in rows}
 
     def get_source(self, record_id: UUID) -> DeterminationSourceRecord:
         with self._connect() as connection:

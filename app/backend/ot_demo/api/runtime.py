@@ -21,6 +21,10 @@ from ..infrastructure.determination_repository import DeterminationRepository
 from ..modules.validation.catalogue import ValidationCatalogueResolver
 from ..modules.validation.service import ValidationService
 from ..modules.validation.determination import DeterminationService
+from ..modules.validation.source_authority import (
+    RegisteredSourceAuthority,
+    SourceAuthorityDependencies,
+)
 from ..modules.evidence_export.service import EvidenceExportService
 from .main import create_app
 
@@ -62,6 +66,12 @@ def create_local_app(
     validation_repository = ValidationRepository(
         runtime_data / "validation.sqlite3", migrations
     )
+    investigation_repository = InvestigationRepository(
+        runtime_data / "validation.sqlite3", migrations
+    )
+    evidence_package_repository = EvidencePackageRepository(
+        runtime_data / "validation.sqlite3", migrations
+    )
     validation_service = ValidationService(
         validation_repository,
         catalogue,
@@ -77,19 +87,29 @@ def create_local_app(
         validation_repository,
         catalogue,
         application_build_manifest=build_manifest,
-        configuration_loader=configuration_loader,
+        source_authority=RegisteredSourceAuthority(SourceAuthorityDependencies(
+            repository_root=repository_root,
+            build=build_manifest,
+            configurations=configuration_loader,
+            catalogue=catalogue,
+            validation=validation_repository,
+            scenarios=coordinator,
+            investigation=investigation_repository,
+            packages=evidence_package_repository,
+            determination=determination_repository,
+        )),
     )
     investigation_service = InvestigationService(
-        InvestigationRepository(runtime_data / "validation.sqlite3", migrations),
+        investigation_repository,
         configuration_loader,
         coordinator,
         validation_service,
         application_build_manifest=build_manifest,
     )
     evidence_export_service = EvidenceExportService(
-        EvidencePackageRepository(runtime_data / "validation.sqlite3", migrations),
-        ValidationRepository(runtime_data / "validation.sqlite3", migrations),
-        InvestigationRepository(runtime_data / "validation.sqlite3", migrations),
+        evidence_package_repository,
+        validation_repository,
+        investigation_repository,
         coordinator,
         configuration_loader,
         catalogue,

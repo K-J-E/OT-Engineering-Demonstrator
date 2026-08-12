@@ -18,7 +18,7 @@ def test_initial_migration_applies_once_and_is_repeatable(tmp_path: Path) -> Non
     database_path = tmp_path / "i1.sqlite3"
     with sqlite3.connect(database_path) as connection:
         assert apply_migrations(connection, MIGRATIONS) == (
-            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13
         )
         assert apply_migrations(connection, MIGRATIONS) == ()
         tables = {

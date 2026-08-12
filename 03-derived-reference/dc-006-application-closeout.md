@@ -1,5 +1,5 @@
 ---
-Status: QA-050–QA-052 corrected — pending final independent re-review
+Status: QA-050 corrected — pending final independent re-review; QA-051/QA-052 independently closed
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-12
@@ -32,7 +32,7 @@ Machine catalogue validation enforces the direct-test requirement unions, exact 
 
 - Typed immutable contracts cover `DeterminationMethodDefinition`, `CriterionDefinition`, controlled fixtures and registries, registry-owned authoritative source snapshots, frozen role-labelled contexts, criterion findings, reviewer proposal/finalisation, completeness diagnostics and the existing `ExecutedValidationResult` extended with exact method/context/finding provenance.
 - Only `SCENARIO_EXECUTION`, `CONTROLLED_FIXTURE_EXECUTION`, `PRESERVED_RECORD_SET` and `ENGINEERING_REVIEW` are permitted. Every executed non-composite procedure now owns one real immutable `ValidationExecution`. Scenario contexts bind one run/execution; fixture, record-set and engineering-review executions retain no `ScenarioRun`, scenario mode or fictional scenario clock.
-- QA-050 replaces caller-shaped selector-value authority with eight registry-controlled adapter families. Source type and owner are fixed by the registry; each source freezes hash-verified controlling-module records, an exact context role, attempt, Validation Catalogue/test/case/method identity and eligible criteria. Context binding rejects cross-attempt, cross-build, cross-class, cross-configuration (scenario), cross-run/execution and cross-method substitution. Selector resolution is backend-owned and reads frozen record fields; `selector_values` payloads are explicitly rejected.
+- QA-050 replaces caller-shaped selector-value authority with eight registry-controlled producer/resolver families. Public preparation accepts only the controlled attempt and applicable run/execution identity; each registered producer reads the existing configuration, scenario/topology/outage, telemetry/restoration fixture, event/alarm, validation/investigation, deterministic-repeat, evidence-package or NFR/build authority and creates the immutable source snapshot itself. Source type/owner, authority-record identities/hashes, exact attempt/role membership and build/configuration/run/execution/evidence-class/catalogue/test/case/method provenance are verified. Context binding resolves the unique backend-produced role membership rather than caller-selected source IDs; synthetic selector maps and arbitrary observation payload capture are absent.
 - QA-051 executes the exact set of normalisation profiles present in Validation Catalogue v1.2 before the primitive operator. Unsupported profiles reject. Controlled numeric unit/precision, boolean/scalar, empty/set ordering, exact ordered sequence and canonical representations are covered; DET-03 excludes only definition-authorised generated identities and still detects changed engineering output.
 - Frozen source membership resolves backend-controlled build, evidence-class and applicable run/execution provenance before evaluation. Missing or ambiguous selector evidence produces `NOT_EVALUATED` and `INCOMPLETE`, with no result.
 - The generic primitive evaluator creates only criterion-level `SATISFIED` or `NOT_SATISFIED` findings. Complete any-mismatch deterministically produces immutable `FAIL`; complete all-satisfied produces immutable `PASS`. Neither public API nor review UI contracts accept an overall verdict or caller-supplied observed value.
@@ -54,21 +54,23 @@ Migration `011_dc006_determination.sql` adds:
 
 Migration `012_dc006_procedure_executions.sql` adds the immutable non-scenario `ValidationExecution` persistence required by QA-052, a dedicated determination-context execution link and database guards requiring every direct DC-006 result to bind a real execution. This internal persistence table does not add or rename an engineering/domain record type.
 
+Migration `013_dc006_source_origin.sql` adds immutable attempt/role-to-source origin bindings for QA-050. Its database constraints permit exactly one backend-produced source per required attempt role, preserve the producer family and resolved authority identity/hash, and prevent later update, deletion or favourable-source substitution.
+
 Database checks preserve the four context shapes and reject direct composite-parent contexts/results. Triggers reject source mutation, frozen-context/member substitution, late findings or review proposals after final result, and update/deletion of findings, reviewer records, executions or results. Scenario finalisation atomically binds the result to the existing execution/attempt/evidence history; non-scenario finalisation atomically binds the same attempt → execution → context → findings → result chain without a fictitious scenario record.
 
 ## 5. Verification result
 
-- Focused DC-006 catalogue/source-adapter/normalisation/determination tests: **25 passed**.
-- Complete backend regression: **167 passed**.
+- Focused DC-006 catalogue/source-origin/normalisation/determination tests: **24 passed**.
+- Complete backend regression: **166 passed**.
 - Frontend component tests: **18 passed**.
 - Chromium workflows: **3 passed** — formal N0–N5, investigation/correction and Exploration/export.
 - Pinned frontend production build: passed.
 - Exact method/criterion counts, direct/composite requirement unions, independent 676 criterion-to-requirement assignment fingerprint, exact case sets, context/operator registries, fixtures, surfaces, structural records and event registry: passed.
-- Real configuration package comparison and real scenario topology/outage extraction, telemetry/restoration fixture extraction, event/history, validation/investigation history, deterministic-repeat, evidence-package and NFR source-family checks: passed. The source tests no longer populate selector values from `criterion.expected_value`.
-- Source-owner/type registry, source-record hash, attempt/catalogue/test/case/method/criterion provenance, wrong-owner, synthetic-selector, cross-attempt and scenario run/execution/configuration negatives: passed.
+- Real configuration package/oracle comparison, real scenario topology/outage extraction, telemetry/restoration fixture execution, event/alarm history, validation/investigation history, deterministic-repeat, evidence-package/history and NFR build/surface/structural-record producers: passed with at least one source-derived satisfied and one genuine underlying-source mismatch across each of the eight families. The source tests neither construct desired `AuthoritativeRecordSnapshot` payloads nor populate selector values from `criterion.expected_value`.
+- Source-owner/type registry, source-record and origin hash, unique attempt/role membership, attempt/catalogue/test/case/method/criterion provenance, synthetic-selector prohibition, backend-only source-ID resolution and scenario run/execution/configuration negatives: passed.
 - Normalisation registry exactness, unsupported-profile rejection, numeric units/precision, set canonicalisation, ordered sequence distinction and DET-03 generated-ID/changed-output positives and negatives: passed.
 - Incomplete/no-result, mismatch/FAIL, all-satisfied/PASS, four real execution context lifecycles, zero-fictional-run fixture/review executions, reviewer actor separation, backend aggregate and database immutability: passed.
-- Historical v1.0 and v1.1 resolution after v1.2 promotion, final v1.1 review/export under a later generation build and unfinished-v1.1 read-only treatment: passed.
+- Historical v1.0 and v1.1 resolution after v1.2 promotion, final v1.1 review/export under a later generation build and unfinished-v1.1 read-only treatment: passed; the combined focused determination/historical/export assurance selection passed **59 tests**.
 - Determination-aware evidence ZIP source/generation identity separation: passed.
 - Existing DC-004, DC-005, FORMAL/EXPLORATORY, deterministic repeat, package-role and three browser workflows remain covered by the full regression.
 - No production test/case/section/configuration-version outcome lookup was introduced. The only explicit composite-parent IDs in migration checks enforce the accepted prohibition on direct parent contexts/results.
@@ -87,7 +89,7 @@ These are implementation-conformance results only. They are not Validation Catal
 
 ## 7. Findings and review gate
 
-Independent review raised QA-050, QA-051 and QA-052. All three bounded application-assurance findings are corrected on the existing branch without changing accepted criterion meaning, catalogue bytes/hashes, engineering algorithms, authoritative documents, dependencies, DC-004/DC-005 semantics or I9 state. They remain **pending final independent re-review** and must not be described as closed/accepted or merged until that review is complete.
+Independent re-review closed QA-051 and QA-052 at reviewed tip `c7879bd59a745e1f361cdf756c9271b93c79b661`. The final bounded QA-050 source-origin correction is implemented on the same branch without changing accepted criterion meaning, catalogue bytes/hashes, engineering algorithms, authoritative documents, dependencies, DC-004/DC-005 semantics or I9 state. QA-050 remains **corrected — pending final independent re-review** and the branch must not be described as accepted or merged until that review is complete.
 
 The branch tip, clean application build ID and draft PR number are recorded in the publication handoff after the final commit/push. I9 remains stopped and requires separate re-authorisation only after any accepted DC-006 application is incorporated into reviewed main.
 

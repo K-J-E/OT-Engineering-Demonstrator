@@ -1,40 +1,47 @@
-"""DC-006 determination authority, source-adapter and lifecycle assurance."""
+"""DC-006 source-origin, determination and lifecycle assurance."""
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import hashlib
+import json
 from pathlib import Path
+import shutil
 import sqlite3
 from uuid import UUID
 
 import pytest
 
+from ot_demo.application.investigation_service import InvestigationService
 from ot_demo.application.scenario_coordinator import ScenarioCoordinator
 from ot_demo.domain.enums import (
     CriterionFindingStatus,
-    DeterminationCompletenessStatus,
     DeterminationContextKind,
-    DeterminationSourceAdapterKind,
     EvidenceClass,
+    ScenarioCommandType,
     ScenarioMode,
-    SwitchState,
-    TelemetryQuality,
     ValidationVerdict,
 )
 from ot_demo.infrastructure.build_identity import ApplicationBuildManifest, BuildIdentityPayload
 from ot_demo.infrastructure.configuration_loader import JsonConfigurationLoader
 from ot_demo.infrastructure.determination_repository import DeterminationRepository
+from ot_demo.infrastructure.evidence_package_repository import EvidencePackageRepository
 from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes
+from ot_demo.infrastructure.investigation_repository import InvestigationRepository
 from ot_demo.infrastructure.scenario_repository import ScenarioRepository
 from ot_demo.infrastructure.validation_repository import ValidationRepository
-from ot_demo.modules.scenario.models import InitialiseRunRequest
-from ot_demo.modules.telemetry.models import TelemetryPoint
+from ot_demo.modules.evidence_export.models import EvidencePackage
+from ot_demo.modules.scenario.models import InitialiseRunRequest, ScenarioCommandRequest
 from ot_demo.modules.telemetry.service import TelemetryValidityService
+from ot_demo.modules.validation.actor_roles import (
+    CONTROLLED_LOCAL_ACTOR_ROLES,
+    controlled_actor_role,
+)
 from ot_demo.modules.validation.catalogue import ValidationCatalogueResolver
 from ot_demo.modules.validation.determination import DeterminationBoundaryError, DeterminationService
-from ot_demo.modules.validation.models import AuthoritativeRecordSnapshot
 from ot_demo.modules.validation.service import ValidationService
-from ot_demo.modules.validation.source_adapters import (
-    SourceAdapterError,
-    freeze_authoritative_record,
+from ot_demo.modules.validation.source_authority import (
+    RegisteredSourceAuthority,
+    SourceAuthorityDependencies,
 )
 
 
@@ -61,12 +68,31 @@ BUILD = ApplicationBuildManifest(
 )
 
 
-def services(tmp_path: Path):
-    database = tmp_path / "validation.sqlite3"
-    configurations = JsonConfigurationLoader(ROOT / "config/network")
+@dataclass
+class Harness:
+    scenarios: ScenarioCoordinator
+    catalogue: ValidationCatalogueResolver
+    validation: ValidationService
+    determination: DeterminationService
+    determinations: DeterminationRepository
+    validation_records: ValidationRepository
+    investigation: InvestigationService
+    investigation_records: InvestigationRepository
+    packages: EvidencePackageRepository
+
+
+def harness(
+    tmp_path: Path,
+    *,
+    configuration_root: Path | None = None,
+    repository_root: Path = ROOT,
+    telemetry: TelemetryValidityService | None = None,
+) -> Harness:
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    loader = JsonConfigurationLoader(configuration_root or ROOT / "config/network")
     scenarios = ScenarioCoordinator(
         ScenarioRepository(tmp_path / "scenario.sqlite3", MIGRATIONS),
-        configurations,
+        loader,
         application_build_manifest=BUILD,
     )
     catalogue = ValidationCatalogueResolver(
@@ -76,563 +102,384 @@ def services(tmp_path: Path):
             CATALOGUE.parent / "history/v1.1/catalogue.json",
         ),
     )
-    validation_repository = ValidationRepository(database, MIGRATIONS)
+    validation_records = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
     validation = ValidationService(
-        validation_repository,
+        validation_records,
         catalogue,
         scenarios,
-        configurations,
+        loader,
         application_build_manifest=BUILD,
     )
-    determination_repository = DeterminationRepository(database, MIGRATIONS)
+    determinations = DeterminationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    investigation_records = InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    packages = EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    authority = RegisteredSourceAuthority(SourceAuthorityDependencies(
+        repository_root=repository_root,
+        build=BUILD,
+        configurations=loader,
+        catalogue=catalogue,
+        validation=validation_records,
+        scenarios=scenarios,
+        investigation=investigation_records,
+        packages=packages,
+        determination=determinations,
+        telemetry=telemetry or TelemetryValidityService(),
+    ))
     determination = DeterminationService(
-        determination_repository,
-        validation_repository,
+        determinations,
+        validation_records,
         catalogue,
         application_build_manifest=BUILD,
-        configuration_loader=configurations,
+        source_authority=authority,
     )
-    return scenarios, catalogue, validation, determination, determination_repository
-
-
-def record(
-    record_type: str,
-    payload,
-    *,
-    family: DeterminationSourceAdapterKind,
-    evidence_class: EvidenceClass = EvidenceClass.FORMAL,
-    configuration_id: str | None = "network-configuration-v1.1",
-    configuration_version: str | None = "1.1",
-    scenario_run_id=None,
-    validation_execution_id=None,
-) -> AuthoritativeRecordSnapshot:
-    owners = {
-        DeterminationSourceAdapterKind.CONFIGURATION_PACKAGE: "configuration-package-authority",
-        DeterminationSourceAdapterKind.SCENARIO_STATE: "scenario-topology-outage-authority",
-        DeterminationSourceAdapterKind.CONTROLLED_FIXTURE: "controlled-fixture-execution-authority",
-        DeterminationSourceAdapterKind.OPERATIONAL_EVENT_HISTORY: "operational-event-history-authority",
-        DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY: "validation-investigation-history-authority",
-        DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT: "deterministic-repeat-authority",
-        DeterminationSourceAdapterKind.EVIDENCE_PACKAGE: "evidence-package-authority",
-        DeterminationSourceAdapterKind.NFR_REVIEW: "engineering-review-assurance-authority",
-    }
-    return freeze_authoritative_record(
-        record_type=record_type,
-        record_id=f"{record_type}:controlled-test-record",
-        owner_module=owners[family],
-        payload=payload,
-        application_build_id=BUILD.application_build_id,
-        evidence_class=evidence_class,
-        configuration_id=configuration_id,
-        configuration_version=configuration_version,
-        scenario_run_id=scenario_run_id,
-        validation_execution_id=validation_execution_id,
+    investigation = InvestigationService(
+        investigation_records,
+        loader,
+        scenarios,
+        validation,
+        application_build_manifest=BUILD,
+    )
+    return Harness(
+        scenarios, catalogue, validation, determination, determinations,
+        validation_records, investigation, investigation_records, packages,
     )
 
 
-def bind(
-    determination: DeterminationService,
-    attempt_id,
-    sources,
-    *,
-    scenario_run_id=None,
-    validation_execution_id=None,
-):
-    return determination.bind_context(
-        validation_attempt_id=attempt_id,
-        role_source_record_ids={role: item.source_record_id for role, item in sources.items()},
-        frozen_at=T0 + timedelta(seconds=1),
-        scenario_run_id=scenario_run_id,
-        validation_execution_id=validation_execution_id,
-    )
-
-
-@pytest.mark.dc006
-def test_real_configuration_adapter_passes_and_owns_no_run_execution(tmp_path: Path) -> None:
-    _, catalogue, validation, determination, repository = services(tmp_path)
-    _, attempt = validation.create_target_selection("VT-CFG-BASE-001", created_at=T0)
-    sources = determination.capture_configuration_package_sources(
-        attempt.validation_attempt_id, created_at=T0
-    )
-    context = bind(determination, attempt.validation_attempt_id, sources)
-    findings = determination.evaluate_machine_criteria(
-        context.determination_context_id, evaluated_at=T0 + timedelta(seconds=2)
-    )
-    assert len(findings) == len(catalogue.get_method("VT-CFG-BASE-001").criteria) == 5
-    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
-    result = determination.finalise_result(
-        context.determination_context_id, finalised_at=T0 + timedelta(seconds=3)
-    )
-    assert result.verdict is ValidationVerdict.PASS
-    assert result.validation_execution_id is not None
-    execution = validation._repository.get_execution(result.validation_execution_id)
-    assert execution.context_kind is DeterminationContextKind.PRESERVED_RECORD_SET
-    assert execution.scenario_run_id is None and execution.scenario_mode is None
-    assert execution.started_scenario_time is None and execution.started_at is not None
-    assert execution.evidence_snapshot_ids == ()
-    assert repository.get_result(result.executed_result_id) == result
-
-
-@pytest.mark.dc006
-def test_configuration_adapter_actual_difference_change_derives_fail(tmp_path: Path) -> None:
-    _, _, validation, determination, _ = services(tmp_path)
-    _, attempt = validation.create_target_selection("VT-CFG-BASE-001", created_at=T0)
-    sources = determination.capture_configuration_package_sources(
-        attempt.validation_attempt_id, created_at=T0
-    )
-    original = sources["EXACT_PACKAGE_COMPARISON"]
-    authority = determination._repository.get_source(original.source_record_id)
-    from ot_demo.modules.validation.source_adapters import AuthoritativeSourceAdapterRegistry
-
-    records = list(AuthoritativeSourceAdapterRegistry.records(authority))
-    comparison = next(item for item in records if item.record_type == "ConfigurationComparisonResult")
-    changed = record(
-        "ConfigurationComparisonResult",
-        {
-            "differences": comparison.canonical_payload["differences"],
-            "uncontrolled_differences": [
-                {"path": "feeders.FDR-B.capacity_kw", "before": 6000, "after": 5999}
-            ],
-        },
-        family=DeterminationSourceAdapterKind.CONFIGURATION_PACKAGE,
-        configuration_id=None,
-        configuration_version=None,
-    )
-    aggregate = next(item for item in records if item.record_type == "ConfigurationPackageAdapter")
-    sources["EXACT_PACKAGE_COMPARISON"] = determination.capture_authoritative_source(
+def prepare_record_context(h: Harness, test_id: str, *, at: datetime = T0):
+    _, attempt = h.validation.create_target_selection(test_id, created_at=at)
+    return h.determination.prepare_context(
         validation_attempt_id=attempt.validation_attempt_id,
-        source_type=DeterminationSourceAdapterKind.CONFIGURATION_PACKAGE,
-        source_role="EXACT_PACKAGE_COMPARISON",
-        evidence_class=EvidenceClass.FORMAL,
-        authority_records=(aggregate, changed),
-        created_at=T0,
-        evidence_references=("controlled:changed-package-comparison",),
+        frozen_at=at + timedelta(milliseconds=1),
     )
-    context = bind(determination, attempt.validation_attempt_id, sources)
-    findings = determination.evaluate_machine_criteria(
-        context.determination_context_id, evaluated_at=T0 + timedelta(seconds=2)
+
+
+def evaluate(h: Harness, context, *, at: datetime = T0):
+    return h.determination.evaluate_machine_criteria(
+        context.determination_context_id,
+        evaluated_at=at + timedelta(milliseconds=2),
     )
-    assert next(item for item in findings if item.criterion_id == "CFG-05").status is (
-        CriterionFindingStatus.NOT_SATISFIED
+
+
+def finding(findings, criterion_id: str):
+    return next(item for item in findings if item.criterion_id == criterion_id)
+
+
+def run_configuration_determination(h: Harness, *, at: datetime):
+    context = prepare_record_context(h, "VT-CFG-BASE-001", at=at)
+    findings = evaluate(h, context, at=at)
+    result = h.determination.finalise_result(
+        context.determination_context_id,
+        finalised_at=at + timedelta(milliseconds=3),
     )
-    assert determination.finalise_result(
-        context.determination_context_id, finalised_at=T0 + timedelta(seconds=3)
-    ).verdict is ValidationVerdict.FAIL
+    return context, findings, result
+
+
+def initialise(h: Harness, *, command_id: int, at: datetime = T0):
+    return h.scenarios.initialise(InitialiseRunRequest(
+        command_id=UUID(int=command_id),
+        actor="Graduate Engineer",
+        mode=ScenarioMode.FORMAL,
+        configuration_version="1.1",
+        scenario_time=at,
+    ))
+
+
+def start_scenario_context(h: Harness, test_id: str, *, command_id: int, trip: bool):
+    initial = initialise(h, command_id=command_id)
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = h.validation.start_execution(test_id, run_id)
+    if trip:
+        h.scenarios.execute(run_id, ScenarioCommandRequest(
+            command_id=UUID(int=command_id + 100),
+            scenario_run_id=run_id,
+            actor="Graduate Engineer",
+            expected_revision=0,
+            command_type=ScenarioCommandType.INITIATE_FAULT,
+            scenario_time=T0 + timedelta(seconds=10),
+        ))
+    h.validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
+    context = h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=11),
+    )
+    return context
+
+
+def altered_configuration_root(tmp_path: Path) -> Path:
+    destination = tmp_path / "config/network"
+    shutil.copytree(ROOT / "config/network", destination)
+    network_path = destination / "v1.1/network.json"
+    network = json.loads(network_path.read_text(encoding="utf-8"))
+    network["feeders"][0]["normal_connected_load_kw"] += 1
+    network_path.write_text(json.dumps(network, indent=2) + "\n", encoding="utf-8")
+    manifest_path = destination / "v1.1/manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["data_file"]["sha256"] = hashlib.sha256(network_path.read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    return destination
+
+
+def nfr_repository(tmp_path: Path, *, complete: bool) -> Path:
+    root = tmp_path / "review-root"
+    (root / "validation/test-definitions").mkdir(parents=True)
+    shutil.copy2(CATALOGUE, root / "validation/test-definitions/catalogue.json")
+    (root / "app/backend/ot_demo/api").mkdir(parents=True)
+    (root / "app/backend/ot_demo/api/runtime.py").write_text(
+        "LOCAL_RUNTIME = True\n", encoding="utf-8"
+    )
+    (root / "app/frontend").mkdir(parents=True)
+    (root / "app/frontend/playwright.config.ts").write_text(
+        "const baseURL = 'http://127.0.0.1:8000'\n", encoding="utf-8"
+    )
+    (root / "app/frontend/src").mkdir(parents=True)
+    probes = (
+        "RunSetup workspace-main TelemetryView RestorationView ValidationView "
+        "EvidenceLibrary InvestigationWorkspace Engineering Basis"
+    )
+    notice = "Simulated operation only — no real equipment control."
+    (root / "app/frontend/src/review.tsx").write_text(
+        probes + "\n" + "\n".join([notice] * (8 if complete else 7)),
+        encoding="utf-8",
+    )
+    return root
 
 
 @pytest.mark.dc006
-def test_fixture_execution_uses_real_telemetry_classification_and_no_run(tmp_path: Path) -> None:
-    _, _, validation, determination, _ = services(tmp_path)
-    _, attempt = validation.create_target_selection("VT-TEL-STALE-001", created_at=T0)
-    point = TelemetryPoint(
-        point_id="TEL-BRK-B-STATE",
-        entity_id="BRK-B",
-        value=SwitchState.CLOSED,
-        quality=TelemetryQuality.GOOD,
-        last_update_scenario_time=T0,
-        revision=1,
-    )
-    validity = TelemetryValidityService().classify(
-        point, T0 + timedelta(milliseconds=60_001)
-    )
-    telemetry_payload = validity.model_dump(mode="json") | {
-        "valid": validity.overall_valid,
-        "__field_set_projections__": {
-            "quality,freshness": "Quality remains GOOD while freshness is STALE; the two dimensions are not collapsed.",
-            "valid,reason_codes": "Overall validity is false and includes the controlled stale/freshness reason.",
-        },
-    }
-    source = determination.capture_authoritative_source(
-        validation_attempt_id=attempt.validation_attempt_id,
-        source_type=DeterminationSourceAdapterKind.CONTROLLED_FIXTURE,
-        source_role="STALE_60001_MS",
-        evidence_class=EvidenceClass.FORMAL,
-        authority_records=(
-            record("TelemetryValidityResult", telemetry_payload, family=DeterminationSourceAdapterKind.CONTROLLED_FIXTURE),
-            record(
-                "RestorationAssessment",
-                {
-                    "outcome": "BLOCKED",
-                    "reasons": ["TELEMETRY_STALE"],
-                    "__field_set_projections__": {
-                        "outcome,reasons": "Restoration assessment outcome is operational BLOCKED, not REJECTED; the validation criterion is satisfied because BLOCKED is expected."
-                    },
-                },
-                family=DeterminationSourceAdapterKind.CONTROLLED_FIXTURE,
-            ),
-            record(
-                "ActionProjection",
-                {"execute_restoration": {"available": False}},
-                family=DeterminationSourceAdapterKind.CONTROLLED_FIXTURE,
-            ),
-        ),
-        created_at=T0,
-        evidence_references=("fixture:FIX-TEL-STALE-001",),
-    )
-    context = bind(determination, attempt.validation_attempt_id, {"STALE_60001_MS": source})
-    findings = determination.evaluate_machine_criteria(
-        context.determination_context_id, evaluated_at=T0 + timedelta(seconds=2)
-    )
-    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
-    result = determination.finalise_result(
-        context.determination_context_id, finalised_at=T0 + timedelta(seconds=3)
-    )
-    execution = validation._repository.get_execution(result.validation_execution_id)
+def test_configuration_producer_derives_pass_from_real_packages_and_mismatch_from_altered_package(tmp_path: Path) -> None:
+    valid = harness(tmp_path / "valid")
+    context = prepare_record_context(valid, "VT-CFG-BASE-001")
+    valid_findings = evaluate(valid, context)
+    assert {item.status for item in valid_findings} == {CriterionFindingStatus.SATISFIED}
+
+    changed_root = altered_configuration_root(tmp_path / "altered")
+    changed = harness(tmp_path / "changed-db", configuration_root=changed_root)
+    changed_context = prepare_record_context(changed, "VT-CFG-BASE-001")
+    changed_findings = evaluate(changed, changed_context)
+    assert finding(changed_findings, "CFG-01").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(changed_findings, "CFG-03").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(changed_findings, "CFG-05").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+def test_scenario_producer_reads_actual_topology_outage_and_detects_post_trip_mismatch(tmp_path: Path) -> None:
+    normal = harness(tmp_path / "normal")
+    normal_context = start_scenario_context(normal, "VT-TOP-NORMAL-001", command_id=1, trip=False)
+    normal_findings = evaluate(normal, normal_context)
+    assert {item.status for item in normal_findings} == {CriterionFindingStatus.SATISFIED}
+
+    post_trip = harness(tmp_path / "post-trip")
+    post_trip_context = start_scenario_context(post_trip, "VT-TOP-NORMAL-001", command_id=2, trip=True)
+    post_trip_findings = evaluate(post_trip, post_trip_context)
+    assert finding(post_trip_findings, "TOP-N0-02").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(post_trip_findings, "TOP-N0-06").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+class NonconformingTelemetryAuthority(TelemetryValidityService):
+    def classify(self, point, scenario_time):
+        return super().classify(point, scenario_time - timedelta(milliseconds=1))
+
+
+@pytest.mark.dc006
+def test_fixture_producer_executes_real_telemetry_authority_and_detects_changed_service_output(tmp_path: Path) -> None:
+    valid = harness(tmp_path / "valid")
+    context = prepare_record_context(valid, "VT-TEL-STALE-001")
+    valid_findings = evaluate(valid, context)
+    assert {item.status for item in valid_findings} == {CriterionFindingStatus.SATISFIED}
+    result = valid.determination.finalise_result(context.determination_context_id, finalised_at=T0 + timedelta(seconds=1))
+    execution = valid.validation_records.get_execution(result.validation_execution_id)
     assert execution.context_kind is DeterminationContextKind.CONTROLLED_FIXTURE_EXECUTION
     assert execution.scenario_run_id is None
 
+    changed = harness(tmp_path / "changed", telemetry=NonconformingTelemetryAuthority())
+    changed_context = prepare_record_context(changed, "VT-TEL-STALE-001")
+    changed_findings = evaluate(changed, changed_context)
+    assert finding(changed_findings, "TEL-ST-01").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(changed_findings, "TEL-ST-02").status is CriterionFindingStatus.NOT_SATISFIED
+
 
 @pytest.mark.dc006
-def test_scenario_adapter_reads_real_topology_outage_and_execution_provenance(tmp_path: Path) -> None:
-    scenarios, _, validation, determination, _ = services(tmp_path)
-    initial = scenarios.initialise(
-        InitialiseRunRequest(
-            command_id=UUID(int=1), actor="Graduate Engineer", mode=ScenarioMode.FORMAL,
-            configuration_version="1.1", scenario_time=T0,
-        )
+def test_event_producer_reads_actual_registry_history_for_pass_and_missing_switching_mismatch(tmp_path: Path) -> None:
+    h = harness(tmp_path)
+    context = start_scenario_context(h, "VT-ALM-EVT-001", command_id=3, trip=True)
+    findings = evaluate(h, context)
+    assert finding(findings, "EVT-04").status is CriterionFindingStatus.SATISFIED
+    assert finding(findings, "EVT-06").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+def test_investigation_producer_reads_real_failure_history_and_detects_wrong_failure_source(tmp_path: Path) -> None:
+    valid = harness(tmp_path / "valid")
+    valid.investigation.start_failure("Graduate Engineer")
+    context = prepare_record_context(valid, "VT-CFG-INV-001", at=T0 + timedelta(hours=1))
+    findings = evaluate(valid, context, at=T0 + timedelta(hours=1))
+    assert finding(findings, "INV-01").status is CriterionFindingStatus.SATISFIED
+
+    changed_root = altered_configuration_root(tmp_path / "altered")
+    changed = harness(tmp_path / "changed-db", configuration_root=changed_root)
+    _, _, failed = run_configuration_determination(changed, at=T0)
+    assert failed.verdict is ValidationVerdict.FAIL
+    changed_context = prepare_record_context(changed, "VT-CFG-INV-001", at=T0 + timedelta(hours=1))
+    changed_findings = evaluate(changed, changed_context, at=T0 + timedelta(hours=1))
+    assert finding(changed_findings, "INV-01").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+def test_repeat_producer_reads_finalised_execution_findings_and_detects_engineering_change(tmp_path: Path) -> None:
+    valid = harness(tmp_path / "valid")
+    run_configuration_determination(valid, at=T0)
+    run_configuration_determination(valid, at=T0 + timedelta(seconds=1))
+    context = prepare_record_context(valid, "VT-DET-REPEAT-001", at=T0 + timedelta(seconds=2))
+    findings = evaluate(valid, context, at=T0 + timedelta(seconds=2))
+    assert finding(findings, "DET-03").status is CriterionFindingStatus.SATISFIED
+
+    config_root = tmp_path / "mutable/config/network"
+    shutil.copytree(ROOT / "config/network", config_root)
+    changed = harness(tmp_path / "changed-db", configuration_root=config_root)
+    run_configuration_determination(changed, at=T0)
+    altered_configuration_root(tmp_path / "replacement")
+    replacement = tmp_path / "replacement/config/network"
+    shutil.copy2(replacement / "v1.1/network.json", config_root / "v1.1/network.json")
+    shutil.copy2(replacement / "v1.1/manifest.json", config_root / "v1.1/manifest.json")
+    run_configuration_determination(changed, at=T0 + timedelta(seconds=1))
+    changed_context = prepare_record_context(changed, "VT-DET-REPEAT-001", at=T0 + timedelta(seconds=2))
+    changed_findings = evaluate(changed, changed_context, at=T0 + timedelta(seconds=2))
+    assert finding(changed_findings, "DET-03").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+def insert_package(h: Harness, archive: Path, *, command_id: int, package_id: str) -> None:
+    initial = initialise(h, command_id=command_id)
+    execution = h.validation.start_execution(
+        "VT-FML-N0-N5-001", initial.snapshot.run.scenario_run_id
     )
-    snapshot = initial.snapshot
-    execution = validation.start_execution(
-        "VT-TOP-NORMAL-001", snapshot.run.scenario_run_id
-    )
-    evidence = validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
-    energised = sorted(item.section_id for item in snapshot.topology.sections if item.energised)
-    de_energised = sorted(item.section_id for item in snapshot.topology.sections if not item.energised)
-    loads = {
-        item.feeder_id: item.currently_supplied_load_kw
-        for item in snapshot.topology.feeder_loads
-    }
-    assert energised == ["SEC-A1", "SEC-A2", "SEC-A3", "SEC-A4", "SEC-B1", "SEC-B2", "SEC-B3", "SEC-B4"]
-    assert de_energised == [] and loads == {"FDR-A": 3200, "FDR-B": 4200}
-    common = dict(
-        family=DeterminationSourceAdapterKind.SCENARIO_STATE,
-        configuration_id=snapshot.run.configuration_id,
-        configuration_version=str(snapshot.run.configuration_version),
-        scenario_run_id=snapshot.run.scenario_run_id,
+    h.packages.insert(EvidencePackage(
+        package_id=package_id,
         validation_execution_id=execution.validation_execution_id,
-    )
-    run_source = determination.capture_authoritative_source(
-        validation_attempt_id=execution.validation_attempt_id,
-        source_type=DeterminationSourceAdapterKind.SCENARIO_STATE,
-        source_role="CORRECTED_NORMAL_RUN",
+        test_id="VT-FML-N0-N5-001",
+        test_definition_version="1.0",
+        test_definition_sha256="a" * 64,
+        source_catalogue_version="1.1",
+        source_catalogue_sha256="b" * 64,
         evidence_class=EvidenceClass.FORMAL,
-        authority_records=(record(
-            "ScenarioSnapshot",
-            {
-                "configuration_identity": snapshot.run.configuration_id,
-                "device_states": {item.entity_id: item.value.value for item in snapshot.telemetry},
-                "source_availability": {key: value.value for key, value in snapshot.run.source_availability.items()},
-                "__field_set_projections__": {
-                    "configuration_identity,device_states,source_availability": "Corrected Network Configuration v1.1 is bound; BRK-A/BRK-B and all sectionalisers are CLOSED, TS-01 is OPEN, and both feeder sources are AVAILABLE."
-                },
-            },
-            **common,
-        ),),
-        created_at=T0,
-        evidence_references=(f"evidence-snapshot:{evidence.evidence_snapshot_id}",),
-    )
-    checkpoint_source = determination.capture_authoritative_source(
-        validation_attempt_id=execution.validation_attempt_id,
-        source_type=DeterminationSourceAdapterKind.SCENARIO_STATE,
-        source_role="N0_CHECKPOINT",
-        evidence_class=EvidenceClass.FORMAL,
-        authority_records=(
-            record(
-                "TopologyResult",
-                {
-                    "energised_section_ids": energised,
-                    "de_energised_section_ids": de_energised,
-                    "section_source_feeder_ids": {
-                        "__controlled_projection__": "A1–A4 trace only to FDR-A and B1–B4 trace only to FDR-B."
-                    },
-                    "feeder_loads": loads,
-                    "radiality_status": snapshot.topology.radiality_status.value,
-                    "__field_set_projections__": {
-                        "energised_section_ids,de_energised_section_ids": "The energised section set is exactly SEC-A1–SEC-A4 and SEC-B1–SEC-B4; the de-energised set is empty."
-                    },
-                },
-                **common,
-            ),
-            record(
-                "OutageResult",
-                {
-                    "de_energised_section_ids": list(snapshot.outage.de_energised_section_ids),
-                    "affected_customer_count": snapshot.outage.affected_customer_count,
-                    "__field_set_projections__": {
-                        "de_energised_section_ids,affected_customer_count": "Outage extent is empty and affected-customer count is zero."
-                    },
-                },
-                **common,
-            ),
-        ),
-        created_at=T0,
-        evidence_references=(f"evidence-snapshot:{evidence.evidence_snapshot_id}",),
-    )
-    context = bind(
-        determination,
-        execution.validation_attempt_id,
-        {"CORRECTED_NORMAL_RUN": run_source, "N0_CHECKPOINT": checkpoint_source},
-        scenario_run_id=snapshot.run.scenario_run_id,
-        validation_execution_id=execution.validation_execution_id,
-    )
-    findings = determination.evaluate_machine_criteria(context.determination_context_id, evaluated_at=T0)
-    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
-    result = determination.finalise_result(context.determination_context_id, finalised_at=T0)
-    assert result.validation_execution_id == execution.validation_execution_id
-    assert result.evidence_snapshot_ids == (evidence.evidence_snapshot_id,)
+        scenario_run_id=initial.snapshot.run.scenario_run_id,
+        configuration_id="network-configuration-v1.1",
+        configuration_version="1.1",
+        application_build_id=BUILD.application_build_id,
+        generation_application_build_id=BUILD.application_build_id,
+        evidence_snapshot_ids=(UUID(int=302),),
+        manifest_sha256="c" * 64,
+        archive_sha256="d" * 64,
+        archive_path=str(archive),
+        verification_status="VERIFIED",
+        source_record_references=("records/validation-execution.json",),
+    ))
 
 
 @pytest.mark.dc006
-def test_adapter_registry_rejects_arbitrary_owner_and_synthetic_selector_values(tmp_path: Path) -> None:
-    _, _, validation, determination, _ = services(tmp_path)
-    _, attempt = validation.create_target_selection("VT-DET-REPEAT-001", created_at=T0)
-    valid = record(
-        "DeterministicRepeatAdapter",
-        {"members": []},
-        family=DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
-    )
-    wrong_owner = valid.model_copy(update={"owner_module": "caller-selected-owner"})
-    with pytest.raises(SourceAdapterError, match="owner"):
-        determination.capture_authoritative_source(
-            validation_attempt_id=attempt.validation_attempt_id,
-            source_type=DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
-            source_role="COMPARISON_PROFILE",
-            evidence_class=EvidenceClass.FORMAL,
-            authority_records=(wrong_owner,),
-            created_at=T0,
-        )
-    payload = {
-        "source_type": "DETERMINISTIC_REPEAT",
-        "owner_module": "deterministic-repeat-authority",
-        "source_role": "COMPARISON_PROFILE",
-        "selector_values": {"DeterministicRepeatAdapter.members": "caller answer"},
-    }
-    with pytest.raises(ValueError, match="synthetic selector-value"):
-        from ot_demo.modules.validation.models import DeterminationSourceRecord
+def test_evidence_package_producer_reads_repository_and_detects_missing_archive(tmp_path: Path) -> None:
+    valid = harness(tmp_path / "valid")
+    archive = tmp_path / "valid/package.zip"
+    archive.write_bytes(b"controlled package")
+    insert_package(valid, archive, command_id=301, package_id="PKG-000000000001")
+    context = prepare_record_context(valid, "VT-PKG-EVIDENCE-001")
+    findings = evaluate(valid, context)
+    assert finding(findings, "PKG-04").status is CriterionFindingStatus.SATISFIED
 
-        DeterminationSourceRecord(
-            source_record_id=UUID(int=99),
-            source_type=DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
-            owner_module="deterministic-repeat-authority",
-            source_role="COMPARISON_PROFILE",
-            validation_attempt_id=attempt.validation_attempt_id,
-            test_id="VT-DET-REPEAT-001",
-            catalogue_version="1.2",
-            catalogue_sha256="6" * 64,
-            method_id="DM-DET-REPEAT-001",
-            method_version="1.0",
-            method_sha256="7" * 64,
-            eligible_criterion_ids=("DET-01",),
-            application_build_id=BUILD.application_build_id,
-            evidence_class=EvidenceClass.FORMAL,
-            canonical_payload=payload,
-            canonical_payload_sha256=sha256_bytes(canonical_json_bytes(payload)),
-            created_at=T0,
-        )
+    missing = harness(tmp_path / "missing")
+    insert_package(missing, tmp_path / "missing/not-created.zip", command_id=401, package_id="PKG-000000000002")
+    missing_context = prepare_record_context(missing, "VT-PKG-EVIDENCE-001")
+    missing_findings = evaluate(missing, missing_context)
+    assert finding(missing_findings, "PKG-04").status is CriterionFindingStatus.NOT_SATISFIED
 
 
 @pytest.mark.dc006
-def test_engineering_review_owns_real_no_run_execution_and_backend_verdict(tmp_path: Path) -> None:
-    _, catalogue, validation, determination, _ = services(tmp_path)
-    _, attempt = validation.create_target_selection("VT-NFR-REVIEW-001", created_at=T0)
-    family = DeterminationSourceAdapterKind.NFR_REVIEW
-    role_payloads = {
-        "REVIEWED_APPLICATION_BUILD": (
-            record(
-                "BuildRuntimeAdapter",
-                {
-                    "network_binding": "Runtime binds only to loopback and no external operational service endpoint is configured."
-                },
-                family=family,
-            ),
-        ),
-        "CONTROLLED_SURFACE_SET": (
-            record(
-                "ReviewSurfaceAdapter",
-                {
-                    "identity_links": "Controlled build, Network Configuration, Validation Catalogue and test identity fields are present and resolve to bound records.",
-                    "controlled_surface_ids": "The controlled surface registry equals exactly the eight Demonstrator Design views: Start / Run Setup; Operational Workspace; Telemetry & Events; Restoration Assessment; Formal Validation; Evidence Library; Defect Investigation; Engineering Basis.",
-                    "notice_and_identity_profile_by_surface": "Every exact controlled surface contains the fixed visible notice 'Simulated operation only — no real equipment control' and the exact surface-specific identity profile frozen by DC-006.",
-                },
-                family=family,
-            ),
-        ),
-        "STRUCTURAL_RECORD_SET": (
-            record(
-                "SchemaAndProjectionAdapter",
-                {
-                    "structural_record_members_and_owners": "The structural record registry equals the exact frozen DC-006 Structural Record Set and each member remains assigned to its controlled information class/owner.",
-                    "structural_record_membership_anomalies": [],
-                },
-                family=family,
-            ),
-            record(
-                "ConfigurationPackageAdapter",
-                {
-                    "entity_schema_assignments": "Both feeder structures use the common entity schemas and information sets."
-                },
-                family=family,
-            ),
-        ),
-        "REVIEW_PROPOSAL": (
-            record("EngineeringReviewRecord", {"stage": "PROPOSAL"}, family=family),
-        ),
-        "FINAL_REVIEW_FINDINGS": (
-            record("EngineeringReviewRecord", {"stage": "FINAL_REVIEW"}, family=family),
-        ),
-    }
-    sources = {
-        role: determination.capture_authoritative_source(
-            validation_attempt_id=attempt.validation_attempt_id,
-            source_type=family,
-            source_role=role,
-            evidence_class=EvidenceClass.FORMAL,
-            authority_records=records,
-            created_at=T0,
-            evidence_references=(f"controlled-review-role:{role}",),
-        )
-        for role, records in role_payloads.items()
-    }
-    context = bind(determination, attempt.validation_attempt_id, sources)
-    assert context.context_kind is DeterminationContextKind.ENGINEERING_REVIEW
-    assert context.scenario_run_id is None and context.validation_execution_id is not None
-    machine = determination.evaluate_machine_criteria(
-        context.determination_context_id, evaluated_at=T0 + timedelta(seconds=2)
-    )
+def test_nfr_producer_reads_build_surface_and_structural_sources_for_pass_and_notice_mismatch(tmp_path: Path) -> None:
+    complete_root = nfr_repository(tmp_path / "complete", complete=True)
+    valid = harness(tmp_path / "valid-db", repository_root=complete_root)
+    context = prepare_record_context(valid, "VT-NFR-REVIEW-001")
+    findings = evaluate(valid, context)
+    machine = [item for item in findings if item.criterion_id.startswith("NFR-M")]
     assert {item.status for item in machine} == {CriterionFindingStatus.SATISFIED}
-    method = catalogue.get_method("VT-NFR-REVIEW-001")
-    for index, criterion in enumerate(
-        item for item in method.criteria if item.kind.value == "ENGINEERING_REVIEW"
-    ):
-        proposal = determination.propose_review_finding(
+
+    incomplete_root = nfr_repository(tmp_path / "incomplete", complete=False)
+    changed = harness(tmp_path / "changed-db", repository_root=incomplete_root)
+    changed_context = prepare_record_context(changed, "VT-NFR-REVIEW-001")
+    changed_findings = evaluate(changed, changed_context)
+    assert finding(changed_findings, "NFR-M06").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+def test_backend_produces_unique_attempt_role_membership_and_caller_cannot_select_source_ids(tmp_path: Path) -> None:
+    h = harness(tmp_path)
+    _, attempt = h.validation.create_target_selection("VT-CFG-BASE-001", created_at=T0)
+    h.determination.prepare_context(
+        validation_attempt_id=attempt.validation_attempt_id,
+        frozen_at=T0 + timedelta(milliseconds=1),
+    )
+    assert not hasattr(h.determination, "capture_authoritative_source")
+    assert not hasattr(h.determination, "capture_configuration_package_sources")
+    with pytest.raises(Exception, match="attempt/role already owns"):
+        h.determination.prepare_context(
+            validation_attempt_id=attempt.validation_attempt_id,
+            frozen_at=T0 + timedelta(milliseconds=2),
+        )
+
+
+@pytest.mark.dc006
+def test_engineering_review_uses_shared_actor_authority_and_backend_verdict(tmp_path: Path) -> None:
+    review_root = nfr_repository(tmp_path, complete=True)
+    h = harness(tmp_path / "db", repository_root=review_root)
+    context = prepare_record_context(h, "VT-NFR-REVIEW-001")
+    evaluate(h, context)
+    method = h.catalogue.get_method("VT-NFR-REVIEW-001")
+    for index, criterion in enumerate(item for item in method.criteria if item.kind.value == "ENGINEERING_REVIEW"):
+        proposal = h.determination.propose_review_finding(
             context.determination_context_id,
             criterion.criterion_id,
             proposed_finding=CriterionFindingStatus.SATISFIED,
             proposer_actor_id="graduate-engineer",
             reason="Fixed proposition is supported by the frozen exact review membership.",
-            proposed_at=T0 + timedelta(seconds=3 + index),
+            proposed_at=T0 + timedelta(seconds=1 + index),
         )
-        determination.finalise_review_finding(
+        h.determination.finalise_review_finding(
             proposal.review_proposal_id,
             reviewer_actor_id="independent-reviewer",
             final_finding=CriterionFindingStatus.SATISFIED,
             reason="Independent criterion finding accepted against frozen evidence.",
             finalised_at=T0 + timedelta(seconds=10 + index),
         )
-    result = determination.finalise_result(
+    result = h.determination.finalise_result(
         context.determination_context_id, finalised_at=T0 + timedelta(seconds=20)
     )
     assert result.verdict is ValidationVerdict.PASS
-    execution = validation._repository.get_execution(result.validation_execution_id)
-    assert execution.context_kind is DeterminationContextKind.ENGINEERING_REVIEW
-    assert execution.scenario_run_id is None and execution.status.value == "FINALISED"
+    assert controlled_actor_role("independent-reviewer") == "INDEPENDENT_ENGINEERING_REVIEWER"
+    assert ValidationService._ACTOR_ROLES is CONTROLLED_LOCAL_ACTOR_ROLES
 
 
 @pytest.mark.dc006
-@pytest.mark.parametrize(
-    ("test_id", "source_role", "family", "record_type", "selector", "payload", "expected"),
-    [
-        (
-            "VT-ALM-EVT-001", "OPERATIONAL_EVENT_SEQUENCE",
-            DeterminationSourceAdapterKind.OPERATIONAL_EVENT_HISTORY,
-            "OperationalEventAdapter", "OperationalEventAdapter.unregistered_event_type_ids",
-            {"unregistered_event_type_ids": []}, [],
-        ),
-        (
-            "VT-CFG-INV-001", "V1_0_FAILURE",
-            DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
-            "InvestigationAdapter", "InvestigationAdapter.failure",
-            {"failure": {"configuration_version": "1.0", "affected_customers": 400, "verdict": "FAIL"}},
-            {"configuration_version": "1.0", "affected_customers": 400, "verdict": "FAIL"},
-        ),
-        (
-            "VT-DET-REPEAT-001", "COMPARISON_PROFILE",
-            DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
-            "DeterministicRepeatAdapter", "DeterministicRepeatAdapter.canonical_outputs",
-            {"canonical_outputs": {"left": {"run_id": "a", "value": 850}, "right": {"run_id": "b", "value": 850}, "excluded_fields": ["run_id"]}},
-            {"left": {"run_id": "a", "value": 850}, "right": {"run_id": "b", "value": 850}, "excluded_fields": ["run_id"]},
-        ),
-        (
-            "VT-PKG-EVIDENCE-001", "PACKAGE_REGISTRY",
-            DeterminationSourceAdapterKind.EVIDENCE_PACKAGE,
-            "EvidencePackageAdapter", "EvidencePackageAdapter.link_verification",
-            {"link_verification": True}, True,
-        ),
-        (
-            "VT-NFR-REVIEW-001", "CONTROLLED_SURFACE_SET",
-            DeterminationSourceAdapterKind.NFR_REVIEW,
-            "ReviewSurfaceAdapter", "ReviewSurfaceAdapter.controlled_surface_ids",
-            {"controlled_surface_ids": ["Start / Run Setup", "Operational Workspace"]},
-            ["Start / Run Setup", "Operational Workspace"],
-        ),
-    ],
-)
-def test_representative_authority_families_extract_from_hash_verified_records(
-    tmp_path: Path, test_id, source_role, family, record_type, selector, payload, expected
-) -> None:
-    _, _, validation, determination, repository = services(tmp_path)
-    _, attempt = validation.create_target_selection(test_id, created_at=T0)
-    source = determination.capture_authoritative_source(
-        validation_attempt_id=attempt.validation_attempt_id,
-        source_type=family,
-        source_role=source_role,
-        evidence_class=EvidenceClass.FORMAL,
-        authority_records=(record(record_type, payload, family=family),),
-        created_at=T0,
-        evidence_references=("controlled:preserved-record",),
-    )
-    from ot_demo.modules.validation.source_adapters import AuthoritativeSourceAdapterRegistry
-
-    persisted = repository.get_source(source.source_record_id)
-    assert AuthoritativeSourceAdapterRegistry.resolve(persisted, selector) == expected
+def test_context_result_source_origin_and_procedure_execution_are_database_immutable(tmp_path: Path) -> None:
+    h = harness(tmp_path)
+    context = prepare_record_context(h, "VT-CFG-BASE-001")
+    evaluate(h, context)
+    result = h.determination.finalise_result(context.determination_context_id, finalised_at=T0 + timedelta(seconds=1))
+    with sqlite3.connect(h.determinations.database_path) as connection:
+        for statement in (
+            "UPDATE procedure_validation_executions SET verdict='FAIL' WHERE validation_execution_id=?",
+            "UPDATE criterion_findings SET status='NOT_SATISFIED' WHERE determination_context_id=?",
+            "UPDATE determination_source_origin_bindings SET origin_identity='changed' WHERE validation_attempt_id=?",
+        ):
+            with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+                connection.execute(statement, (str(result.validation_execution_id if "procedure" in statement else context.determination_context_id if "criterion" in statement else context.validation_attempt_id),))
 
 
 @pytest.mark.dc006
-def test_context_result_and_procedure_execution_are_database_immutable(tmp_path: Path) -> None:
-    _, _, validation, determination, repository = services(tmp_path)
-    _, attempt = validation.create_target_selection("VT-CFG-BASE-001", created_at=T0)
-    sources = determination.capture_configuration_package_sources(attempt.validation_attempt_id, created_at=T0)
-    context = bind(determination, attempt.validation_attempt_id, sources)
-    with sqlite3.connect(repository.database_path) as connection:
-        with pytest.raises(sqlite3.IntegrityError, match="result execution does not match"):
-            connection.execute(
-                "INSERT INTO dc006_executed_validation_results "
-                "(executed_result_id,validation_attempt_id,determination_context_id,"
-                "validation_execution_id,test_id,case_id,catalogue_version,catalogue_sha256,"
-                "method_id,method_sha256,verdict,result_sha256,finalised_at_ms,payload_json) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (
-                    str(UUID(int=98)), str(attempt.validation_attempt_id),
-                    str(context.determination_context_id), str(UUID(int=99)),
-                    context.test_id, context.case_id, str(context.catalogue_version),
-                    context.catalogue_sha256, context.method_id, context.method_sha256,
-                    "PASS", "8" * 64, int(T0.timestamp() * 1000), "{}",
-                ),
-            )
-    determination.evaluate_machine_criteria(context.determination_context_id, evaluated_at=T0)
-    result = determination.finalise_result(context.determination_context_id, finalised_at=T0)
-    with sqlite3.connect(repository.database_path) as connection:
-        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
-            connection.execute(
-                "UPDATE procedure_validation_executions SET verdict='FAIL' WHERE validation_execution_id=?",
-                (str(result.validation_execution_id),),
-            )
-        with pytest.raises(sqlite3.IntegrityError, match="immutable"):
-            connection.execute(
-                "UPDATE criterion_findings SET status='NOT_SATISFIED' WHERE determination_context_id=?",
-                (str(context.determination_context_id),),
-            )
-
-
-@pytest.mark.dc006
-def test_source_from_another_attempt_cannot_be_rebound_even_for_same_method(tmp_path: Path) -> None:
-    _, _, validation, determination, _ = services(tmp_path)
-    _, first = validation.create_target_selection("VT-CFG-BASE-001", created_at=T0)
-    first_sources = determination.capture_configuration_package_sources(
-        first.validation_attempt_id, created_at=T0
-    )
-    _, second = validation.create_target_selection(
-        "VT-CFG-BASE-001", created_at=T0 + timedelta(seconds=1)
-    )
-    with pytest.raises(DeterminationBoundaryError, match="another validation attempt"):
-        bind(determination, second.validation_attempt_id, first_sources)
+def test_pre_entry_suspension_remains_only_no_execution_route(tmp_path: Path) -> None:
+    h = harness(tmp_path)
+    _, attempt = h.validation.create_target_selection("VT-CFG-BASE-001", created_at=T0)
+    assert attempt.validation_execution_id is None
+    with pytest.raises(DeterminationBoundaryError, match="exact context membership"):
+        h.determination.bind_context(
+            validation_attempt_id=attempt.validation_attempt_id,
+            frozen_at=T0 + timedelta(seconds=1),
+        )

@@ -206,7 +206,6 @@ class SuspendValidationAttemptPayload(_ApiRequest):
 
 
 class BindDeterminationContextPayload(_ApiRequest):
-    role_source_record_ids: dict[str, UUID]
     frozen_at: datetime
     scenario_run_id: UUID | None = None
     validation_execution_id: UUID | None = None
@@ -715,9 +714,8 @@ def create_app(
         attempt_id: UUID, request: BindDeterminationContextPayload
     ) -> DeterminationContext:
         try:
-            return determination().bind_context(
+            return determination().prepare_context(
                 validation_attempt_id=attempt_id,
-                role_source_record_ids=request.role_source_record_ids,
                 frozen_at=request.frozen_at,
                 scenario_run_id=request.scenario_run_id,
                 validation_execution_id=request.validation_execution_id,

@@ -70,6 +70,7 @@ from .suspension_provenance import (
     SuspensionProvenanceError,
     resolve_suspension_source,
 )
+from .actor_roles import CONTROLLED_LOCAL_ACTOR_ROLES
 
 
 class ValidationBoundaryError(ValueError):
@@ -77,12 +78,7 @@ class ValidationBoundaryError(ValueError):
 
 
 class ValidationService:
-    _ACTOR_ROLES = {
-        "graduate-engineer": "GRADUATE_ENGINEER",
-        "independent-reviewer": "INDEPENDENT_ENGINEERING_REVIEWER",
-        "backend-integrity-monitor": "BACKEND_ASSURANCE_PROPOSER",
-        "backend-assurance-reviewer": "BACKEND_ASSURANCE_REVIEWER",
-    }
+    _ACTOR_ROLES = CONTROLLED_LOCAL_ACTOR_ROLES
     def __init__(
         self,
         repository: ValidationRepository,
