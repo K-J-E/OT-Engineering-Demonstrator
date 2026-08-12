@@ -2,6 +2,8 @@
 
 Status: **Proposed — pending independent engineering design review; no authoritative-document, catalogue or implementation authority granted**
 
+Independent design review: **Accepted in principle at `98f15c6a953bd5a69d2a51f674f3bfcfa0ea4139`; `DC008-DR-01` correction pending final design acceptance**
+
 Date raised: 2026-08-13
 
 Proposal date: 2026-08-13
@@ -46,6 +48,8 @@ The required formal policy is already enforced by the application. DC-008 does n
 
 The rejection response is currently ephemeral rather than a persisted validation source record. A later authorised application may capture the actual result as immutable validation evidence, but it must call the existing authority and must not create a second policy engine, policy table or validation-only rule.
 
+`DC008-DR-01` adds a diagnostic-source rule: a generic service or API rejection is not sufficient. Evidence must establish that the intended boundary rejected the intended mutation. An unrelated `4xx`/`409`, an unrelated schema failure or another scenario boundary cannot be translated into the accepted proposition.
+
 ## 3. Four-criterion provenance decision
 
 | Criterion | Audit disposition | Proposed controlled treatment |
@@ -77,6 +81,10 @@ The three source members have separate responsibilities:
 
 The adapter name denotes evidence capture over the existing boundary. It is not a new policy record or policy authority.
 
+Each alternate-fault result must be **diagnostic**: it must preserve the actual boundary provenance and rejection detail showing that the FORMAL fixed-fault check rejected that exact candidate. When a mutable run exists, the probe must exercise the accepted `initialise_next_run()` / replacement-run path (equivalently `POST /api/v1/runs/start`) so `_validate_initialisation()` is reached before any prior-run closure. The retained evidence must contain the controlled detail `formal mode remains fixed to the controlled SEC-A2 fault input`, or an exact controlled reason/code derived from that same boundary.
+
+A probe rejected merely because `a mutable run already exists`, or by any unrelated configuration, build, transaction or API boundary, does not establish that alternate FORMAL fault selection is prohibited and must not count as evidence for `SEP-01`. All rejected probes must continue to demonstrate that the current run and its preserved history are unchanged before and after the attempt.
+
 ### 4.2 SEP-02 — exploratory run and immutable configuration package
 
 **Expected proposition retained exactly**
@@ -107,6 +115,8 @@ The existing backend facts are:
 - changing mode through the accepted workflow creates a new run and preserves/closes the prior run rather than modifying it.
 
 The boundary adapter shall capture actual validation/API rejection outcomes and unchanged before/after run identity/hash. It shall not invent a conversion command or a second run-state algorithm.
+
+These rejection outcomes must also be **diagnostic**. `mode_mutation_rejection` must preserve the actual strict-schema/API detail showing that the attempted in-place mode mutation itself was rejected. `fault_selection_mutation_rejection` must likewise identify the attempted in-place selected-fault mutation and the exact schema/domain boundary that rejected it. A generic `4xx`/`409`, an unrelated missing field, an unrelated revision error or another validation failure is insufficient and must not be translated into the `SEP-03` proposition.
 
 ### 4.4 SEP-05 — formal progress before/after
 
@@ -179,15 +189,16 @@ A later application must prove at minimum:
 
 1. `SEP-01` matching, contradictory and missing-authority cases;
 2. actual rejection of every configured alternate formal section by the existing coordinator/API authority;
-3. rejection probes leave the current run/history byte-for-byte unchanged;
-4. `SEP-02` matching, persistent/mismatched configuration and missing-package cases;
-5. `SEP-03` matching, permissive/mutated boundary and missing-probe cases;
-6. `SEP-05` matching, changed FORMAL total and missing campaign-membership cases;
-7. `SEP-04` and `SEP-06` remain unchanged and executable;
-8. no translator reads an expected value or produces a verdict;
-9. exact 24 tests / 124 requirements / 286 RTM relationships / 15 event types / 35 methods / 214 criteria remain;
-10. active and historical catalogue/configuration identities are preserved according to the accepted candidate history; and
-11. PR #12/I9 remain stopped until the authoritative and machine applications receive separate independent acceptance.
+3. every `SEP-01` rejection identifies the FORMAL fixed-fault boundary and exact controlled rejection detail; unrelated mutable-run or other boundary failures are rejected as evidence;
+4. rejection probes leave the current run/history byte-for-byte unchanged;
+5. `SEP-02` matching, persistent/mismatched configuration and missing-package cases;
+6. `SEP-03` matching, permissive/mutated boundary and missing-probe cases, including proof that each rejection diagnoses the attempted mutation rather than an unrelated failure;
+7. `SEP-05` matching, changed FORMAL total and missing campaign-membership cases;
+8. `SEP-04` and `SEP-06` remain unchanged and executable;
+9. no translator reads an expected value or produces a verdict;
+10. exact 24 tests / 124 requirements / 286 RTM relationships / 15 event types / 35 methods / 214 criteria remain;
+11. active and historical catalogue/configuration identities are preserved according to the accepted candidate history; and
+12. PR #12/I9 remain stopped until the authoritative and machine applications receive separate independent acceptance.
 
 ## 9. Lifecycle gate
 
@@ -198,4 +209,3 @@ A later application must prove at minimum:
 - QA-053 remains stopped at `SEP-01`.
 - QA-054/055 WIP remains preserved.
 - I9 remains stopped.
-
