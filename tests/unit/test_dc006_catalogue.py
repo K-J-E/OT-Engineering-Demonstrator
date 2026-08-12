@@ -178,6 +178,37 @@ def test_exact_nfr_surface_structural_and_event_registries() -> None:
 
 
 @pytest.mark.dc006
+def test_every_machine_selector_root_has_a_registered_authoritative_adapter() -> None:
+    import re
+
+    from ot_demo.modules.validation.source_adapters import SOURCE_ADAPTER_REGISTRY
+
+    definitions = ValidationCatalogueLoader(CATALOGUE).load()
+    controlled_roots = {
+        re.split(r"[.\[]", part.strip(), maxsplit=1)[0]
+        for loaded in definitions
+        for method in (
+            (loaded.definition.determination_method,)
+            if loaded.definition.determination_method is not None
+            else tuple(
+                case.determination_method
+                for case in loaded.definition.constituent_cases
+                if case.determination_method is not None
+            )
+        )
+        for criterion in method.criteria
+        if criterion.kind.value == "MACHINE_COMPARISON"
+        for part in criterion.source_selector.split(" + ")
+    }
+    registered = {
+        record_type
+        for definition in SOURCE_ADAPTER_REGISTRY.values()
+        for record_type in definition.record_types
+    }
+    assert controlled_roots <= registered
+
+
+@pytest.mark.dc006
 def test_vt_top_def_preserves_one_execution_method_and_no_meta_result() -> None:
     method = ValidationCatalogueLoader(CATALOGUE).get_method("VT-TOP-DEF-001")
     assert method.context_kind is DeterminationContextKind.SCENARIO_EXECUTION

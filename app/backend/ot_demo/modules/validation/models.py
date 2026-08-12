@@ -35,6 +35,7 @@ from ...domain.enums import (
     DeterminationOperator,
     EngineeringReviewStatus,
     OperationalEventType,
+    DeterminationSourceAdapterKind,
 )
 from ...domain.value_objects import (
     ConfigurationId,
@@ -136,8 +137,12 @@ class CriterionDefinition(FrozenModel):
 
     @model_validator(mode="after")
     def validate_identity(self) -> Self:
+        from .normalisation import SUPPORTED_NORMALISATION_PROFILES
+
         if self.criterion_sha256 != _definition_sha256(self, "criterion_sha256"):
             raise ValueError("criterion definition SHA-256 mismatch")
+        if self.normalisation not in SUPPORTED_NORMALISATION_PROFILES:
+            raise ValueError("criterion uses an unsupported normalisation profile")
         if len(set(self.requirement_ids)) != len(self.requirement_ids):
             raise ValueError("criterion requirement mapping contains duplicates")
         if self.kind is CriterionKind.ENGINEERING_REVIEW:
@@ -388,15 +393,18 @@ class ValidationExecution(FrozenModel):
     case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
     case_definition_version: SemanticVersion | None = None
     case_definition_sha256: Sha256Digest | None = None
-    scenario_run_id: UUID
-    scenario_mode: ScenarioMode
+    context_kind: DeterminationContextKind = DeterminationContextKind.SCENARIO_EXECUTION
+    scenario_run_id: UUID | None = None
+    scenario_mode: ScenarioMode | None = None
     evidence_class: EvidenceClass
     configuration_id: ConfigurationId
     configuration_version: SemanticVersion
     application_build_id: Sha256Digest
     status: ValidationExecutionStatus
-    started_scenario_time: UtcMillisecondInstant
+    started_scenario_time: UtcMillisecondInstant | None = None
+    started_at: UtcMillisecondInstant | None = None
     finalised_scenario_time: UtcMillisecondInstant | None = None
+    finalised_at: UtcMillisecondInstant | None = None
     expected_result_statement: str = Field(min_length=1)
     expected_comparison_values: dict[str, Any] | None = None
     observed_result: dict[str, Any] | None = None
@@ -411,6 +419,26 @@ class ValidationExecution(FrozenModel):
 
     @model_validator(mode="after")
     def validate_lifecycle(self) -> Self:
+        scenario = self.context_kind is DeterminationContextKind.SCENARIO_EXECUTION
+        if scenario:
+            if (
+                self.scenario_run_id is None
+                or self.scenario_mode is None
+                or self.started_scenario_time is None
+                or self.started_at is not None
+            ):
+                raise ValueError(
+                    "scenario execution requires one run, mode and controlled scenario start time"
+                )
+        elif (
+            self.scenario_run_id is not None
+            or self.scenario_mode is not None
+            or self.started_scenario_time is not None
+            or self.started_at is None
+        ):
+            raise ValueError(
+                "non-scenario execution requires an execution time and cannot fabricate scenario identity/time"
+            )
         case_fields = (
             self.case_id,
             self.case_definition_version,
@@ -424,13 +452,13 @@ class ValidationExecution(FrozenModel):
         final_fields_present = all(
             value is not None
             for value in (
-                self.finalised_scenario_time,
+                self.finalised_scenario_time if scenario else self.finalised_at,
                 self.observed_result,
                 self.calculations,
                 self.verdict,
                 self.verdict_reason,
             )
-        ) and bool(self.evidence_snapshot_ids)
+        ) and (bool(self.evidence_snapshot_ids) if scenario else True)
         if finalised != final_fields_present:
             raise ValueError(
                 "finalised executions require observed result, calculations, evidence, verdict and time"
@@ -538,6 +566,7 @@ class ExecutedValidationResult(FrozenModel):
                 raise ValueError("legacy executed result requires execution and evidence")
         else:
             required = (
+                self.validation_execution_id,
                 self.determination_context_id,
                 self.test_id,
                 self.catalogue_version,
@@ -588,10 +617,48 @@ class ExecutedValidationResult(FrozenModel):
         return sha256_bytes(canonical_json_bytes(self.controlled_payload()))
 
 
+class AuthoritativeRecordSnapshot(FrozenModel):
+    record_type: str = Field(pattern=r"^[A-Z][A-Za-z0-9]+(?:[A-Za-z0-9]|Result|Adapter|Snapshot|Record)$")
+    record_id: str = Field(min_length=1)
+    record_version: SemanticVersion
+    owner_module: str = Field(min_length=1)
+    application_build_id: Sha256Digest
+    configuration_id: ConfigurationId | None = None
+    configuration_version: SemanticVersion | None = None
+    scenario_run_id: UUID | None = None
+    validation_execution_id: UUID | None = None
+    evidence_class: EvidenceClass
+    canonical_payload: Any
+    canonical_payload_sha256: Sha256Digest
+
+    @model_validator(mode="after")
+    def validate_authority_hash(self) -> Self:
+        encoded = json.dumps(
+            self.canonical_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        if self.canonical_payload_sha256 != hashlib.sha256(encoded).hexdigest():
+            raise ValueError("authoritative source-record SHA-256 mismatch")
+        return self
+
+
 class DeterminationSourceRecord(FrozenModel):
     source_record_id: UUID
-    source_type: str = Field(min_length=1)
+    source_type: DeterminationSourceAdapterKind
     owner_module: str = Field(min_length=1)
+    source_role: str = Field(min_length=1)
+    adapter_version: SemanticVersion = "1.0"
+    validation_attempt_id: UUID
+    test_id: str = Field(pattern=r"^VT-[A-Z0-9]+(?:-[A-Z0-9]+)+$")
+    case_id: str | None = Field(default=None, pattern=r"^EXP-(?:ALL|ROLE)-[A-Z0-9-]+$")
+    catalogue_version: SemanticVersion
+    catalogue_sha256: Sha256Digest
+    method_id: str = Field(pattern=r"^DM-[A-Z0-9-]+$")
+    method_version: SemanticVersion
+    method_sha256: Sha256Digest
+    eligible_criterion_ids: tuple[str, ...]
     application_build_id: Sha256Digest
     configuration_id: ConfigurationId | None = None
     configuration_version: SemanticVersion | None = None
@@ -604,6 +671,8 @@ class DeterminationSourceRecord(FrozenModel):
 
     @model_validator(mode="after")
     def validate_payload_hash(self) -> Self:
+        if "selector_values" in self.canonical_payload:
+            raise ValueError("synthetic selector-value source authority is prohibited")
         encoded = json.dumps(
             self.canonical_payload,
             sort_keys=True,
@@ -647,14 +716,12 @@ class DeterminationContext(FrozenModel):
     @model_validator(mode="after")
     def validate_context_shape(self) -> Self:
         scenario = self.context_kind is DeterminationContextKind.SCENARIO_EXECUTION
-        if scenario != (
-            self.scenario_run_id is not None and self.validation_execution_id is not None
-        ):
-            raise ValueError("scenario context requires exactly one real run/execution")
-        if not scenario and (
-            self.scenario_run_id is not None or self.validation_execution_id is not None
-        ):
-            raise ValueError("non-scenario context must not fabricate run/execution identity")
+        if self.validation_execution_id is None:
+            raise ValueError("every executed determination context requires one ValidationExecution")
+        if scenario != (self.scenario_run_id is not None):
+            raise ValueError(
+                "scenario context requires one run; non-scenario context must not fabricate one"
+            )
         if self.status is DeterminationContextStatus.FROZEN:
             if self.frozen_at is None or not self.members:
                 raise ValueError("frozen context requires time and exact membership")

@@ -6,7 +6,11 @@ import sqlite3
 from pathlib import Path
 from uuid import UUID
 
-from ..domain.enums import EvidenceClass, SuspensionRecordStatus
+from ..domain.enums import (
+    DeterminationContextKind,
+    EvidenceClass,
+    SuspensionRecordStatus,
+)
 from ..modules.validation.models import (
     CompositeValidationResult,
     EvidenceSnapshot,
@@ -120,6 +124,9 @@ class ValidationRepository:
     def bind_attempt_execution(
         self, attempt: ValidationAttempt, execution: ValidationExecution
     ) -> None:
+        if execution.context_kind is not DeterminationContextKind.SCENARIO_EXECUTION:
+            self.bind_attempt_procedure_execution(attempt, execution)
+            return
         with self._connect() as connection:
             connection.execute(
                 "UPDATE validation_attempts SET status=?,scenario_run_id=?,validation_execution_id=?,updated_at_ms=?,payload_json=? "
@@ -131,7 +138,9 @@ class ValidationRepository:
                 ),
             )
             if connection.execute("SELECT changes()").fetchone()[0] != 1:
-                raise ValidationRecordConflict("validation attempt is not available for execution")
+                raise ValidationRecordConflict(
+                    "validation attempt is not available for execution"
+                )
             connection.execute(
                 "INSERT INTO validation_executions (validation_execution_id,test_id,test_definition_version,test_definition_sha256,catalogue_version,catalogue_sha256,case_id,case_definition_version,case_definition_sha256,scenario_run_id,scenario_mode,evidence_class,configuration_id,configuration_version,application_build_id,status,started_scenario_time_ms,finalised_scenario_time_ms,verdict,payload_json,validation_attempt_id,target_selection_id,executed_result_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
@@ -147,6 +156,62 @@ class ValidationRepository:
                     str(execution.validation_attempt_id), str(execution.target_selection_id), None,
                 ),
             )
+
+    def bind_attempt_procedure_execution(
+        self, attempt: ValidationAttempt, execution: ValidationExecution
+    ) -> None:
+        if execution.context_kind is DeterminationContextKind.SCENARIO_EXECUTION:
+            raise ValidationRecordConflict("procedure execution cannot carry scenario context")
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "UPDATE validation_attempts SET status=?,scenario_run_id=NULL,validation_execution_id=?,updated_at_ms=?,payload_json=? "
+                    "WHERE validation_attempt_id=? AND status='NOT_STARTED'",
+                    (
+                        attempt.status.value,
+                        str(attempt.validation_execution_id),
+                        instant_to_epoch_ms(attempt.updated_at),
+                        attempt.model_dump_json(),
+                        str(attempt.validation_attempt_id),
+                    ),
+                )
+                if connection.execute("SELECT changes()").fetchone()[0] != 1:
+                    raise ValidationRecordConflict(
+                        "validation attempt is not available for procedure execution"
+                    )
+                connection.execute(
+                    "INSERT INTO procedure_validation_executions "
+                    "(validation_execution_id,test_id,test_definition_version,test_definition_sha256,catalogue_version,catalogue_sha256,case_id,case_definition_version,case_definition_sha256,context_kind,evidence_class,configuration_id,configuration_version,application_build_id,status,started_at_ms,finalised_at_ms,verdict,validation_attempt_id,target_selection_id,executed_result_id,payload_json) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        str(execution.validation_execution_id),
+                        execution.test_id,
+                        execution.test_definition_version,
+                        execution.test_definition_sha256,
+                        execution.catalogue_version,
+                        execution.catalogue_sha256,
+                        execution.case_id,
+                        execution.case_definition_version,
+                        execution.case_definition_sha256,
+                        execution.context_kind.value,
+                        execution.evidence_class.value,
+                        execution.configuration_id,
+                        execution.configuration_version,
+                        execution.application_build_id,
+                        execution.status.value,
+                        instant_to_epoch_ms(execution.started_at),
+                        None,
+                        None,
+                        str(execution.validation_attempt_id),
+                        str(execution.target_selection_id),
+                        None,
+                        execution.model_dump_json(),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise ValidationRecordConflict(
+                "procedure ValidationExecution identity conflicts"
+            ) from error
 
     def bind_attempt_run(self, attempt: ValidationAttempt) -> None:
         with self._connect() as connection:
@@ -375,16 +440,24 @@ class ValidationRepository:
         return self._get_json("validation_suspension_records", "suspension_record_id", record_id, ValidationSuspensionRecord)
 
     def get_executed_result(self, result_id: UUID) -> ExecutedValidationResult:
-        return self._get_json(
-            "executed_validation_results", "executed_result_id", result_id,
-            ExecutedValidationResult,
-        )
+        try:
+            return self._get_json(
+                "executed_validation_results", "executed_result_id", result_id,
+                ExecutedValidationResult,
+            )
+        except ValidationRecordNotFound:
+            return self._get_json(
+                "dc006_executed_validation_results", "executed_result_id", result_id,
+                ExecutedValidationResult,
+            )
 
     def has_executed_result_for_attempt(self, attempt_id: UUID) -> bool:
         with self._connect() as connection:
             row = connection.execute(
-                "SELECT 1 FROM executed_validation_results WHERE validation_attempt_id=?",
-                (str(attempt_id),),
+                "SELECT 1 FROM executed_validation_results WHERE validation_attempt_id=? "
+                "UNION ALL SELECT 1 FROM dc006_executed_validation_results "
+                "WHERE validation_attempt_id=? LIMIT 1",
+                (str(attempt_id), str(attempt_id)),
             ).fetchone()
         return row is not None
 
@@ -434,6 +507,12 @@ class ValidationRepository:
                 "WHERE validation_execution_id = ?",
                 (str(execution_id),),
             ).fetchone()
+            if row is None:
+                row = connection.execute(
+                    "SELECT payload_json FROM procedure_validation_executions "
+                    "WHERE validation_execution_id = ?",
+                    (str(execution_id),),
+                ).fetchone()
         if row is None:
             raise ValidationRecordNotFound(f"validation execution not found: {execution_id}")
         return ValidationExecution.model_validate_json(row["payload_json"], strict=True)
@@ -489,10 +568,20 @@ class ValidationRepository:
             values.append(str(scenario_run_id))
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
         with self._connect() as connection:
-            rows = connection.execute(
-                "SELECT validation_execution_id FROM validation_executions"
-                + where
-                + " ORDER BY started_scenario_time_ms, validation_execution_id",
-                values,
-            ).fetchall()
+            if scenario_run_id is not None:
+                rows = connection.execute(
+                    "SELECT validation_execution_id,started_scenario_time_ms AS started_ms "
+                    "FROM validation_executions" + where
+                    + " ORDER BY started_ms, validation_execution_id",
+                    values,
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT validation_execution_id,started_scenario_time_ms AS started_ms "
+                    "FROM validation_executions" + where
+                    + " UNION ALL SELECT validation_execution_id,started_at_ms AS started_ms "
+                    "FROM procedure_validation_executions" + where
+                    + " ORDER BY started_ms, validation_execution_id",
+                    (*values, *values),
+                ).fetchall()
         return tuple(self.summary(UUID(row["validation_execution_id"])) for row in rows)

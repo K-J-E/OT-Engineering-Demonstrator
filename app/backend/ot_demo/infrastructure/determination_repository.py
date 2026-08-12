@@ -75,16 +75,25 @@ class DeterminationRepository:
             with self._connect() as connection:
                 connection.execute(
                     "INSERT INTO determination_contexts "
-                    "(determination_context_id,validation_attempt_id,test_id,case_id,catalogue_version,catalogue_sha256,method_id,method_version,method_sha256,context_kind,status,scenario_run_id,validation_execution_id,created_at_ms,frozen_at_ms,payload_json) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "(determination_context_id,validation_attempt_id,test_id,case_id,catalogue_version,catalogue_sha256,method_id,method_version,method_sha256,context_kind,status,scenario_run_id,validation_execution_id,created_at_ms,frozen_at_ms,payload_json,procedure_validation_execution_id) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         str(context.determination_context_id), str(context.validation_attempt_id),
                         context.test_id, context.case_id, context.catalogue_version,
                         context.catalogue_sha256, context.method_id, context.method_version,
                         context.method_sha256, context.context_kind.value, DeterminationContextStatus.DRAFT.value,
                         str(context.scenario_run_id) if context.scenario_run_id else None,
-                        str(context.validation_execution_id) if context.validation_execution_id else None,
+                        (
+                            str(context.validation_execution_id)
+                            if context.context_kind.value == "SCENARIO_EXECUTION"
+                            else None
+                        ),
                         instant_to_epoch_ms(context.created_at), None, context.model_dump_json(),
+                        (
+                            str(context.validation_execution_id)
+                            if context.context_kind.value != "SCENARIO_EXECUTION"
+                            else None
+                        ),
                     ),
                 )
         except sqlite3.IntegrityError as error:
@@ -97,17 +106,26 @@ class DeterminationRepository:
             with self._connect() as connection:
                 connection.execute(
                     "INSERT INTO determination_contexts "
-                    "(determination_context_id,validation_attempt_id,test_id,case_id,catalogue_version,catalogue_sha256,method_id,method_version,method_sha256,context_kind,status,scenario_run_id,validation_execution_id,created_at_ms,frozen_at_ms,payload_json) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "(determination_context_id,validation_attempt_id,test_id,case_id,catalogue_version,catalogue_sha256,method_id,method_version,method_sha256,context_kind,status,scenario_run_id,validation_execution_id,created_at_ms,frozen_at_ms,payload_json,procedure_validation_execution_id) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         str(context.determination_context_id), str(context.validation_attempt_id),
                         context.test_id, context.case_id, context.catalogue_version,
                         context.catalogue_sha256, context.method_id, context.method_version,
                         context.method_sha256, context.context_kind.value, DeterminationContextStatus.DRAFT.value,
                         str(context.scenario_run_id) if context.scenario_run_id else None,
-                        str(context.validation_execution_id) if context.validation_execution_id else None,
+                        (
+                            str(context.validation_execution_id)
+                            if context.context_kind.value == "SCENARIO_EXECUTION"
+                            else None
+                        ),
                         instant_to_epoch_ms(context.created_at), None,
                         context.model_dump_json(),
+                        (
+                            str(context.validation_execution_id)
+                            if context.context_kind.value != "SCENARIO_EXECUTION"
+                            else None
+                        ),
                     ),
                 )
                 for member in context.members:
@@ -282,6 +300,12 @@ class DeterminationRepository:
                         "SELECT payload_json FROM validation_executions WHERE validation_execution_id=?",
                         (str(result.validation_execution_id),),
                     ).fetchone()
+                    procedure = execution_row is None
+                    if procedure:
+                        execution_row = connection.execute(
+                            "SELECT payload_json FROM procedure_validation_executions WHERE validation_execution_id=?",
+                            (str(result.validation_execution_id),),
+                        ).fetchone()
                     if execution_row is None:
                         raise ValidationRecordConflict("bound validation execution not found")
                     execution = ValidationExecution.model_validate_json(
@@ -290,7 +314,11 @@ class DeterminationRepository:
                     finalised_execution = execution.model_copy(
                         update={
                             "status": ValidationExecutionStatus.FINALISED,
-                            "finalised_scenario_time": result.finalised_at,
+                            (
+                                "finalised_at"
+                                if procedure
+                                else "finalised_scenario_time"
+                            ): result.finalised_at,
                             "observed_result": {
                                 "determination_context_id": str(result.determination_context_id),
                                 "criterion_finding_ids": [
@@ -311,8 +339,12 @@ class DeterminationRepository:
                             "executed_result_id": result.executed_result_id,
                         }
                     )
+                    table = (
+                        "procedure_validation_executions" if procedure else "validation_executions"
+                    )
+                    final_time_column = "finalised_at_ms" if procedure else "finalised_scenario_time_ms"
                     connection.execute(
-                        "UPDATE validation_executions SET status='FINALISED',finalised_scenario_time_ms=?,verdict=?,payload_json=?,executed_result_id=? "
+                        f"UPDATE {table} SET status='FINALISED',{final_time_column}=?,verdict=?,payload_json=?,executed_result_id=? "
                         "WHERE validation_execution_id=? AND status='ACTIVE'",
                         (
                             instant_to_epoch_ms(result.finalised_at), result.verdict.value,
@@ -322,16 +354,17 @@ class DeterminationRepository:
                     )
                     if connection.execute("SELECT changes()").fetchone()[0] != 1:
                         raise ValidationRecordConflict("active validation execution unavailable")
-                    connection.execute(
-                        "INSERT INTO executed_validation_results "
-                        "(executed_result_id,validation_attempt_id,validation_execution_id,verdict,result_sha256,finalised_at_ms,payload_json) VALUES (?,?,?,?,?,?,?)",
-                        (
-                            str(result.executed_result_id), str(result.validation_attempt_id),
-                            str(result.validation_execution_id), result.verdict.value,
-                            result.result_sha256, instant_to_epoch_ms(result.finalised_at),
-                            result.model_dump_json(),
-                        ),
-                    )
+                    if not procedure:
+                        connection.execute(
+                            "INSERT INTO executed_validation_results "
+                            "(executed_result_id,validation_attempt_id,validation_execution_id,verdict,result_sha256,finalised_at_ms,payload_json) VALUES (?,?,?,?,?,?,?)",
+                            (
+                                str(result.executed_result_id), str(result.validation_attempt_id),
+                                str(result.validation_execution_id), result.verdict.value,
+                                result.result_sha256, instant_to_epoch_ms(result.finalised_at),
+                                result.model_dump_json(),
+                            ),
+                        )
                 attempt_row = connection.execute(
                     "SELECT payload_json FROM validation_attempts WHERE validation_attempt_id=?",
                     (str(result.validation_attempt_id),),

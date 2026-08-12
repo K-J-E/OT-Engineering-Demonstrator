@@ -77,6 +77,7 @@ def create_local_app(
         validation_repository,
         catalogue,
         application_build_manifest=build_manifest,
+        configuration_loader=configuration_loader,
     )
     investigation_service = InvestigationService(
         InvestigationRepository(runtime_data / "validation.sqlite3", migrations),

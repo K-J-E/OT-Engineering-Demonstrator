@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -15,9 +14,13 @@ from ...domain.enums import (
     DeterminationOperator,
     EvidenceClass,
     ValidationAttemptStatus,
+    ValidationExecutionStatus,
     ValidationVerdict,
+    DeterminationSourceAdapterKind,
 )
 from ...infrastructure.build_identity import ApplicationBuildManifest
+from ...infrastructure.configuration_comparison import compare_engineering_content
+from ...infrastructure.configuration_loader import JsonConfigurationLoader
 from ...infrastructure.determination_repository import DeterminationRepository
 from ...infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ...infrastructure.validation_repository import ValidationRepository
@@ -29,10 +32,19 @@ from .models import (
     DeterminationContext,
     DeterminationContextMember,
     DeterminationSourceRecord,
+    AuthoritativeRecordSnapshot,
     DeterminationReviewProjection,
     EngineeringReviewFinalisation,
     EngineeringReviewProposal,
     ExecutedValidationResult,
+    ValidationExecution,
+)
+from .normalisation import NormalisationError, normalise
+from .source_adapters import (
+    AuthoritativeSourceAdapterRegistry,
+    SourceAdapterError,
+    common_provenance,
+    freeze_authoritative_record,
 )
 
 
@@ -53,39 +65,221 @@ class DeterminationService:
         catalogue: ValidationCatalogueResolver,
         *,
         application_build_manifest: ApplicationBuildManifest,
+        configuration_loader: JsonConfigurationLoader | None = None,
     ) -> None:
         self._repository = repository
         self._validation_repository = validation_repository
         self._catalogue = catalogue
         self._build = application_build_manifest
+        self._configurations = configuration_loader
 
-    def register_authoritative_source(
+    def capture_configuration_package_sources(
+        self, validation_attempt_id: UUID, *, created_at
+    ) -> dict[str, DeterminationSourceRecord]:
+        """Capture the accepted package/comparison authority from immutable inputs."""
+
+        if self._configurations is None:
+            raise DeterminationBoundaryError("configuration adapter is not available")
+        attempt = self._validation_repository.get_attempt(validation_attempt_id)
+        target = self._validation_repository.get_target(attempt.target_selection_id)
+        method = self._catalogue.get_method(target.test_id, case_id=target.case_id)
+        required = {
+            "NETWORK_CONFIGURATION_V1_0", "NETWORK_CONFIGURATION_V1_1",
+            "NETWORK_CONFIGURATION_SCHEMA", "EXACT_PACKAGE_COMPARISON",
+        }
+        if set(method.required_context_roles) != required:
+            raise DeterminationBoundaryError(
+                "configuration package adapter does not own this method's context roles"
+            )
+        before = self._configurations.load("v1.0")
+        after = self._configurations.load("v1.1")
+        differences = compare_engineering_content(before.data, after.data)
+        difference_values = [
+            {"path": item.path, "before": item.before, "after": item.after}
+            for item in differences
+        ]
+        exact_difference = (
+            len(differences) == 1
+            and differences[0].path
+            == "connectivity_edges.EDGE-SW-A23-1.endpoint_a_id"
+            and differences[0].before == "SEC-B3"
+            and differences[0].after == "SEC-A2"
+        )
+        owner = "configuration-package-authority"
+        common = dict(
+            application_build_id=self._build.application_build_id,
+            evidence_class=method.evidence_class,
+        )
+        raw_before = freeze_authoritative_record(
+            record_type="NetworkConfigurationPackage",
+            record_id=f"{before.manifest.configuration_id}:{before.manifest.version}",
+            owner_module=owner,
+            payload=before.model_dump(mode="json"),
+            configuration_id=before.manifest.configuration_id,
+            configuration_version=before.manifest.version,
+            **common,
+        )
+        raw_after = freeze_authoritative_record(
+            record_type="NetworkConfigurationPackage",
+            record_id=f"{after.manifest.configuration_id}:{after.manifest.version}",
+            owner_module=owner,
+            payload=after.model_dump(mode="json"),
+            configuration_id=after.manifest.configuration_id,
+            configuration_version=after.manifest.version,
+            **common,
+        )
+        schema = freeze_authoritative_record(
+            record_type="NetworkConfigurationSchema",
+            record_id=f"network-configuration-schema:{after.manifest.schema_version}",
+            owner_module=owner,
+            payload={
+                "schema_version": str(after.manifest.schema_version),
+                "schema_sha256": after.catalog_entry.schema_sha256,
+            },
+            **common,
+        )
+        aggregate = freeze_authoritative_record(
+            record_type="ConfigurationPackageAdapter",
+            record_id="network-configuration-v1.0-v1.1-package-proof",
+            owner_module=owner,
+            payload={
+                "manifest": {
+                    "configuration_id": [before.manifest.configuration_id, after.manifest.configuration_id],
+                    "version": [str(before.manifest.version), str(after.manifest.version)],
+                    "sha256": [before.catalog_entry.package_sha256, after.catalog_entry.package_sha256],
+                    "__controlled_projection__": (
+                        "Both controlled Network Configuration identities, manifests and SHA-256 hashes resolve exactly."
+                    ),
+                },
+                "schema_validation": True,
+                "canonical_network_payload": {
+                    "__controlled_projection__": (
+                        "Canonical assets, connectivity, normal states, section loads, feeder capacities and customer-zone values equal the approved Network Model oracle."
+                    )
+                },
+            },
+            **common,
+        )
+        comparison = freeze_authoritative_record(
+            record_type="ConfigurationComparisonResult",
+            record_id="network-configuration-v1.0-v1.1-exact-comparison",
+            owner_module=owner,
+            payload={
+                "differences": (
+                    {
+                        "__controlled_projection__": (
+                            "The package difference set is exactly SW-A23 endpoint 1: SEC-B3 in Network Configuration v1.0 and SEC-A2 in Network Configuration v1.1."
+                        )
+                    }
+                    if exact_difference
+                    else difference_values
+                ),
+                "uncontrolled_differences": [] if exact_difference else difference_values,
+            },
+            **common,
+        )
+        role_records = {
+            "NETWORK_CONFIGURATION_V1_0": (raw_before,),
+            "NETWORK_CONFIGURATION_V1_1": (raw_after,),
+            "NETWORK_CONFIGURATION_SCHEMA": (schema,),
+            "EXACT_PACKAGE_COMPARISON": (aggregate, comparison),
+        }
+        return {
+            role: self.capture_authoritative_source(
+                validation_attempt_id=validation_attempt_id,
+                source_type=DeterminationSourceAdapterKind.CONFIGURATION_PACKAGE,
+                source_role=role,
+                evidence_class=method.evidence_class,
+                authority_records=records,
+                created_at=created_at,
+                evidence_references=tuple(
+                    f"authority-record:{item.record_type}:{item.record_id}:{item.canonical_payload_sha256}"
+                    for item in records
+                ),
+            )
+            for role, records in role_records.items()
+        }
+
+    def capture_authoritative_source(
         self,
         *,
-        source_type: str,
-        owner_module: str,
+        validation_attempt_id: UUID,
+        source_type: DeterminationSourceAdapterKind,
+        source_role: str,
         evidence_class: EvidenceClass,
-        selector_values: dict[str, Any],
+        authority_records: tuple[AuthoritativeRecordSnapshot, ...],
         created_at,
-        configuration_id: str | None = None,
-        configuration_version: str | None = None,
-        scenario_run_id: UUID | None = None,
-        validation_execution_id: UUID | None = None,
         evidence_references: tuple[str, ...] = (),
     ) -> DeterminationSourceRecord:
-        """Persist backend-owned source values; this operation is not exposed to clients."""
+        """Freeze hash-verified controlling-module records through a registered adapter."""
 
+        attempt = self._validation_repository.get_attempt(validation_attempt_id)
+        target = self._validation_repository.get_target(attempt.target_selection_id)
+        loaded = self._catalogue.get(target.test_id)
+        method = self._catalogue.get_method(target.test_id, case_id=target.case_id)
+        if source_role not in method.required_context_roles:
+            raise DeterminationBoundaryError(
+                "source role is not controlled by the target determination method"
+            )
+        owner_module = AuthoritativeSourceAdapterRegistry.validate_capture(
+            source_type, authority_records
+        )
+        (
+            application_build_id,
+            configuration_id,
+            configuration_version,
+            scenario_run_id,
+            validation_execution_id,
+        ) = common_provenance(authority_records)
+        if application_build_id != self._build.application_build_id:
+            raise DeterminationBoundaryError(
+                "authoritative record build does not match executing backend"
+            )
+        if any(item.evidence_class is not evidence_class for item in authority_records):
+            raise DeterminationBoundaryError("authoritative record evidence class mismatch")
+        roots = {item.record_type for item in authority_records}
+        eligible_criterion_ids = tuple(
+            criterion.criterion_id
+            for criterion in method.criteria
+            if all(
+                part.strip().split(".", 1)[0].split("[", 1)[0] in roots
+                for part in criterion.source_selector.split(" + ")
+            )
+        )
         payload = {
-            "source_type": source_type,
+            "source_type": source_type.value,
             "owner_module": owner_module,
-            "selector_values": selector_values,
+            "source_role": source_role,
+            "adapter_version": "1.0",
+            "validation_attempt_id": str(validation_attempt_id),
+            "test_id": target.test_id,
+            "case_id": target.case_id,
+            "catalogue_version": str(loaded.catalogue_version),
+            "catalogue_sha256": loaded.catalogue_sha256,
+            "method_id": method.method_id,
+            "method_version": str(method.version),
+            "method_sha256": method.method_sha256,
+            "eligible_criterion_ids": list(eligible_criterion_ids),
+            "authority_records": [
+                item.model_dump(mode="json") for item in authority_records
+            ],
             "evidence_references": list(evidence_references),
         }
         record = DeterminationSourceRecord(
             source_record_id=uuid4(),
             source_type=source_type,
             owner_module=owner_module,
-            application_build_id=self._build.application_build_id,
+            source_role=source_role,
+            validation_attempt_id=validation_attempt_id,
+            test_id=target.test_id,
+            case_id=target.case_id,
+            catalogue_version=loaded.catalogue_version,
+            catalogue_sha256=loaded.catalogue_sha256,
+            method_id=method.method_id,
+            method_version=method.version,
+            method_sha256=method.method_sha256,
+            eligible_criterion_ids=eligible_criterion_ids,
+            application_build_id=application_build_id,
             configuration_id=configuration_id,
             configuration_version=configuration_version,
             scenario_run_id=scenario_run_id,
@@ -130,6 +324,10 @@ class DeterminationService:
             raise DeterminationBoundaryError(
                 f"exact context membership mismatch; missing={missing}, extra={extra}"
             )
+        if len(set(role_source_record_ids.values())) != len(role_source_record_ids):
+            raise DeterminationBoundaryError(
+                "each required context role must bind its own authority source record"
+            )
         scenario = method.context_kind is DeterminationContextKind.SCENARIO_EXECUTION
         if scenario:
             if scenario_run_id is None or validation_execution_id is None:
@@ -142,21 +340,105 @@ class DeterminationService:
                 or execution.validation_attempt_id != validation_attempt_id
             ):
                 raise DeterminationBoundaryError("scenario run/execution does not match target")
-        elif scenario_run_id is not None or validation_execution_id is not None:
-            raise DeterminationBoundaryError("non-scenario context cannot carry a fictional run")
+        else:
+            if scenario_run_id is not None:
+                raise DeterminationBoundaryError(
+                    "non-scenario context cannot carry a fictional run"
+                )
+            if validation_execution_id is None:
+                validation_execution_id = uuid4()
+                active_attempt = attempt.model_copy(
+                    update={
+                        "status": ValidationAttemptStatus.ACTIVE,
+                        "validation_execution_id": validation_execution_id,
+                        "updated_at": frozen_at,
+                    }
+                )
+                execution = ValidationExecution(
+                    validation_execution_id=validation_execution_id,
+                    test_id=target.test_id,
+                    test_definition_version=loaded.definition.version,
+                    test_definition_sha256=loaded.definition_sha256,
+                    catalogue_version=loaded.catalogue_version,
+                    catalogue_sha256=loaded.catalogue_sha256,
+                    case_id=target.case_id,
+                    case_definition_version=target.case_definition_version,
+                    case_definition_sha256=target.case_definition_sha256,
+                    context_kind=method.context_kind,
+                    evidence_class=target.evidence_class,
+                    configuration_id=target.configuration_id,
+                    configuration_version=target.configuration_version,
+                    application_build_id=self._build.application_build_id,
+                    status=ValidationExecutionStatus.ACTIVE,
+                    started_at=frozen_at,
+                    expected_result_statement=loaded.definition.expected_result_statement,
+                    expected_comparison_values=None,
+                    validation_attempt_id=attempt.validation_attempt_id,
+                    target_selection_id=target.target_selection_id,
+                )
+                self._validation_repository.bind_attempt_procedure_execution(
+                    active_attempt, execution
+                )
+            else:
+                execution = self._validation_repository.get_execution(
+                    validation_execution_id
+                )
+                if (
+                    execution.context_kind is not method.context_kind
+                    or execution.scenario_run_id is not None
+                    or execution.test_id != target.test_id
+                    or execution.case_id != target.case_id
+                    or execution.validation_attempt_id != validation_attempt_id
+                ):
+                    raise DeterminationBoundaryError(
+                        "procedure ValidationExecution does not match target/context"
+                    )
 
         members: list[DeterminationContextMember] = []
         for role in method.required_context_roles:
             record = self._repository.get_source(role_source_record_ids[role])
+            if record.source_role != role:
+                raise DeterminationBoundaryError("source record role does not match context role")
+            if record.validation_attempt_id != validation_attempt_id:
+                raise DeterminationBoundaryError(
+                    "source record belongs to another validation attempt"
+                )
+            if (
+                record.test_id != target.test_id
+                or record.case_id != target.case_id
+                or record.catalogue_version != loaded.catalogue_version
+                or record.catalogue_sha256 != loaded.catalogue_sha256
+                or record.method_id != method.method_id
+                or record.method_version != method.version
+                or record.method_sha256 != method.method_sha256
+            ):
+                raise DeterminationBoundaryError(
+                    "source record catalogue/test/case/method provenance mismatch"
+                )
+            try:
+                authority_records = AuthoritativeSourceAdapterRegistry.records(record)
+            except SourceAdapterError as error:
+                raise DeterminationBoundaryError(str(error)) from error
             if record.application_build_id != self._build.application_build_id:
                 raise DeterminationBoundaryError("source record build does not match executing backend")
             if record.evidence_class is not method.evidence_class:
                 raise DeterminationBoundaryError("source record evidence class mismatch")
-            if scenario and (
-                record.scenario_run_id not in {None, scenario_run_id}
-                or record.validation_execution_id not in {None, validation_execution_id}
-            ):
-                raise DeterminationBoundaryError("source record belongs to another scenario execution")
+            if scenario:
+                if (
+                    record.scenario_run_id != scenario_run_id
+                    or record.validation_execution_id != validation_execution_id
+                ):
+                    raise DeterminationBoundaryError(
+                        "scenario source record belongs to another run/execution"
+                    )
+                if record.configuration_id not in {None, target.configuration_id}:
+                    raise DeterminationBoundaryError(
+                        "scenario source record configuration identity mismatch"
+                    )
+            elif any(item.scenario_run_id is not None for item in authority_records):
+                raise DeterminationBoundaryError(
+                    "non-scenario context source cannot fabricate a ScenarioRun"
+                )
             members.append(
                 DeterminationContextMember(
                     role=role,
@@ -212,12 +494,19 @@ class DeterminationService:
         for criterion in method.criteria:
             if criterion.kind is not CriterionKind.MACHINE_COMPARISON or criterion.criterion_id in existing:
                 continue
-            candidates = [
-                (record, record.canonical_payload["selector_values"][criterion.source_selector])
-                for record in sources
-                if criterion.source_selector
-                in record.canonical_payload.get("selector_values", {})
-            ]
+            candidates: list[tuple[DeterminationSourceRecord, Any]] = []
+            for record in sources:
+                if criterion.criterion_id not in record.eligible_criterion_ids:
+                    continue
+                try:
+                    observed = AuthoritativeSourceAdapterRegistry.resolve(
+                        record, criterion.source_selector
+                    )
+                except SourceAdapterError as error:
+                    if str(error).startswith("selector root "):
+                        continue
+                    raise DeterminationBoundaryError(str(error)) from error
+                candidates.append((record, observed))
             if len(candidates) != 1:
                 finding = self._finding(
                     context,
@@ -234,7 +523,10 @@ class DeterminationService:
                 )
             else:
                 record, observed = candidates[0]
-                matched = self._compare(criterion, observed)
+                try:
+                    matched = self._compare(criterion, observed)
+                except NormalisationError as error:
+                    raise DeterminationBoundaryError(str(error)) from error
                 finding = self._finding(
                     context,
                     criterion,
@@ -439,10 +731,13 @@ class DeterminationService:
                     context.validation_execution_id
                 )
             )
-            if context.validation_execution_id is not None
+            if context.context_kind is DeterminationContextKind.SCENARIO_EXECUTION
             else ()
         )
-        if context.validation_execution_id is not None and not evidence_snapshot_ids:
+        if (
+            context.context_kind is DeterminationContextKind.SCENARIO_EXECUTION
+            and not evidence_snapshot_ids
+        ):
             raise DeterminationBoundaryError(
                 "scenario determination requires preserved execution evidence"
             )
@@ -500,7 +795,12 @@ class DeterminationService:
 
     @staticmethod
     def _compare(criterion: CriterionDefinition, observed: Any) -> bool:
-        expected = criterion.expected_value
+        expected = normalise(
+            criterion.normalisation, criterion.expected_value, expected=True
+        )
+        observed = normalise(
+            criterion.normalisation, observed, expected=False
+        )
         operator = criterion.operator
         if operator in {
             DeterminationOperator.SCALAR_EQUAL,
@@ -510,10 +810,7 @@ class DeterminationService:
         }:
             return canonical_json_bytes(observed) == canonical_json_bytes(expected)
         if operator is DeterminationOperator.NUMERIC_EQUAL:
-            try:
-                return Decimal(str(observed)) == Decimal(str(expected))
-            except InvalidOperation:
-                return canonical_json_bytes(observed) == canonical_json_bytes(expected)
+            return observed == expected
         if operator is DeterminationOperator.CANONICAL_SET_EQUAL:
             try:
                 return {
