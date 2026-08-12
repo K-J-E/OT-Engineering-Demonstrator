@@ -1,6 +1,6 @@
 # DC-007 — VT-TOP-DEF-001 Current-Run Criterion Provenance Clarification
 
-Status: **Design accepted — authoritative-document and machine application pending separate authorisation**
+Status: **Design accepted — Validation Plan v1.4 authoritative-document application prepared and pending independent review; machine application pending separate authorisation**
 
 Independent technical acceptance: exact reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`
 
@@ -15,6 +15,8 @@ Change class: Validation-assurance criterion provenance clarification
 Origin: QA-053 semantic-executability stop during DC-006 machine/application review
 
 Authoritative baseline: Reviewed main `48b2ecab818e43ce587bb52593d99519ac01160a`
+
+Authoritative-document application baseline: Accepted reviewed main `cffe833e5c6ee691c48e6def0f74ac6437560fb6`
 
 Stopped implementation baseline: PR #12 branch head `a214b78fb425ca9a40108745d660f10888565080`
 
@@ -196,7 +198,7 @@ Accepted historical Validation Catalogue v1.0/v1.1 packages and identities remai
 
 The minimum technical amendment is:
 
-- **Validation Plan v1.3 → proposed v1.4:** replace only the `DEF-02`, `DEF-03` and `DEF-04` expected-value text in Section 21.3.4, record DC-007 provenance rationale, and retain the existing one-run rule in Section 21.5.
+- **Validation Plan v1.3 → proposed v1.4:** replace only the `DEF-02`, `DEF-03` and `DEF-04` expected-value text in Section 21.3.4, record DC-007 provenance rationale, and retain the existing one-run rule in Section 21.5. The generated v1.4 authoritative-document application has SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f` and is pending independent review.
 
 No technical amendment is required to:
 
@@ -210,7 +212,7 @@ Their accepted identities remain unchanged:
 - Workflow Design v0.4 — `aa5886103c57b182fd9868c6d0d2f27966640a73eb188979efd13813d1fda479`; and
 - Demonstrator Design v0.5 — `f907d0393cba2b636349579bff281073814adbf0f952ef19eeae63517d47ede2`.
 
-The accepted Validation Plan v1.3 identity `626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0` remains controlling until a separately authorised DC-007 document application is independently reviewed and accepted. A proposed v1.4 hash cannot be assigned until that exact DOCX application exists.
+The accepted Validation Plan v1.3 identity `626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0` remains controlling until the generated DC-007 v1.4 document application is independently reviewed and accepted. The exact proposed v1.4 identity is `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f`.
 
 Requirements Specification v0.4, Engineering Design Brief v0.4 and Network Model v0.4 require no change.
 
@@ -235,13 +237,14 @@ DC-007 preserves exactly:
 
 - DC-007 technical design is independently accepted at reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`.
 - `DC007-DR-01` and `DC007-DR-02` are closed.
+- Validation Plan v1.4 authoritative-document application has been generated from accepted reviewed main `cffe833e5c6ee691c48e6def0f74ac6437560fb6` with SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f`; independent authoritative-document review is pending.
+- Accepted Validation Plan v1.3 remains byte-identical at SHA-256 `626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0` and remains the current accepted baseline until v1.4 acceptance.
 - PR #12 remains draft and unmerged.
-- Its uncommitted QA-054, QA-055 and partial QA-053 work remains WIP and shall not be committed or pushed before separately authorised DC-007 application and QA-053 resumption.
+- Its uncommitted QA-054, QA-055 and partial QA-053 work remains WIP and shall not be committed or pushed before separately authorised machine/catalogue application and QA-053 resumption.
 - QA-053 implementation remains stopped.
-- No authoritative-document application is authorised by this design acceptance.
-- No machine catalogue/application work is authorised by this design acceptance.
+- No machine catalogue/application work is authorised by this document application.
 - I9 remains stopped.
 
-The next gate is separately authorised DC-007 authoritative-document application. Candidate catalogue rebuild and resumption of QA-053 also require separate authorisation.
+The next gate is independent authoritative-document review of the generated Validation Plan v1.4. Candidate catalogue rebuild and resumption of QA-053 require separate authorisation after that gate.
 
 **V2 Automation Candidate:** a criterion-provenance linter could compare every expected proposition with its declared selector/source membership and flag unsupported cross-run clauses before catalogue publication.
