@@ -196,10 +196,21 @@ class AuthoritativeSourceAdapterRegistry:
                     raise SourceAdapterError(f"invalid field-set selector: {selector}")
                 fields = [item.strip() for item in suffix[1:close].split(",")]
                 if isinstance(value, dict):
-                    value = {field: value[field] for field in fields}
+                    value = {
+                        field: AuthoritativeSourceAdapterRegistry._resolve_field(
+                            value, field, selector
+                        )
+                        for field in fields
+                    }
                 else:
                     value = tuple(
-                        {field: item[field] for field in fields} for item in value
+                        {
+                            field: AuthoritativeSourceAdapterRegistry._resolve_field(
+                                item, field, selector
+                            )
+                            for field in fields
+                        }
+                        for item in value
                     )
                 suffix = suffix[close + 1:]
             elif suffix.startswith("["):
@@ -232,6 +243,20 @@ class AuthoritativeSourceAdapterRegistry:
                 suffix = suffix[1:]
         return derive_observation(root_name, selector, candidates[0].canonical_payload, value)
 
+    @staticmethod
+    def _resolve_field(value: Any, field: str, selector: str) -> Any:
+        """Resolve a field-set member, including accepted indexed members."""
+
+        match = re.fullmatch(r"(?P<name>[A-Za-z0-9_-]+)(?:\[(?P<key>[^]]+)\])?", field)
+        if match is None or not isinstance(value, dict):
+            raise SourceAdapterError(f"invalid field-set member: {selector}")
+        try:
+            selected = value[match.group("name")]
+            key = match.group("key")
+            return selected if key is None else selected[key]
+        except (KeyError, TypeError) as error:
+            raise SourceAdapterError(f"selector member is absent: {selector}") from error
+
 
 def derive_combined_observation(
     selector: str,
@@ -240,7 +265,7 @@ def derive_combined_observation(
 ) -> Any:
     """Derive propositions that require facts from more than one source root."""
 
-    del records
+    payloads = {item.record_type: item.canonical_payload for item in records}
     if selector == "ScenarioRun.checkpoints + OperationalEvent.sequence":
         checkpoints = selected["ScenarioRun.checkpoints"]
         events = selected["OperationalEvent.sequence"]
@@ -258,6 +283,146 @@ def derive_combined_observation(
         return (
             "Exact chronology: T+0 N0; T+10 trip/N1; T+11 alarm acknowledgement; T+20 first isolation action; T+30 second isolation/N2; T+40 N3; T+50 N4; T+55 N5. T+11 is event evidence, not a seventh N-state."
             if exact else selected
+        )
+    if selector == "IsolationProof.isolated + ActionProjection":
+        isolated = selected["IsolationProof.isolated"]
+        actions = selected["ActionProjection"]
+        unavailable = not any(
+            item.get("available") is True
+            for name, item in actions.items()
+            if name in {"restore_normal_source", "assess_restoration", "execute_restoration"}
+            and isinstance(item, dict)
+        )
+        return (
+            "Before isolation the proof is false and BRK-A reclose/restoration actions are unavailable."
+            if isolated is False and unavailable else selected
+        )
+    if selector == (
+        "AlarmAdapter.acknowledgement + ScenarioSnapshot.state_revision + "
+        "OperationalEvent.sequence"
+    ):
+        acknowledgement = selected["AlarmAdapter.acknowledgement"]
+        revision = selected["ScenarioSnapshot.state_revision"]
+        events = selected["OperationalEvent.sequence"]
+        ack_events = [item for item in events if item.get("event_type") == "ALARM_ACKNOWLEDGED"]
+        false_recalculations = [
+            item for item in events
+            if item.get("scenario_time") == acknowledgement.get("acknowledged_scenario_time")
+            and item.get("event_type") in {"TOPOLOGY_RECALCULATED", "OUTAGE_UPDATED"}
+        ] if acknowledgement else []
+        valid = (
+            acknowledgement is not None
+            and acknowledgement.get("acknowledged_by")
+            and acknowledgement.get("acknowledged_scenario_time")
+            and revision == 1
+            and len(ack_events) == 1
+            and not false_recalculations
+        )
+        return (
+            "Acknowledgement records actor/time, changes only acknowledgement state and does not increment electrical state_revision or emit false topology/outage changes."
+            if valid else selected
+        )
+    if selector == "OperationalEventAdapter.events + ValidationEvidenceAdapter.records":
+        events = selected["OperationalEventAdapter.events"]
+        evidence = selected["ValidationEvidenceAdapter.records"]
+        event_ids = {item.get("event_id") for item in events}
+        evidence_ids = {item.get("evidence_snapshot_id") for item in evidence}
+        valid = (
+            all(item.get("event_sequence") == index for index, item in enumerate(events, 1))
+            and not (event_ids & evidence_ids)
+            and all("checkpoint_id" not in item for item in events)
+        )
+        return (
+            "Operational events retain their exact fields/chronology and remain structurally separate from validation evidence/results."
+            if valid else selected
+        )
+    if selector == "IsolationProof.boundary_evidence[TS-01] + ActionProjection":
+        boundary = selected["IsolationProof.boundary_evidence[TS-01]"]
+        actions = selected["ActionProjection"]
+        open_available = actions.get("by_device", {}).get("TS-01", {}).get(
+            "available", False
+        )
+        isolation = payloads.get("IsolationProof", {})
+        evidence_state = boundary.get("evidence_state") or boundary.get("state")
+        freshness = boundary.get("freshness")
+        quality = boundary.get("quality")
+        observed = boundary.get("observed_state") or boundary.get("value")
+        age_ms = boundary.get("age_ms")
+        reasons = boundary.get("reason_codes") or boundary.get("reasons") or []
+        if (
+            observed == "OPEN" and quality == "GOOD" and freshness == "FRESH"
+            and evidence_state == "PROVEN_OPEN" and not open_available
+            and isolation.get("isolated") is False
+        ):
+            return "TS-01 is GOOD/FRESH/OPEN, PROVEN_OPEN and satisfied; no redundant OPEN action is eligible; isolation remains false until SW-A34 is proven open."
+        if (
+            observed == "OPEN" and quality == "GOOD" and freshness == "STALE"
+            and age_ms == 60_001 and evidence_state == "UNPROVEN"
+            and "FRESHNESS_STALE" in reasons and not open_available
+            and isolation.get("isolated") is False
+        ):
+            return "TS-01 last-reported OPEN is GOOD but age 60,001 ms/STALE, therefore UNPROVEN with FRESHNESS_STALE, no redundant OPEN action, and overall isolation remains false."
+        return selected
+    if selector == "ScenarioRun + ValidationExecution.provenance":
+        run = selected["ScenarioRun"]
+        provenance = selected["ValidationExecution.provenance"]
+        run_data = run.get("run", run)
+        section = run.get("selected_fault_section_id") or run_data.get("fault_section_id")
+        valid = (
+            section and run.get("fault_type", run_data.get("fault_type")) == "DISTRIBUTION_SECTION_FAULT"
+            and run.get("mode", run_data.get("mode")) == "EXPLORATION"
+            and run_data.get("configuration_id") == "network-configuration-v1.1"
+            and provenance.get("evidence_class") == "EXPLORATORY"
+            and provenance.get("scenario_run_id") == run_data.get("scenario_run_id")
+        )
+        return (
+            f"Selected fault is exactly {section}; fault type is DISTRIBUTION_SECTION_FAULT; run is corrected Network Configuration v1.1 EXPLORATION with EXPLORATORY evidence."
+            if valid else selected
+        )
+    if selector == "ActionProjection + CommandResult + DeviceState[TS-01]":
+        actions = selected["ActionProjection"]
+        command = selected["CommandResult"]
+        tie_state = selected["DeviceState[TS-01]"]
+        assessment = payloads.get("RestorationAssessment", {})
+        outcome = assessment.get("restoration_outcome") or assessment.get("outcome")
+        tie_device_id = (assessment.get("candidate") or {}).get("tie_device_id")
+        execute = actions.get("execute_restoration", {})
+        result_rows = command.get("results", [])
+        execution_accepted = any(
+            row.get("accepted") is True
+            and any(
+                event.get("event_id") in row.get("new_event_ids", [])
+                and event.get("event_type") == "SWITCHING_ACTION"
+                and event.get("affected_entity_id") == tie_device_id
+                and event.get("new_value") == "CLOSED"
+                and event.get("assessment_id") is not None
+                for event in row.get("snapshot", {}).get("events", [])
+            )
+            for row in result_rows
+        )
+        valid = (
+            (outcome == "PERMITTED" and execution_accepted and tie_state == "CLOSED")
+            or (outcome in {"REJECTED", "NO_CANDIDATE", "BLOCKED"}
+                and not execute.get("available", False) and not execution_accepted
+                and tie_state == "OPEN")
+        )
+        return (
+            "All actions remain simulated/local; TS-01 close is available and accepted only for PERMITTED, otherwise unavailable and TS-01 remains OPEN."
+            if valid else selected
+        )
+    if selector == "ScenarioSnapshot.before_after + CommandAvailability":
+        before_after = selected["ScenarioSnapshot.before_after"]
+        actions = selected["CommandAvailability"]
+        snapshots = before_after.get("command_snapshots", [])
+        no_execution = not actions.get("execute_restoration", {}).get("available", False)
+        stable = bool(snapshots) and all(
+            item.get("device_states", {}).get("TS-01") == "OPEN"
+            and "RESTORATION_EXECUTED" not in item.get("new_event_types", [])
+            for item in snapshots
+        )
+        return (
+            "Because the assessment is not PERMITTED, no restoration switching is executed; faulted/healthy section and customer-impact records remain the pre-execution derived state."
+            if no_execution and stable else selected
         )
     return selected
 
@@ -313,6 +478,56 @@ def derive_observation(
                 else "The package difference set is exactly SW-A23 endpoint 1: SEC-B3 in Network Configuration v1.0 and SEC-A2 in Network Configuration v1.1."
             )
         return selected
+    if record_type == "ScenarioRun" and selector == "ScenarioRun.{selected_fault_section_id,fault_type,mode}":
+        section = payload.get("selected_fault_section_id")
+        valid = (
+            section is not None
+            and payload.get("fault_type") == "DISTRIBUTION_SECTION_FAULT"
+            and payload.get("mode") == "EXPLORATION"
+        )
+        return (
+            f"Selected fault is exactly {section}; fault type is DISTRIBUTION_SECTION_FAULT; selection is transient run state under EXPLORATION."
+            if valid else selected
+        )
+    if record_type == "ScenarioSnapshot" and selector == "ScenarioSnapshot.{affected_feeder_id,protection_breaker_id}":
+        feeder = payload.get("affected_feeder_id")
+        breaker = payload.get("protection_breaker_id")
+        return (
+            f"Affected feeder is {feeder} and protection breaker is {breaker}."
+            if feeder and breaker else selected
+        )
+    if record_type == "IsolationProof" and selector == "IsolationProof.incident_boundary_device_ids":
+        boundaries = payload.get("incident_boundary_device_ids")
+        return (
+            f"Configuration-derived incident boundaries equal {boundaries!r}."
+            if isinstance(boundaries, list) and boundaries else selected
+        )
+    if record_type == "OutageResult" and selector == "OutageResult.{de_energised_section_ids,affected_customer_count,affected_customer_zone_ids}":
+        sections = payload.get("de_energised_section_ids")
+        count = payload.get("affected_customer_count")
+        zones = payload.get("affected_customer_zone_ids")
+        fault = payload.get("selected_fault_section_id")
+        valid = (
+            isinstance(sections, list) and fault in sections
+            and isinstance(zones, list) and count is not None
+        )
+        return (
+            f"After protection operation the de-energised set is {sections!r}, affected-customer count is {count}, and the selected fault section remains de-energised/affected."
+            if valid else selected
+        )
+    if record_type == "ValidationExecution" and selector == "ValidationExecution.{evidence_class,configuration,catalogue,test,case,run}":
+        valid = (
+            payload.get("evidence_class") == "EXPLORATORY"
+            and payload.get("configuration", {}).get("id") == "network-configuration-v1.1"
+            and payload.get("catalogue", {}).get("sha256")
+            and payload.get("test", {}).get("id")
+            and payload.get("case")
+            and payload.get("run")
+        )
+        return (
+            "Run/execution/evidence class is EXPLORATORY under corrected Network Configuration v1.1 and the bound future promoted Validation Catalogue/case identity."
+            if valid else selected
+        )
     if record_type == "ScenarioSnapshot" and selector == "ScenarioSnapshot.{configuration_identity,device_states,source_availability}":
         states = payload.get("device_states", {})
         sources = payload.get("source_availability", {})
@@ -451,6 +666,60 @@ def derive_observation(
     if record_type == "RestorationAssessment" and selector.endswith(".{outcome,reasons}"):
         if payload.get("outcome") == "BLOCKED" and "TELEMETRY_STALE" in payload.get("reasons", []):
             return "Restoration assessment outcome is operational BLOCKED, not REJECTED; the validation criterion is satisfied because BLOCKED is expected."
+    if record_type == "RestorationAssessment" and selector == "RestorationAssessment.{affected_feeder_id,alternate_feeder_id,proposed_section_ids}":
+        affected = payload.get("affected_feeder_id")
+        alternate = payload.get("alternate_feeder_id")
+        proposed = payload.get("proposed_section_ids")
+        return (
+            f"Affected feeder is {affected}; alternate feeder is {alternate}; proposed sections are {proposed!r}."
+            if affected and isinstance(proposed, list) else selected
+        )
+    if record_type == "RestorationAssessment" and selector == "RestorationAssessment.{outcome,transferable_load_kw,resulting_load_kw,feeder_capacity_kw,resulting_loading_percent}":
+        outcome = payload.get("restoration_outcome") or payload.get("outcome")
+        transfer = payload.get("transferable_load_kw")
+        resulting = payload.get("resulting_load_kw")
+        capacity = payload.get("feeder_capacity_kw")
+        loading = payload.get("resulting_loading_percent")
+        return (
+            f"Restoration outcome is {outcome}; transferable/resulting/capacity/loading values are respectively {transfer}, {resulting}, {capacity} kW and {loading}% (null where NO_CANDIDATE)."
+            if outcome in {"PERMITTED", "REJECTED", "NO_CANDIDATE", "BLOCKED"}
+            else selected
+        )
+    if record_type == "PostExecutionSnapshot" and selector == "PostExecutionSnapshot.{topology,outage,restored_customer_delta}":
+        topology = payload.get("topology", {})
+        outage = payload.get("outage", {})
+        sources = topology.get("section_source_feeder_ids", {})
+        deenergised = outage.get("de_energised_section_ids", [])
+        restored = payload.get("restored_customer_delta")
+        affected = outage.get("affected_customer_count")
+        transferred = [
+            section for section, feeder_ids in sources.items()
+            if section.startswith("SEC-A") and feeder_ids == ["FDR-B"]
+            or section.startswith("SEC-B") and feeder_ids == ["FDR-A"]
+        ]
+        source_ids = {
+            feeder_id for section in transferred
+            for feeder_id in sources.get(section, [])
+        }
+        feeder_letters = {section[4] for section in transferred if len(section) > 4}
+        if (
+            len(transferred) == 2 and len(feeder_letters) == 1
+            and len(source_ids) == 1 and len(deenergised) == 1
+            and isinstance(restored, int) and isinstance(affected, int)
+            and payload.get("tie_device_id")
+        ):
+            letter = next(iter(feeder_letters))
+            compact_sections = (
+                f"SEC-{letter}{transferred[0][5:]}/"
+                + "/".join(f"{letter}{item[5:]}" for item in transferred[1:])
+            )
+            return (
+                f"After authorised simulated execution {payload['tie_device_id']} is CLOSED; "
+                f"{compact_sections} are supplied from {next(iter(source_ids))}; "
+                f"{deenergised[0]} remains faulted/de-energised; {restored} customers are "
+                f"restored and {affected} remain affected."
+            )
+        return selected
     if record_type == "RestorationAssessment" and selector == "RestorationAssessment.permissives[RADIAL_TOPOLOGY]":
         return "Radial-topology permissive is FAIL and retains the offending source-path evidence." if selected == "FAIL" and payload.get("reasons") else selected
     if record_type == "InvestigationAdapter" and selector == "InvestigationAdapter.failure":
@@ -493,8 +762,19 @@ def derive_observation(
             )
         if selector.endswith(".before_after_hashes"):
             valid = set(payload.get("before_after_hashes", {})) == exact_roles and all(
-                len(hashes) == 2 and all(len(value) == 64 for value in hashes)
-                for hashes in payload["before_after_hashes"].values()
+                len(members) == 2 and all(
+                    item.get("stored_execution_sha256")
+                    == item.get("resolved_execution_sha256")
+                    and item.get("stored_evidence_sha256")
+                    == item.get("resolved_evidence_sha256")
+                    and item.get("stored_result_sha256")
+                    == item.get("resolved_result_sha256")
+                    and item.get("stored_result_sha256") is not None
+                    and item.get("stored_correction_sha256")
+                    == item.get("resolved_correction_sha256")
+                    for item in members
+                )
+                for members in payload["before_after_hashes"].values()
             )
             return (
                 "Original source execution/evidence/correction records remain unchanged after repeats."

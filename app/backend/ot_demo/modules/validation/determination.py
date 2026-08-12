@@ -416,7 +416,9 @@ class DeterminationService:
                         record, criterion.source_selector
                     )
                 except SourceAdapterError as error:
-                    if str(error).startswith("selector root "):
+                    if str(error).startswith((
+                        "selector root ", "selector member is absent:"
+                    )):
                         continue
                     raise DeterminationBoundaryError(str(error)) from error
                 candidates.append((record, observed))

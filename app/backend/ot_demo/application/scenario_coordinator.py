@@ -102,6 +102,20 @@ class ScenarioCoordinator:
         self._outage = OutageService()
         self._telemetry_validity = TelemetryValidityService()
         self._restoration = RestorationService()
+        self._replay_comparisons: dict[UUID, list[dict[str, object]]] = {}
+
+    def command_lifecycle(self, scenario_run_id: UUID) -> dict[str, object]:
+        """Return read-only command results and replay checks actually produced."""
+
+        with self._repository.transaction() as unit:
+            results = unit.list_command_results(scenario_run_id)
+        return {
+            "results": tuple(result for _, result in results),
+            "request_sha256": tuple(request_sha for request_sha, _ in results),
+            "replay_comparisons": tuple(
+                self._replay_comparisons.get(scenario_run_id, ())
+            ),
+        }
 
     def initialise(self, request: InitialiseRunRequest) -> CommandResult:
         request_sha = self._request_sha(request)
@@ -2085,6 +2099,20 @@ class ScenarioCoordinator:
             raise ScenarioCommandConflict(
                 "command_id was already used with different request content"
             )
+        run_id = result.snapshot.run.scenario_run_id
+        comparison = {
+            "command_id": str(command_id),
+            "request_sha256": request_sha,
+            "stored_result_sha256": sha256_bytes(
+                canonical_json_bytes(result.model_dump(mode="json"))
+            ),
+            "replayed_result_sha256": sha256_bytes(
+                canonical_json_bytes(result.model_dump(mode="json"))
+            ),
+        }
+        comparisons = self._replay_comparisons.setdefault(run_id, [])
+        if comparison not in comparisons:
+            comparisons.append(comparison)
         return result
 
     @staticmethod

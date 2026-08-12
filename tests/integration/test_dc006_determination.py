@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import shutil
 import sqlite3
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -48,6 +49,7 @@ from ot_demo.modules.validation.source_authority import (
     RegisteredSourceAuthority,
     SourceAuthorityDependencies,
 )
+from ot_demo.modules.validation.source_adapters import derive_combined_observation
 from ot_demo.modules.validation.structural_registry import resolved_structural_registry
 
 
@@ -352,6 +354,95 @@ def corrected_post_trip_context(
     )
 
 
+def exploration_determination_context(
+    h: Harness,
+    *,
+    test_id: str,
+    case_id: str,
+    section_id: str,
+    command_base: int,
+):
+    initial = h.scenarios.initialise(InitialiseRunRequest(
+        command_id=UUID(int=command_base),
+        actor="Graduate Engineer",
+        mode=ScenarioMode.EXPLORATION,
+        configuration_version="1.1",
+        fault_section_id=section_id,
+        scenario_time=T0,
+    ))
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = h.validation.start_execution(test_id, run_id, case_id=case_id)
+
+    def execute(command_type, number: int, seconds: float, target=None):
+        snapshot = h.scenarios.snapshot(run_id)
+        action = next(
+            item for item in snapshot.allowed_actions
+            if item.command_type is command_type and item.available
+            and (target is None or item.target_entity_id == target)
+        )
+        return h.scenarios.execute(run_id, ScenarioCommandRequest(
+            command_id=UUID(int=number),
+            scenario_run_id=run_id,
+            actor="Graduate Engineer",
+            expected_revision=snapshot.run.state_revision,
+            command_type=action.command_type,
+            scenario_time=T0 + timedelta(seconds=seconds),
+            target_entity_id=action.target_entity_id,
+            requested_state=action.requested_state,
+            alarm_id=action.alarm_id,
+            assessment_id=action.assessment_id,
+        ))
+
+    fault = execute(ScenarioCommandType.INITIATE_FAULT, command_base + 1, 10)
+    if case_id == "EXP-ALL-A4-STALE-OPEN":
+        execute(ScenarioCommandType.ACKNOWLEDGE_ALARM, command_base + 2, 60.001)
+    elif test_id == "VT-EXP-ROLE-001":
+        number = command_base + 2
+        seconds = 20
+        while True:
+            snapshot = h.scenarios.snapshot(run_id)
+            isolation = next((
+                item for item in snapshot.allowed_actions
+                if item.command_type is ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+                and item.available
+            ), None)
+            if isolation is None:
+                break
+            execute(
+                ScenarioCommandType.OPERATE_ISOLATION_DEVICE,
+                number, seconds, isolation.target_entity_id,
+            )
+            number += 1
+            seconds += 10
+        snapshot = h.scenarios.snapshot(run_id)
+        restore = next((
+            item for item in snapshot.allowed_actions
+            if item.command_type is ScenarioCommandType.RESTORE_NORMAL_SOURCE
+            and item.available
+        ), None)
+        if restore is not None:
+            execute(
+                ScenarioCommandType.RESTORE_NORMAL_SOURCE,
+                number, 40, restore.target_entity_id,
+            )
+            number += 1
+        execute(ScenarioCommandType.ASSESS_RESTORATION, number, 50)
+        number += 1
+        snapshot = h.scenarios.snapshot(run_id)
+        if any(
+            item.command_type is ScenarioCommandType.EXECUTE_RESTORATION
+            and item.available for item in snapshot.allowed_actions
+        ):
+            execute(ScenarioCommandType.EXECUTE_RESTORATION, number, 55)
+    h.validation.capture_checkpoint(execution.validation_execution_id, "CONTROLLED_RESULT")
+    return h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=62),
+    )
+
+
 def altered_configuration_root(tmp_path: Path) -> Path:
     destination = tmp_path / "config/network"
     shutil.copytree(ROOT / "config/network", destination)
@@ -525,7 +616,14 @@ def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_me
         empty, "VT-DET-REPEAT-001", at=T0 - timedelta(hours=1)
     )
     empty_findings = evaluate(empty, empty_context, at=T0 - timedelta(hours=1))
-    assert finding(empty_findings, "DET-01").status is CriterionFindingStatus.NOT_SATISFIED
+    assert {item.status for item in empty_findings} == {
+        CriterionFindingStatus.NOT_EVALUATED
+    }
+    with pytest.raises(DeterminationBoundaryError, match="incomplete"):
+        empty.determination.finalise_result(
+            empty_context.determination_context_id,
+            finalised_at=T0 - timedelta(minutes=59),
+        )
 
     shared = tmp_path / "valid/validation.sqlite3"
     valid = harness(tmp_path / "valid/formal-one", validation_database=shared)
@@ -548,6 +646,17 @@ def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_me
     )
     finalise_determined(valid, negative_two, at=T0 + timedelta(hours=1, seconds=1))
 
+    investigation = harness(
+        tmp_path / "valid/investigation", validation_database=shared
+    )
+    failure = investigation.investigation.start_failure("Graduate Engineer")
+    failure_id = failure.original_failure.execution.validation_execution_id
+    investigation.investigation.record_defect(
+        failure_id, "Independent Reviewer", InvestigationService.REVIEW_STEP_IDS
+    )
+    investigation.investigation.record_correction(
+        failure_id, "Independent Reviewer"
+    )
     valid = harness(tmp_path / "valid/corrected-one", validation_database=shared)
     corrected_one = corrected_post_trip_context(valid, command_id=32_000)
     corrected_one_result = finalise_determined(valid, corrected_one, at=T0 + timedelta(hours=2))
@@ -573,7 +682,9 @@ def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_me
     ambiguous_findings = evaluate(
         ambiguous, ambiguous_context, at=T0 + timedelta(hours=4)
     )
-    assert finding(ambiguous_findings, "DET-01").status is CriterionFindingStatus.NOT_SATISFIED
+    assert {item.status for item in ambiguous_findings} == {
+        CriterionFindingStatus.NOT_EVALUATED
+    }
 
     incomplete = harness(tmp_path / "incomplete")
     only_one = fixture_context(incomplete, "VT-TEL-STALE-001", at=T0)
@@ -584,7 +695,77 @@ def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_me
     incomplete_findings = evaluate(
         incomplete, incomplete_context, at=T0 + timedelta(hours=1)
     )
-    assert finding(incomplete_findings, "DET-01").status is CriterionFindingStatus.NOT_SATISFIED
+    assert {item.status for item in incomplete_findings} == {
+        CriterionFindingStatus.NOT_EVALUATED
+    }
+
+
+@pytest.mark.dc006
+def test_repeat_pair_identity_or_preservation_mismatch_remains_incomplete(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    h = harness(tmp_path)
+    context = prepare_record_context(h, "VT-DET-REPEAT-001")
+    method = h.catalogue.get_method("VT-DET-REPEAT-001")
+    authority = h.determination._source_authority  # controlled test boundary
+    member = {
+        "execution_id": "10000000-0000-0000-0000-000000000001",
+        "repeat_of_execution_id": None,
+        "identity_resolved": True,
+        "input_fingerprint": {
+            "test_id": "VT-TOP-DEF-001",
+            "build_id": BUILD.application_build_id,
+            "configuration_id": "network-configuration-v1.1",
+            "configuration_version": "1.1",
+            "catalogue_version": "1.2",
+            "catalogue_sha256": "1" * 64,
+            "method_id": "DM-TOP-DEF-001",
+            "method_sha256": "2" * 64,
+            "fixture_id": None,
+            "controlled_clock": T0.isoformat(),
+        },
+        "preservation": {
+            "stored_execution_sha256": "3" * 64,
+            "resolved_execution_sha256": "3" * 64,
+            "stored_evidence_sha256": "4" * 64,
+            "resolved_evidence_sha256": "4" * 64,
+            "stored_result_sha256": "5" * 64,
+            "resolved_result_sha256": "5" * 64,
+            "stored_correction_sha256": "6" * 64,
+            "resolved_correction_sha256": "6" * 64,
+        },
+    }
+    repeat = json.loads(json.dumps(member))
+    repeat["execution_id"] = "10000000-0000-0000-0000-000000000002"
+    repeat["repeat_of_execution_id"] = member["execution_id"]
+    exact = authority._repeat_pair_is_exact(
+        (member, repeat),
+        configuration_id="network-configuration-v1.1",
+        configuration_version="1.1",
+        fixture_id=None,
+        application_build_id=BUILD.application_build_id,
+        correction_required=True,
+    )
+    assert exact is True
+    mutations = (
+        ("mixed_build", lambda item: item["input_fingerprint"].update(build_id="wrong")),
+        ("mixed_catalogue_method", lambda item: item["input_fingerprint"].update(method_sha256="0" * 64)),
+        ("unequal_clock", lambda item: item["input_fingerprint"].update(controlled_clock=(T0 + timedelta(seconds=1)).isoformat())),
+        ("wrong_configuration", lambda item: item["input_fingerprint"].update(configuration_version="1.0")),
+        ("duplicate_link", lambda item: item.update(repeat_of_execution_id=None)),
+        ("altered_preservation", lambda item: item["preservation"].update(resolved_evidence_sha256="0" * 64)),
+    )
+    for _name, mutate in mutations:
+        changed = json.loads(json.dumps(repeat))
+        mutate(changed)
+        assert authority._repeat_pair_is_exact(
+            (member, changed),
+            configuration_id="network-configuration-v1.1",
+            configuration_version="1.1",
+            fixture_id=None,
+            application_build_id=BUILD.application_build_id,
+            correction_required=True,
+        ) is False
 
 
 def export_service(h: Harness, output_root: Path) -> EvidenceExportService:
@@ -690,6 +871,25 @@ def test_nfr_producer_reads_build_surface_and_structural_sources_for_pass_and_no
     wrong_profile_context = prepare_record_context(wrong_profile, "VT-NFR-REVIEW-001")
     wrong_profile_findings = evaluate(wrong_profile, wrong_profile_context)
     assert finding(wrong_profile_findings, "NFR-M06").status is CriterionFindingStatus.NOT_SATISFIED
+
+    broken_binding_root = nfr_repository(tmp_path / "broken-binding", complete=True)
+    component = broken_binding_root / "app/frontend/src/features/run-setup/RunSetup.tsx"
+    component.write_text(
+        component.read_text(encoding="utf-8").replace(
+            "bootstrap.application_build_id", "bootstrap.default_configuration_id"
+        ),
+        encoding="utf-8",
+    )
+    broken_binding = harness(
+        tmp_path / "broken-binding-db", repository_root=broken_binding_root
+    )
+    broken_context = prepare_record_context(
+        broken_binding, "VT-NFR-REVIEW-001"
+    )
+    broken_findings = evaluate(broken_binding, broken_context)
+    assert finding(
+        broken_findings, "NFR-M06"
+    ).status is CriterionFindingStatus.NOT_SATISFIED
 
 
 @pytest.mark.dc006
@@ -833,6 +1033,115 @@ def test_all_35_methods_and_214_criteria_have_exactly_one_producer_role_selector
 
     assert len(contexts) == 35
     assert criterion_total == 214
+
+
+@pytest.mark.dc006
+@pytest.mark.parametrize(("test_id", "case_id", "section_id"), (
+    ("VT-EXP-ALL-001", "EXP-ALL-A1", "SEC-A1"),
+    ("VT-EXP-ALL-001", "EXP-ALL-A2", "SEC-A2"),
+    ("VT-EXP-ALL-001", "EXP-ALL-A3", "SEC-A3"),
+    ("VT-EXP-ALL-001", "EXP-ALL-A4-FRESH", "SEC-A4"),
+    ("VT-EXP-ALL-001", "EXP-ALL-B1", "SEC-B1"),
+    ("VT-EXP-ALL-001", "EXP-ALL-B2", "SEC-B2"),
+    ("VT-EXP-ALL-001", "EXP-ALL-B3", "SEC-B3"),
+    ("VT-EXP-ALL-001", "EXP-ALL-B4", "SEC-B4"),
+    ("VT-EXP-ALL-001", "EXP-ALL-A4-STALE-OPEN", "SEC-A4"),
+    ("VT-EXP-ROLE-001", "EXP-ROLE-A2", "SEC-A2"),
+    ("VT-EXP-ROLE-001", "EXP-ROLE-B2", "SEC-B2"),
+    ("VT-EXP-ROLE-001", "EXP-ROLE-A1", "SEC-A1"),
+    ("VT-EXP-ROLE-001", "EXP-ROLE-A4", "SEC-A4"),
+))
+def test_dc004_exact_cases_are_determined_from_actual_scenario_sources(
+    tmp_path: Path, test_id: str, case_id: str, section_id: str,
+) -> None:
+    h = harness(tmp_path / case_id)
+    context = exploration_determination_context(
+        h,
+        test_id=test_id,
+        case_id=case_id,
+        section_id=section_id,
+        command_base=40_000 + sum(ord(item) for item in case_id),
+    )
+    findings = evaluate(h, context, at=T0 + timedelta(seconds=62))
+    assert {item.status for item in findings} == {
+        CriterionFindingStatus.SATISFIED
+    }, [
+        (item.criterion_id, item.status.value, item.observed_value)
+        for item in findings if item.status is not CriterionFindingStatus.SATISFIED
+    ]
+
+
+@pytest.mark.dc006
+def test_every_compound_selector_family_exposes_changed_actual_facts() -> None:
+    cases = (
+        (
+            "ScenarioRun.checkpoints + OperationalEvent.sequence",
+            {"ScenarioRun.checkpoints": {}, "OperationalEvent.sequence": []}, (),
+        ),
+        (
+            "IsolationProof.isolated + ActionProjection",
+            {"IsolationProof.isolated": True, "ActionProjection": {}}, (),
+        ),
+        (
+            "AlarmAdapter.acknowledgement + ScenarioSnapshot.state_revision + OperationalEvent.sequence",
+            {"AlarmAdapter.acknowledgement": {"acknowledged_by": "Reviewer", "acknowledged_scenario_time": "2030-01-01T00:00:11Z"}, "ScenarioSnapshot.state_revision": 2, "OperationalEvent.sequence": []}, (),
+        ),
+        (
+            "OperationalEventAdapter.events + ValidationEvidenceAdapter.records",
+            {"OperationalEventAdapter.events": [{"event_id": "shared", "event_sequence": 1}], "ValidationEvidenceAdapter.records": [{"evidence_snapshot_id": "shared"}]}, (),
+        ),
+        (
+            "IsolationProof.boundary_evidence[TS-01] + ActionProjection",
+            {"IsolationProof.boundary_evidence[TS-01]": {"observed_state": "OPEN", "quality": "GOOD", "freshness": "STALE", "age_ms": 61_000, "evidence_state": "UNPROVEN", "reason_codes": ["FRESHNESS_STALE"]}, "ActionProjection": {"by_device": {"TS-01": {"available": False}}}},
+            (SimpleNamespace(record_type="IsolationProof", canonical_payload={"isolated": False}),),
+        ),
+        (
+            "ScenarioRun + ValidationExecution.provenance",
+            {"ScenarioRun": {"run": {"scenario_run_id": "run", "configuration_id": "network-configuration-v1.0"}, "selected_fault_section_id": "SEC-A2", "fault_type": "DISTRIBUTION_SECTION_FAULT", "mode": "EXPLORATION"}, "ValidationExecution.provenance": {"scenario_run_id": "run", "evidence_class": "EXPLORATORY"}}, (),
+        ),
+        (
+            "ActionProjection + CommandResult + DeviceState[TS-01]",
+            {"ActionProjection": {"execute_restoration": {"available": False}}, "CommandResult": {"results": []}, "DeviceState[TS-01]": "OPEN"},
+            (SimpleNamespace(record_type="RestorationAssessment", canonical_payload={"outcome": "PERMITTED", "candidate": {"tie_device_id": "TS-01"}}),),
+        ),
+        (
+            "ScenarioSnapshot.before_after + CommandAvailability",
+            {"ScenarioSnapshot.before_after": {"command_snapshots": [{"device_states": {"TS-01": "CLOSED"}, "new_event_types": ["RESTORATION_EXECUTED"]}]}, "CommandAvailability": {"execute_restoration": {"available": False}}}, (),
+        ),
+    )
+    for selector, selected, records in cases:
+        assert derive_combined_observation(selector, selected, records) == selected
+
+
+@pytest.mark.dc006
+def test_missing_command_and_assessment_lifecycle_remains_incomplete(
+    tmp_path: Path,
+) -> None:
+    h = harness(tmp_path)
+    initial = h.scenarios.initialise(InitialiseRunRequest(
+        command_id=UUID(int=77_000), actor="Graduate Engineer",
+        mode=ScenarioMode.EXPLORATION, configuration_version="1.1",
+        fault_section_id="SEC-A2", scenario_time=T0,
+    ))
+    execution = h.validation.start_execution(
+        "VT-EXP-ROLE-001", initial.snapshot.run.scenario_run_id,
+        case_id="EXP-ROLE-A2",
+    )
+    context = h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=initial.snapshot.run.scenario_run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=1),
+    )
+    findings = evaluate(h, context)
+    assert CriterionFindingStatus.NOT_EVALUATED in {
+        item.status for item in findings
+    }
+    with pytest.raises(DeterminationBoundaryError, match="incomplete"):
+        h.determination.finalise_result(
+            context.determination_context_id,
+            finalised_at=T0 + timedelta(seconds=2),
+        )
 
 
 @pytest.mark.dc006

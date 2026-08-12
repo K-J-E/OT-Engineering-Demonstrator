@@ -47,6 +47,20 @@ class ValidationRepository:
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
+    def immutability_controls(self) -> tuple[str, ...]:
+        """Return the installed validation trigger registry for assurance evidence."""
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND (tbl_name LIKE 'validation_%' "
+                "OR tbl_name LIKE 'dc006_%' "
+                "OR tbl_name IN ('criterion_findings', "
+                "'determination_contexts', 'determination_context_members')) "
+                "ORDER BY name"
+            ).fetchall()
+        return tuple(row["name"] for row in rows)
+
     def insert_execution(self, execution: ValidationExecution) -> None:
         with self._connect() as connection:
             connection.execute(

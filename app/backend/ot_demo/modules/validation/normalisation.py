@@ -76,6 +76,16 @@ def normalise(profile: str, value: Any, *, expected: bool) -> Any:
         return value
     if profile in {"PASS", "FAIL", "BLOCKED", "REJECTED", "AVAILABLE", "RADIAL", "SATISFIED"}:
         return profile if expected else _scalar(value)
+    if profile == "kW integer; percent one decimal; explicit null":
+        if isinstance(value, str) and "None, None, None" in value and "None%" in value:
+            return (None, None, None, None)
+        if isinstance(value, dict):
+            fields = (
+                "transferable_load_kw", "resulting_load_kw",
+                "feeder_capacity_kw", "resulting_loading_percent",
+            )
+            if all(value.get(field) is None for field in fields):
+                return (None, None, None, None)
     if "integer" in profile or "decimal" in profile or "ms" in profile:
         numbers = _numbers(value)
         if not numbers:

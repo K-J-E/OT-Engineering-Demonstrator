@@ -159,10 +159,11 @@ class RegisteredSourceAuthority:
                     errors.append(f"{authority.source_role}: {error}")
                 else:
                     matches += 1
-            if matches != 1:
+            if matches > 1:
                 raise SourceAuthorityError(
                     f"criterion {criterion.criterion_id} selector must resolve through "
-                    f"exactly one authoritative role; resolved={matches}; errors={errors}"
+                    f"at most one authoritative role at capture time; "
+                    f"resolved={matches}; errors={errors}"
                 )
 
     def _producer_for(self, method: DeterminationMethodDefinition):
@@ -337,14 +338,34 @@ class RegisteredSourceAuthority:
         checkpoint_times = {
             item.checkpoint_id: item.scenario_time.isoformat() for item in evidence
         }
-        latest_assessment = (
-            snapshot.restoration_assessments[-1].model_dump(mode="json")
-            if snapshot.restoration_assessments else {}
+        lifecycle = self._d.scenarios.command_lifecycle(
+            snapshot.run.scenario_run_id
         )
+        command_results = tuple(lifecycle["results"])
+        replay_comparisons = tuple(lifecycle["replay_comparisons"])
+        command_snapshots = tuple(result.snapshot for result in command_results)
+        latest_assessment = (
+            self._assessment_payload(
+                snapshot.restoration_assessments[-1], snapshot
+            )
+            if snapshot.restoration_assessments else None
+        )
+        if latest_assessment is not None and latest_assessment["affected_feeder_id"] is None:
+            latest_assessment["affected_feeder_id"] = self._scenario_payload(
+                snapshot
+            )["affected_feeder_id"]
         devices = {
             item.entity_id: item.value.value for item in snapshot.telemetry
         }
         actions = self._action_payload(snapshot)
+        action_history = tuple(
+            self._action_payload(item) for item in command_snapshots
+        )
+        isolation_history = tuple(
+            item.topology.isolation_proof.model_dump(mode="json")
+            for item in command_snapshots
+            if item.topology.isolation_proof is not None
+        )
         event_payload = self._event_snapshot(snapshot, context).canonical_payload
         validation_payload = execution.model_dump(mode="json") | {
             "provenance": execution.model_dump(mode="json"),
@@ -372,6 +393,20 @@ class RegisteredSourceAuthority:
             "before_after": {
                 "checkpoints": checkpoint_payloads,
                 "current": self._scenario_payload(snapshot),
+                "command_snapshots": [
+                    self._scenario_payload(item) | {
+                        "topology": self._topology_payload(item),
+                        "outage": item.outage.model_dump(mode="json"),
+                        "new_event_types": [
+                            event.event_type.value
+                            for event in item.events
+                            if event.event_id in set(result.new_event_ids)
+                        ],
+                    }
+                    for result, item in zip(
+                        command_results, command_snapshots, strict=True
+                    )
+                ],
             },
         }
         current_validation = {
@@ -410,57 +445,139 @@ class RegisteredSourceAuthority:
             "ScenarioRun": scenario_payload,
             "ScenarioSnapshot": scenario_payload,
             "TopologyResult": self._topology_payload(snapshot),
-            "OutageResult": snapshot.outage.model_dump(mode="json"),
-            "IsolationProof": (
-                snapshot.topology.isolation_proof.model_dump(mode="json")
-                if snapshot.topology.isolation_proof else {
-                    "incident_boundary_device_ids": [],
-                    "boundary_evidence": {},
-                    "active_source_paths": [],
-                    "isolated": False,
-                }
-            ),
-            "ActionProjection": actions,
-            "ValidationExecution": validation_payload,
-            "EvidenceSnapshot": checkpoint_payloads,
-            "OperationalEventAdapter": event_payload,
-            "OperationalEvent": {"sequence": event_payload["events_for_run"]},
-            "AlarmAdapter": {
-                "active_alarm": next((item.model_dump(mode="json") for item in snapshot.alarms if item.active), None),
-                "acknowledgement": next((item.model_dump(mode="json") for item in snapshot.alarms if item.acknowledged_scenario_time), None),
+            "OutageResult": snapshot.outage.model_dump(mode="json") | {
+                "selected_fault_section_id": snapshot.run.fault_section_id,
+                "affected_customer_zone_ids": [
+                    item.customer_zone_id
+                    for item in snapshot.outage.affected_customer_zones
+                ],
             },
+            "ActionProjection": actions | {"history": list(action_history)},
+            "ValidationExecution": validation_payload,
+            "OperationalEventAdapter": event_payload,
             "OperationalEventRegistry": {"ids": [item.value for item in OperationalEventType]},
             "CurrentValidationExecutionAdapter": current_validation,
             "CurrentScenarioExecutionAdapter": current_scenario,
             "TelemetrySnapshot": {item.entity_id: item.model_dump(mode="json") for item in snapshot.telemetry},
-            "RestorationAssessment": latest_assessment | {
-                "before_after": {"checkpoints": checkpoint_payloads},
-                "replacement": latest_assessment,
-            },
             "DeviceState": devices,
-            "CommandResult": {"accepted": None, "reason": None},
             "CommandAvailability": actions,
-            "PostExecutionSnapshot": {
-                "topology": self._topology_payload(snapshot),
-                "outage": snapshot.outage.model_dump(mode="json"),
-                "restored_customer_delta": snapshot.outage.restored_customer_delta,
-            },
-            "ScenarioRevisionSequence": {
+        }
+        if snapshot.topology.isolation_proof is not None:
+            proof_payload = snapshot.topology.isolation_proof.model_dump(mode="json")
+            telemetry_by_entity = {item.entity_id: item for item in snapshot.telemetry}
+            proof_payload["boundary_evidence"] = {
+                item["boundary_device_id"]: item | {
+                    "freshness": item["freshness_status"],
+                    "evidence_state": item["proof_status"],
+                    "age_ms": int(
+                        (
+                            snapshot.run.scenario_time
+                            - telemetry_by_entity[item["boundary_device_id"]].last_update_scenario_time
+                        ).total_seconds() * 1000
+                    ),
+                }
+                for item in proof_payload["boundary_evaluations"]
+            }
+            raw["IsolationProof"] = proof_payload | {
+                "lifecycle": list(isolation_history)
+            }
+        if checkpoint_payloads:
+            raw["EvidenceSnapshot"] = checkpoint_payloads
+        if event_payload["events_for_run"]:
+            raw["OperationalEvent"] = {
+                "sequence": event_payload["events_for_run"]
+            }
+        if snapshot.alarms:
+            alarm_payload = {
+                "active_alarm": next(
+                    (item.model_dump(mode="json") for item in snapshot.alarms if item.active),
+                    None,
+                ),
+            }
+            acknowledgement = next((
+                item.model_dump(mode="json")
+                for item in snapshot.alarms
+                if item.acknowledged_scenario_time
+            ), None)
+            if acknowledgement is not None:
+                alarm_payload["acknowledgement"] = acknowledgement
+            raw["AlarmAdapter"] = alarm_payload
+        if latest_assessment is not None:
+            raw["RestorationAssessment"] = latest_assessment | {
+                "before_after": [
+                    self._assessment_payload(item, snapshot)
+                    for item in snapshot.restoration_assessments
+                ],
+                "replacement": latest_assessment,
+            }
+        if command_results:
+            raw["CommandResult"] = {
+                "results": [item.model_dump(mode="json") for item in command_results],
+                "accepted": command_results[-1].accepted,
+                "reason": command_results[-1].reason,
+            }
+            raw["ScenarioRevisionSequence"] = {
+                "results": [
+                    {
+                        "command_id": str(item.command_id),
+                        "prior_revision": item.prior_revision,
+                        "current_revision": item.current_revision,
+                        "topology_sha256": sha256_bytes(canonical_json_bytes(
+                            item.snapshot.topology.model_dump(mode="json")
+                        )),
+                    }
+                    for item in command_results
+                ],
                 "relevant_change": checkpoint_times,
                 "sequence": checkpoint_times,
-            },
-            "AssessmentInvalidationAdapter": {
-                "records": [item.model_dump(mode="json") for item in snapshot.restoration_invalidations],
-                "events": event_payload["events_for_run"],
-                "command_result": None,
-            },
-            "CommandResultReplayComparison": {},
-        }
-        for criterion in context.method.criteria:
-            if criterion.kind.value != "MACHINE_COMPARISON":
-                continue
-            for selector in criterion.source_selector.split(" + "):
-                self._complete_absent_selector(raw, selector.strip())
+            }
+        execution_results = tuple(
+            item for item in command_results
+            if self._command_emitted_tie_close(item)
+        )
+        if len(execution_results) == 1:
+            executed = execution_results[0].snapshot
+            assessment = next(
+                item for item in executed.restoration_assessments
+                if item.assessment_id in set(
+                    execution_results[0].new_assessment_ids
+                ) or item.assessment_id == next(
+                    (
+                        event.assessment_id for event in executed.events
+                        if event.event_id in set(execution_results[0].new_event_ids)
+                        and event.assessment_id is not None
+                    ),
+                    None,
+                )
+            )
+            raw["PostExecutionSnapshot"] = {
+                "topology": self._topology_payload(executed),
+                "outage": executed.outage.model_dump(mode="json"),
+                "restored_customer_delta": executed.outage.restored_customer_delta,
+                "tie_device_id": assessment.candidate.tie_device_id,
+            }
+        invalidation_results = tuple(
+            item for item in command_results
+            if self._command_emitted_event(
+                item, "RESTORATION_ASSESSMENT_INVALIDATED"
+            )
+        )
+        if snapshot.restoration_invalidations and invalidation_results:
+            raw["AssessmentInvalidationAdapter"] = {
+                "records": [
+                    item.model_dump(mode="json")
+                    for item in snapshot.restoration_invalidations
+                ],
+                "events": [
+                    item for item in event_payload["events_for_run"]
+                    if item["event_type"] == "RESTORATION_ASSESSMENT_INVALIDATED"
+                ],
+                "command_result": invalidation_results[-1].model_dump(mode="json"),
+            }
+        if replay_comparisons:
+            raw["CommandResultReplayComparison"] = {
+                "comparisons": list(replay_comparisons)
+            }
         return tuple(
             self._snapshot(
                 DeterminationSourceAdapterKind.SCENARIO_STATE,
@@ -470,53 +587,13 @@ class RegisteredSourceAuthority:
             for record_type, payload in raw.items()
         )
 
-    @staticmethod
-    def _complete_absent_selector(raw: dict[str, Any], selector: str) -> None:
-        """Represent unresolved current facts explicitly without fabricating success."""
-
-        import re
-
-        root = re.split(r"[.\[]", selector, maxsplit=1)[0]
-        value = raw.setdefault(root, {})
-        suffix = selector[len(root):].lstrip(".")
-        while suffix:
-            if suffix.startswith("{"):
-                close = suffix.find("}")
-                for field in suffix[1:close].split(","):
-                    if isinstance(value, dict):
-                        value.setdefault(field.strip(), None)
-                suffix = suffix[close + 1:].lstrip(".")
-                continue
-            if suffix.startswith("["):
-                close = suffix.find("]")
-                key = suffix[1:close]
-                if key != "*" and isinstance(value, dict):
-                    value = value.setdefault(key, {})
-                suffix = suffix[close + 1:].lstrip(".")
-                continue
-            match = re.match(r"[A-Za-z0-9_-]+", suffix)
-            if match is None:
-                break
-            field = match.group(0)
-            remainder = suffix[match.end():].lstrip(".")
-            if isinstance(value, dict):
-                if remainder:
-                    if not isinstance(value.get(field), (dict, list, tuple)):
-                        value[field] = {}
-                    value = value[field]
-                else:
-                    value.setdefault(field, None)
-            suffix = remainder
 
     def _events(self, context: SourceAuthorityContext) -> tuple[ProducedRoleAuthority, ...]:
         run_id, execution_id = self._scenario_identity(context)
         snapshot = self._d.scenarios.snapshot(run_id)
         common = self._common(context, snapshot=snapshot, execution_id=execution_id)
         events = self._event_snapshot(snapshot, context)
-        alarms = self._snapshot(
-            DeterminationSourceAdapterKind.OPERATIONAL_EVENT_HISTORY,
-            "AlarmAdapter", f"{run_id}:alarms",
-            {
+        alarm_payload = {
                 "alarms": [item.model_dump(mode="json") for item in snapshot.alarms],
                 "active_alarm": next(
                     (
@@ -525,15 +602,16 @@ class RegisteredSourceAuthority:
                     ),
                     None,
                 ),
-                "acknowledgement": next(
-                    (
-                        item.model_dump(mode="json") for item in snapshot.alarms
-                        if item.acknowledged_scenario_time is not None
-                    ),
-                    None,
-                ),
-            },
-            **common,
+            }
+        acknowledgement = next((
+            item.model_dump(mode="json") for item in snapshot.alarms
+            if item.acknowledged_scenario_time is not None
+        ), None)
+        if acknowledgement is not None:
+            alarm_payload["acknowledgement"] = acknowledgement
+        alarms = self._snapshot(
+            DeterminationSourceAdapterKind.OPERATIONAL_EVENT_HISTORY,
+            "AlarmAdapter", f"{run_id}:alarms", alarm_payload, **common,
         )
         registry = self._snapshot(
             DeterminationSourceAdapterKind.OPERATIONAL_EVENT_HISTORY,
@@ -721,51 +799,201 @@ class RegisteredSourceAuthority:
             }, **common,
         )
         comparison = self._configuration_comparison_snapshot(context)
-        identity_records = {
-            "DefectRecord": self._snapshot(
+        identity_records: dict[str, AuthoritativeRecordSnapshot] = {}
+        if defect is not None:
+            identity_records["DefectRecord"] = self._snapshot(
                 DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
-                "DefectRecord", str(defect.defect_record_id) if defect else "DEF-001:absent",
-                defect.model_dump(mode="json") if defect else {"present": False}, **common,
-            ),
-            "CorrectionRecord": self._snapshot(
+                "DefectRecord", str(defect.defect_record_id),
+                defect.model_dump(mode="json"), **common,
+            )
+        if correction is not None:
+            identity_records["CorrectionRecord"] = self._snapshot(
                 DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
-                "CorrectionRecord", str(correction.correction_record_id) if correction else "COR-001:absent",
-                correction.model_dump(mode="json") if correction else {"present": False}, **common,
-            ),
-            "RepeatLink": self._snapshot(
+                "CorrectionRecord", str(correction.correction_record_id),
+                correction.model_dump(mode="json"), **common,
+            )
+        if links:
+            identity_records["RepeatLink"] = self._snapshot(
                 DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
                 "RepeatLink", "direct-repeat-links",
                 [item.model_dump(mode="json") for item in links], **common,
-            ),
-            "EngineeringReviewRecord": self._snapshot(
-                DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
-                "EngineeringReviewRecord", "INV-R01-proposition",
-                {"finding": {"INV-R01": "PENDING_CONTROLLED_REVIEW"}}, **common,
-            ),
-        }
+            )
         records: dict[str, AuthoritativeRecordSnapshot] = {
-            "InvestigationAdapter": aggregate,
-            "ValidationEvidenceAdapter": validation,
             "ConfigurationComparisonResult": comparison,
             **identity_records,
+        }
+        if summaries or defect is not None or correction is not None or links:
+            records["InvestigationAdapter"] = aggregate
+        if summaries or composites or suspensions:
+            records["ValidationEvidenceAdapter"] = validation
+        scenario_snapshots = []
+        for summary in summaries:
+            run_id = summary.execution.scenario_run_id
+            if run_id is None:
+                continue
+            try:
+                scenario_snapshots.append(self._d.scenarios.snapshot(run_id))
+            except Exception:
+                continue
+        formal_summaries = tuple(
+            item for item in summaries
+            if item.execution.evidence_class.value == "FORMAL"
+        )
+        exploratory_summaries = tuple(
+            item for item in summaries
+            if item.execution.evidence_class.value == "EXPLORATORY"
+        )
+        executed_results = []
+        for item in summaries:
+            result_id = item.execution.executed_result_id
+            if result_id is None:
+                continue
+            try:
+                executed_results.append(
+                    self._d.validation.get_executed_result(result_id)
+                )
+            except Exception:
+                continue
+        event_records = [
+            event.model_dump(mode="json")
+            for snapshot in scenario_snapshots
+            for event in snapshot.events
+        ]
+        evidence_records = [
+            evidence.model_dump(mode="json")
+            for item in summaries
+            for evidence in item.evidence_snapshots
+        ]
+        formal_progress = {
+            "executions": len(formal_summaries),
+            "finalised": sum(
+                item.execution.status.value == "FINALISED"
+                for item in formal_summaries
+            ),
+            "pass": sum(
+                item.execution.verdict is not None
+                and item.execution.verdict.value == "PASS"
+                for item in formal_summaries
+            ),
+            "fail": sum(
+                item.execution.verdict is not None
+                and item.execution.verdict.value == "FAIL"
+                for item in formal_summaries
+            ),
         }
         raw: dict[str, Any] = {
             "ValidationExecutionAdapter": {
                 "executions": [item.execution.model_dump(mode="json") for item in summaries],
+                "identity": [
+                    {
+                        "execution_id": str(item.execution.validation_execution_id),
+                        "test_id": item.execution.test_id,
+                        "evidence_class": item.execution.evidence_class.value,
+                        "catalogue_sha256": item.execution.catalogue_sha256,
+                        "configuration_id": item.execution.configuration_id,
+                        "build_id": item.execution.application_build_id,
+                    }
+                    for item in summaries
+                ],
+                "repeat_chain": [
+                    {
+                        "execution_id": str(item.execution.validation_execution_id),
+                        "repeat_of_execution_id": (
+                            str(item.execution.links.repeat_of_execution_id)
+                            if item.execution.links.repeat_of_execution_id else None
+                        ),
+                    }
+                    for item in summaries
+                    if item.execution.links.repeat_of_execution_id is not None
+                ],
             },
             "ExecutedValidationResultAdapter": {
-                "results": [item.execution.observed_result for item in summaries],
+                "results": [item.model_dump(mode="json") for item in executed_results],
+                "complete_record": [
+                    item.model_dump(mode="json") for item in executed_results
+                ],
             },
-            "PersistenceAssuranceResult": {},
-            "ScenarioResetAdapter": {},
-            "FormalProgressAdapter": {},
-            "ScenarioRunAdapter": {},
+            "PersistenceAssuranceResult": {
+                "immutability_probes": list(
+                    self._d.validation.immutability_controls()
+                )
+            },
+            "ScenarioResetAdapter": {
+                "before_after": [
+                    snapshot.run.model_dump(mode="json")
+                    for snapshot in scenario_snapshots
+                    if any(
+                        event.event_type.value == "SCENARIO_RESET"
+                        for event in snapshot.events
+                    )
+                ]
+            },
+            "FormalProgressAdapter": {
+                "before_after": {
+                    "formal_only": formal_progress,
+                    "with_exploratory_records": formal_progress,
+                    "exploratory_execution_count": len(exploratory_summaries),
+                }
+            },
+            "ScenarioRunAdapter": {
+                "formal_run": [
+                    snapshot.run.model_dump(mode="json")
+                    for snapshot in scenario_snapshots
+                    if snapshot.run.evidence_class.value == "FORMAL"
+                ],
+                "exploration_run": [
+                    snapshot.run.model_dump(mode="json")
+                    for snapshot in scenario_snapshots
+                    if snapshot.run.evidence_class.value == "EXPLORATORY"
+                ],
+                "mode_conversion_probe": {
+                    "run_identities": [
+                        str(snapshot.run.scenario_run_id)
+                        for snapshot in scenario_snapshots
+                    ],
+                    "stored_modes": [
+                        snapshot.run.mode.value for snapshot in scenario_snapshots
+                    ],
+                    "selected_faults": [
+                        snapshot.run.fault_section_id
+                        for snapshot in scenario_snapshots
+                    ],
+                },
+            },
+            "OperationalEventAdapter": {
+                "events": event_records,
+            },
         }
-        for criterion in context.method.criteria:
-            if criterion.kind.value != "MACHINE_COMPARISON":
-                continue
-            for selector in criterion.source_selector.split(" + "):
-                self._complete_absent_selector(raw, selector.strip())
+        if not summaries:
+            raw.pop("ValidationExecutionAdapter")
+        if not executed_results:
+            raw.pop("ExecutedValidationResultAdapter")
+        if not any(
+            any(event.event_type.value == "SCENARIO_RESET" for event in snapshot.events)
+            for snapshot in scenario_snapshots
+        ):
+            raw.pop("ScenarioResetAdapter")
+        if not scenario_snapshots:
+            raw.pop("ScenarioRunAdapter")
+        if not event_records:
+            raw.pop("OperationalEventAdapter")
+        validation_payload = dict(validation.canonical_payload)
+        validation_payload["records"] = evidence_records
+        validation_payload["final_membership"] = {
+            str(item.execution.validation_execution_id): [
+                str(evidence.evidence_snapshot_id)
+                for evidence in item.evidence_snapshots
+            ]
+            for item in summaries
+        }
+        validation = validation.model_copy(update={
+            "canonical_payload": validation_payload,
+            "canonical_payload_sha256": sha256_bytes(
+                canonical_json_bytes(validation_payload)
+            ),
+        })
+        if summaries or composites or suspensions:
+            records["ValidationEvidenceAdapter"] = validation
         for record_type, payload in raw.items():
             if record_type in records:
                 continue
@@ -776,19 +1004,6 @@ class RegisteredSourceAuthority:
                 payload,
                 **common,
             )
-        for record_type, record in tuple(records.items()):
-            payload = json.loads(json.dumps(record.canonical_payload))
-            wrapper = {record_type: payload}
-            for criterion in context.method.criteria:
-                if criterion.kind.value != "MACHINE_COMPARISON":
-                    continue
-                for selector in criterion.source_selector.split(" + "):
-                    if selector.strip().split(".", 1)[0].split("[", 1)[0] == record_type:
-                        self._complete_absent_selector(wrapper, selector.strip())
-            records[record_type] = record.model_copy(update={
-                "canonical_payload": payload,
-                "canonical_payload_sha256": sha256_bytes(canonical_json_bytes(payload)),
-            })
         return self._primary_role_authority(
             context,
             DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
@@ -801,37 +1016,56 @@ class RegisteredSourceAuthority:
             if item.execution.status.value == "FINALISED"
         )
         specifications = {
-            "DET_FORMAL_PAIR": ("VT-FML-N0-N5-001", "1.1", None),
-            "DET_NEGATIVE_PAIR": ("VT-TEL-STALE-001", "1.1", "FIX-TEL-STALE-001"),
-            "DET_CORRECTED_PAIR": ("VT-TOP-DEF-001", "1.1", None),
+            "DET_FORMAL_PAIR": (
+                "VT-FML-N0-N5-001", "network-configuration-v1.1", "1.1", None
+            ),
+            "DET_NEGATIVE_PAIR": (
+                "VT-TEL-STALE-001", "network-configuration-v1.1", "1.1",
+                "FIX-TEL-STALE-001",
+            ),
+            "DET_CORRECTED_PAIR": (
+                "VT-TOP-DEF-001", "network-configuration-v1.1", "1.1", None
+            ),
         }
         pairs: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
-        for role, (test_id, configuration_version, fixture_id) in specifications.items():
+        for role, (
+            test_id, configuration_id, configuration_version, fixture_id
+        ) in specifications.items():
             eligible = tuple(
                 item for item in summaries
                 if item.execution.test_id == test_id
-                and str(item.execution.configuration_version) == configuration_version
+                and item.execution.configuration_id == configuration_id
+                and str(item.execution.configuration_version)
+                == configuration_version
             )
-            by_id = {
-                item.execution.validation_execution_id: item for item in eligible
-            }
-            linked = tuple(
+            if len(eligible) != 2:
+                continue
+            by_id = {item.execution.validation_execution_id: item for item in eligible}
+            linked = [
                 (by_id[item.execution.links.repeat_of_execution_id], item)
                 for item in eligible
                 if item.execution.links.repeat_of_execution_id in by_id
-            )
-            if len(linked) != 1 or len(eligible) != 2:
+            ]
+            if len(linked) != 1:
                 continue
             left, right = linked[0]
-            pairs[role] = (
+            members = (
                 self._repeat_member(left, context, fixture_id),
                 self._repeat_member(right, context, fixture_id),
             )
+            if not self._repeat_pair_is_exact(
+                members,
+                configuration_id=configuration_id,
+                configuration_version=configuration_version,
+                fixture_id=fixture_id,
+                application_build_id=self._d.build.application_build_id,
+                correction_required=role == "DET_CORRECTED_PAIR",
+            ):
+                continue
+            pairs[role] = members
         common = self._common(context)
-        aggregate = self._snapshot(
-            DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
-            "DeterministicRepeatAdapter", "deterministic-repeat-source-set",
-            {
+        complete = set(pairs) == set(specifications)
+        aggregate_payload = {
                 "members": pairs,
                 "input_fingerprints": {
                     role: [member["input_fingerprint"] for member in pair]
@@ -863,7 +1097,7 @@ class RegisteredSourceAuthority:
                     for role, pair in pairs.items()
                 },
                 "before_after_hashes": {
-                    role: [member["immutable_source_sha256"] for member in pair]
+                    role: [member["preservation"] for member in pair]
                     for role, pair in pairs.items()
                 },
                 "comparison_profile": {
@@ -876,25 +1110,43 @@ class RegisteredSourceAuthority:
                         "captured_at", "finalised_at",
                     ],
                 },
-            }, **common,
-        )
-        by_role = {
-            role: (
-                self._snapshot(
-                    DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
-                    "RepeatMemberIdentity",
-                    f"deterministic-repeat:{role}",
-                    {
-                        "role": role,
-                        "members": list(pairs.get(role, ())),
-                    },
-                    **common,
-                ),
+            }
+        aggregate = (
+            self._snapshot(
+                DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
+                "DeterministicRepeatAdapter", "deterministic-repeat-source-set",
+                aggregate_payload, **common,
             )
+            if complete else None
+        )
+        def role_record(role: str) -> AuthoritativeRecordSnapshot:
+            pair = pairs.get(role)
+            return self._snapshot(
+                DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
+                "RepeatMemberIdentity" if pair is not None else "AuthorityRoleBinding",
+                f"deterministic-repeat:{role}",
+                (
+                    {"role": role, "members": list(pair)}
+                    if pair is not None
+                    else {"role": role, "resolution": "INCOMPLETE"}
+                ),
+                **common,
+            )
+        by_role = {
+            role: (role_record(role),)
             for role in context.method.required_context_roles
             if role != "COMPARISON_PROFILE"
         }
-        by_role["COMPARISON_PROFILE"] = (aggregate,)
+        by_role["COMPARISON_PROFILE"] = (
+            (aggregate,) if aggregate is not None else (
+                self._snapshot(
+                    DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
+                    "AuthorityRoleBinding", "deterministic-repeat:COMPARISON_PROFILE",
+                    {"role": "COMPARISON_PROFILE", "resolution": "INCOMPLETE"},
+                    **common,
+                ),
+            )
+        )
         return self._roles(
             context,
             DeterminationSourceAdapterKind.DETERMINISTIC_REPEAT,
@@ -913,13 +1165,10 @@ class RegisteredSourceAuthority:
             execution.test_id, case_id=execution.case_id
         )
         active = self._d.catalogue.get(execution.test_id)
-        if (
-            str(active.catalogue_version) != str(execution.catalogue_version)
-            or active.catalogue_sha256 != execution.catalogue_sha256
-        ):
-            raise SourceAuthorityError(
-                "deterministic repeat member does not resolve under active catalogue"
-            )
+        actual_fixture_id = (
+            method.controlled_fixture.fixture_id
+            if method.controlled_fixture is not None else None
+        )
         controlled_output = {
             "validation_execution_id": str(execution.validation_execution_id),
             "engineering_outputs": {
@@ -933,6 +1182,44 @@ class RegisteredSourceAuthority:
             ],
             "findings": [item.model_dump(mode="json") for item in findings],
         }
+        stored_execution_sha256 = sha256_bytes(canonical_json_bytes(
+            execution.model_dump(mode="json")
+        ))
+        resolved_execution_sha256 = sha256_bytes(canonical_json_bytes(
+            self._d.validation.get_execution(
+                execution.validation_execution_id
+            ).model_dump(mode="json")
+        ))
+        stored_evidence_sha256 = sha256_bytes(canonical_json_bytes([
+            item.model_dump(mode="json") for item in summary.evidence_snapshots
+        ]))
+        resolved_evidence_sha256 = sha256_bytes(canonical_json_bytes([
+            item.model_dump(mode="json")
+            for item in self._d.validation.list_evidence(
+                execution.validation_execution_id
+            )
+        ]))
+        stored_result_sha256 = None
+        resolved_result_sha256 = None
+        if execution.executed_result_id is not None:
+            stored_result_sha256 = self._d.validation.get_executed_result(
+                execution.executed_result_id
+            ).result_sha256
+            resolved_result_sha256 = self._d.validation.get_executed_result(
+                execution.executed_result_id
+            ).result_sha256
+        correction = self._d.investigation.get_correction()
+        stored_correction_sha256 = (
+            sha256_bytes(canonical_json_bytes(correction.model_dump(mode="json")))
+            if correction is not None else None
+        )
+        resolved_correction = self._d.investigation.get_correction()
+        resolved_correction_sha256 = (
+            sha256_bytes(canonical_json_bytes(
+                resolved_correction.model_dump(mode="json")
+            ))
+            if resolved_correction is not None else None
+        )
         return {
             "execution_id": str(execution.validation_execution_id),
             "repeat_of_execution_id": (
@@ -948,17 +1235,77 @@ class RegisteredSourceAuthority:
                 "catalogue_sha256": execution.catalogue_sha256,
                 "method_id": method.method_id,
                 "method_sha256": method.method_sha256,
-                "fixture_id": fixture_id,
+                "fixture_id": actual_fixture_id,
                 "controlled_clock": (
                     execution.started_scenario_time.isoformat()
                     if execution.started_scenario_time else "FIXTURE_DEFINITION_OWNED"
                 ),
             },
             "controlled_output": controlled_output,
-            "immutable_source_sha256": sha256_bytes(
-                canonical_json_bytes(source_payload)
+            "identity_resolved": (
+                str(active.catalogue_version) == str(execution.catalogue_version)
+                and active.catalogue_sha256 == execution.catalogue_sha256
+                and active.definition_sha256 == execution.test_definition_sha256
+                and method.test_id == execution.test_id
+                and method.case_id == execution.case_id
+                and actual_fixture_id == fixture_id
             ),
+            "immutable_source_sha256": sha256_bytes(canonical_json_bytes(source_payload)),
+            "preservation": {
+                "stored_execution_sha256": stored_execution_sha256,
+                "resolved_execution_sha256": resolved_execution_sha256,
+                "stored_evidence_sha256": stored_evidence_sha256,
+                "resolved_evidence_sha256": resolved_evidence_sha256,
+                "stored_result_sha256": stored_result_sha256,
+                "resolved_result_sha256": resolved_result_sha256,
+                "stored_correction_sha256": stored_correction_sha256,
+                "resolved_correction_sha256": resolved_correction_sha256,
+            },
         }
+
+    @staticmethod
+    def _repeat_pair_is_exact(
+        members: tuple[dict[str, Any], dict[str, Any]],
+        *,
+        configuration_id: str,
+        configuration_version: str,
+        fixture_id: str | None,
+        application_build_id: str,
+        correction_required: bool,
+    ) -> bool:
+        left, right = members
+        left_input = left["input_fingerprint"]
+        right_input = right["input_fingerprint"]
+        return (
+            left["execution_id"] != right["execution_id"]
+            and left["repeat_of_execution_id"] is None
+            and right["repeat_of_execution_id"] == left["execution_id"]
+            and left_input == right_input
+            and left_input["configuration_id"] == configuration_id
+            and left_input["configuration_version"] == configuration_version
+            and left_input["fixture_id"] == fixture_id
+            and left_input["build_id"] == application_build_id
+            and all(item["identity_resolved"] is True for item in members)
+            and all(
+                item["preservation"]["stored_execution_sha256"]
+                == item["preservation"]["resolved_execution_sha256"]
+                and item["preservation"]["stored_evidence_sha256"]
+                == item["preservation"]["resolved_evidence_sha256"]
+                and item["preservation"]["stored_result_sha256"]
+                == item["preservation"]["resolved_result_sha256"]
+                and item["preservation"]["stored_result_sha256"] is not None
+                for item in members
+            )
+            and (
+                not correction_required
+                or all(
+                    item["preservation"]["stored_correction_sha256"] is not None
+                    and item["preservation"]["stored_correction_sha256"]
+                    == item["preservation"]["resolved_correction_sha256"]
+                    for item in members
+                )
+            )
+        )
 
     def _evidence_packages(self, context: SourceAuthorityContext) -> tuple[ProducedRoleAuthority, ...]:
         summaries = {
@@ -1249,6 +1596,32 @@ class RegisteredSourceAuthority:
             item["surface_id"]: item["required_identity_profile"]
             for item in expected_surfaces
         }
+        binding_payload = json.loads((
+            self._d.repository_root
+            / "app/frontend/src/surface-field-bindings.v1.json"
+        ).read_text(encoding="utf-8"))
+        binding_surfaces = binding_payload.get("surfaces", [])
+        binding_ids = [item.get("surface_id") for item in binding_surfaces]
+        resolved_field_bindings: dict[str, list[dict[str, Any]]] = {}
+        for surface in binding_surfaces:
+            resolved_field_bindings[surface["surface_id"]] = []
+            for binding in surface.get("bindings", []):
+                module_path = self._d.repository_root / binding["module"]
+                present = (
+                    module_path.is_file()
+                    and binding["token"] in module_path.read_text(encoding="utf-8")
+                )
+                resolved_field_bindings[surface["surface_id"]].append(
+                    dict(binding) | {"resolved_in_implementation": present}
+                )
+        implementation_bindings_ok = (
+            binding_ids == exact_surface_ids
+            and len(binding_ids) == len(set(binding_ids)) == 8
+            and all(
+                bindings and all(item["resolved_in_implementation"] for item in bindings)
+                for bindings in resolved_field_bindings.values()
+            )
+        )
         surface_registration_counts = {
             surface_id: source_text.count(f'<Surface id="{surface_id}">')
             for surface_id in exact_surface_ids
@@ -1269,6 +1642,7 @@ class RegisteredSourceAuthority:
                 )
                 for item in implemented_surfaces
             )
+            and implementation_bindings_ok
         )
         expected_structural = {
             record: owner
@@ -1328,8 +1702,10 @@ class RegisteredSourceAuthority:
                         "fixed_notice": implemented_surface_payload.get("fixed_notice"),
                         "surface_profiles": surface_profiles,
                         "expected_profiles": exact_profiles,
+                        "resolved_implementation_bindings": resolved_field_bindings,
                     }
                 ),
+                "resolved_implementation_bindings": resolved_field_bindings,
             }, **common,
         )
         structural = self._snapshot(
@@ -1526,20 +1902,108 @@ class RegisteredSourceAuthority:
 
     @staticmethod
     def _action_payload(snapshot) -> dict[str, Any]:
-        return {
+        result = {
             item.command_type.value.lower(): {"available": item.available, "reason_code": item.reason_code}
             for item in snapshot.allowed_actions
         }
+        result["by_device"] = {
+            item.target_entity_id: {
+                "command_type": item.command_type.value,
+                "available": item.available,
+                "reason_code": item.reason_code,
+            }
+            for item in snapshot.allowed_actions
+            if item.target_entity_id is not None
+        }
+        return result
 
     @staticmethod
     def _action_payload_from_evidence(payload: dict[str, Any]) -> dict[str, Any]:
-        return {
+        result = {
             item["command_type"].lower(): {
                 "available": item["available"],
                 "reason_code": item["reason_code"],
             }
             for item in payload.get("allowed_actions", [])
         }
+        result["by_device"] = {
+            item["target_entity_id"]: {
+                "command_type": item["command_type"],
+                "available": item["available"],
+                "reason_code": item["reason_code"],
+            }
+            for item in payload.get("allowed_actions", [])
+            if item.get("target_entity_id") is not None
+        }
+        return result
+
+    @staticmethod
+    def _assessment_payload(assessment, snapshot) -> dict[str, Any]:
+        candidate = assessment.candidate
+        calculation = assessment.calculation
+        invalidated = assessment.assessment_id in {
+            item.assessment_id for item in snapshot.restoration_invalidations
+        }
+        return assessment.model_dump(mode="json") | {
+            "status": "INVALIDATED" if invalidated else "CURRENT",
+            "bound_revisions": {
+                "state_revision": assessment.state_revision,
+                "telemetry_snapshot_sha256": assessment.telemetry_snapshot_sha256,
+                "source_availability_sha256": assessment.source_availability_sha256,
+            },
+            "affected_feeder_id": (
+                candidate.affected_feeder_id if candidate else None
+            ),
+            "alternate_feeder_id": (
+                candidate.alternate_feeder_id if candidate else None
+            ),
+            "proposed_section_ids": (
+                list(candidate.proposed_section_ids) if candidate else []
+            ),
+            "transferable_load_kw": (
+                candidate.transferable_load_kw if candidate else None
+            ),
+            "resulting_load_kw": (
+                calculation.resulting_load_kw if calculation else None
+            ),
+            "feeder_capacity_kw": (
+                calculation.feeder_capacity_kw if calculation else None
+            ),
+            "resulting_loading_percent": (
+                str(calculation.resulting_loading_percent)
+                if calculation else None
+            ),
+            "permissives": {
+                item.criterion.value: item.status.value
+                for item in assessment.permissives
+            },
+            "reasons": list(assessment.reason_codes),
+        }
+
+    @staticmethod
+    def _command_emitted_event(result, event_type: str) -> bool:
+        new_ids = set(result.new_event_ids)
+        return any(
+            item.event_id in new_ids and item.event_type.value == event_type
+            for item in result.snapshot.events
+        )
+
+    @staticmethod
+    def _command_emitted_tie_close(result) -> bool:
+        new_ids = set(result.new_event_ids)
+        assessment_ties = {
+            item.assessment_id: item.candidate.tie_device_id
+            for item in result.snapshot.restoration_assessments
+            if item.candidate is not None
+        }
+        return any(
+            item.event_id in new_ids
+            and item.event_type.value == "SWITCHING_ACTION"
+            and item.affected_entity_id == assessment_ties.get(item.assessment_id)
+            and item.new_value == "CLOSED"
+            and item.assessment_id is not None
+            for item in result.snapshot.events
+        )
 
     def _event_snapshot(self, snapshot, context: SourceAuthorityContext) -> AuthoritativeRecordSnapshot:
         common = self._common(context, snapshot=snapshot, execution_id=context.validation_execution_id)

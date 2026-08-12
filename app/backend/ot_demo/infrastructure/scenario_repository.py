@@ -97,6 +97,22 @@ class ScenarioUnitOfWork:
             row["result_json"], strict=True
         )
 
+    def list_command_results(
+        self, scenario_run_id: UUID
+    ) -> tuple[tuple[str, CommandResult], ...]:
+        rows = self.connection.execute(
+            "SELECT request_sha256, result_json FROM scenario_command_results "
+            "WHERE scenario_run_id = ? ORDER BY rowid",
+            (str(scenario_run_id),),
+        ).fetchall()
+        return tuple(
+            (
+                row["request_sha256"],
+                CommandResult.model_validate_json(row["result_json"], strict=True),
+            )
+            for row in rows
+        )
+
     def insert_command_result(
         self,
         *,
