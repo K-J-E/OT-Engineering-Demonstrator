@@ -29,13 +29,25 @@ VALIDATION_PLAN = ROOT / "01-engineering-source-documents/OT Project Validation 
 ACCEPTED_V1_1_CATALOGUE_SHA256 = "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865"
 ACCEPTED_V1_1_MANIFEST_SHA256 = "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3"
 ACCEPTED_VALIDATION_PLAN_SHA256 = "0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f"
-SUPERSEDED_UNACCEPTED_V1_2 = {
-    "catalogue_version": "1.2",
-    "catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
-    "manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
-    "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
-    "reason": "Replaced before acceptance by the DC-007 current-run provenance correction.",
-}
+ACCEPTED_CATALOGUE_AUTHORITY = (
+    "Accepted Validation Plan v1.4 Section 21 / DC-006 + DC-007"
+)
+SUPERSEDED_UNACCEPTED_V1_2_CANDIDATES = (
+    {
+        "catalogue_version": "1.2",
+        "catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
+        "manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
+        "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+        "reason": "Replaced before acceptance by the DC-007 current-run provenance correction.",
+    },
+    {
+        "catalogue_version": "1.2",
+        "catalogue_sha256": "2ebe3400a480fcd31c9317551316d20df4b1d828eb325cf131c73ee13ec970a1",
+        "manifest_sha256": "4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42",
+        "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+        "reason": "Superseded before acceptance because the active catalogue authority metadata still identified Validation Plan v1.3 after DC-007/Validation Plan v1.4 adoption.",
+    },
+)
 FIXED_NOTICE = "Simulated operation only — no real equipment control"
 CONTROLLED_SURFACES = [
     ("Start / Run Setup", "Fixed notice; mode; test and Validation Catalogue identity; Network Configuration identity; Exploration fault selection where applicable; backend build identity; initial-condition preview; full run identity after creation."),
@@ -351,7 +363,7 @@ def main() -> None:
                 )
     source["catalogue_id"] = "VALIDATION-CATALOGUE-V1.2"
     source["catalogue_version"] = "1.2"
-    source["authority"] = "Accepted Validation Plan v1.3 Section 21 / DC-006"
+    source["authority"] = ACCEPTED_CATALOGUE_AUTHORITY
     source["controlled_registries"] = {
         "context_kinds": ["SCENARIO_EXECUTION", "CONTROLLED_FIXTURE_EXECUTION", "PRESERVED_RECORD_SET", "ENGINEERING_REVIEW"],
         "operators": ["SCALAR_EQUAL", "NUMERIC_EQUAL", "BOOLEAN_EQUAL", "CANONICAL_SET_EQUAL", "ORDERED_SEQUENCE_EQUAL", "PRESENT", "ABSENT", "IDENTITY_HASH_AGREEMENT", "CANONICAL_RECORD_EQUAL", "REVIEW_FINDING_EQUAL"],
@@ -379,12 +391,13 @@ def main() -> None:
     MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     revisions = json.loads(REVISIONS.read_text(encoding="utf-8"))
     unaccepted = revisions.setdefault("superseded_unaccepted_candidates", [])
-    if not any(
-        item.get("catalogue_sha256") == SUPERSEDED_UNACCEPTED_V1_2["catalogue_sha256"]
-        and item.get("manifest_sha256") == SUPERSEDED_UNACCEPTED_V1_2["manifest_sha256"]
-        for item in unaccepted
-    ):
-        unaccepted.append(SUPERSEDED_UNACCEPTED_V1_2)
+    for candidate in SUPERSEDED_UNACCEPTED_V1_2_CANDIDATES:
+        if not any(
+            item.get("catalogue_sha256") == candidate["catalogue_sha256"]
+            and item.get("manifest_sha256") == candidate["manifest_sha256"]
+            for item in unaccepted
+        ):
+            unaccepted.append(candidate)
     if revisions.get("active_catalogue_version") == "1.2":
         revisions["revisions"] = [
             item for item in revisions["revisions"] if item["catalogue_version"] != "1.2"

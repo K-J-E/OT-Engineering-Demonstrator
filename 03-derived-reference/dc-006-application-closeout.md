@@ -18,9 +18,10 @@ This branch changes validation assurance only. It does not alter topology, sourc
 
 ## 2. Validation Catalogue promotion and preservation
 
-- Corrected active-candidate Validation Catalogue v1.2 catalogue SHA-256: `2ebe3400a480fcd31c9317551316d20df4b1d828eb325cf131c73ee13ec970a1`.
-- Corrected active-candidate Validation Catalogue v1.2 manifest SHA-256: `4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42`.
-- Superseded/rejected unaccepted v1.2 candidate catalogue/manifest SHA-256: `51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3` / `a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754`. These identities are retained as unaccepted candidate history, not as an accepted catalogue revision.
+- MC-01-corrected active-candidate Validation Catalogue v1.2 catalogue SHA-256: `f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4`.
+- MC-01-corrected active-candidate Validation Catalogue v1.2 manifest SHA-256: `ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9`.
+- Exact active authority metadata: `Accepted Validation Plan v1.4 Section 21 / DC-006 + DC-007`.
+- Superseded/rejected unaccepted v1.2 candidate catalogue/manifest SHA-256 pairs: `51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3` / `a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754`; and `2ebe3400a480fcd31c9317551316d20df4b1d828eb325cf131c73ee13ec970a1` / `4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42`. These identities are retained as separate unaccepted candidate history, not as accepted catalogue revisions or resolver targets. The second pair was superseded before acceptance because its active authority metadata still named Validation Plan v1.3.
 - Preserved historical v1.1 catalogue SHA-256: `28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865`.
 - Preserved historical v1.1 manifest SHA-256: `45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3`.
 - Preserved historical v1.0 catalogue/manifest SHA-256: `e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1` / `8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714`.

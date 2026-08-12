@@ -22,6 +22,9 @@ CATALOGUE = DEFINITIONS / "catalogue.json"
 CRITERION_REQUIREMENT_FINGERPRINT = (
     "cd08f985a1ff2826da5e66f9b26b6723bd179bb9d59b4180b0bac93eacedbf9b"
 )
+ACCEPTED_CATALOGUE_AUTHORITY = (
+    "Accepted Validation Plan v1.4 Section 21 / DC-006 + DC-007"
+)
 
 
 @pytest.mark.dc006
@@ -39,6 +42,13 @@ def test_v11_is_byte_identical_history_and_v12_is_active() -> None:
         "1.1",
         "1.2",
     ]
+    assert revisions["revisions"][-1] == {
+        "catalogue_version": "1.2",
+        "catalogue_sha256": "f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4",
+        "manifest_sha256": "ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9",
+        "catalogue_path": "catalogue.json",
+        "status": "ACTIVE_PENDING_INDEPENDENT_REVIEW",
+    }
     assert revisions["superseded_unaccepted_candidates"] == [
         {
             "catalogue_version": "1.2",
@@ -46,8 +56,21 @@ def test_v11_is_byte_identical_history_and_v12_is_active() -> None:
             "manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
             "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
             "reason": "Replaced before acceptance by the DC-007 current-run provenance correction.",
-        }
+        },
+        {
+            "catalogue_version": "1.2",
+            "catalogue_sha256": "2ebe3400a480fcd31c9317551316d20df4b1d828eb325cf131c73ee13ec970a1",
+            "manifest_sha256": "4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42",
+            "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+            "reason": "Superseded before acceptance because the active catalogue authority metadata still identified Validation Plan v1.3 after DC-007/Validation Plan v1.4 adoption.",
+        },
     ]
+
+
+@pytest.mark.dc006
+def test_active_catalogue_names_exact_accepted_v14_dc007_authority() -> None:
+    payload = json.loads(CATALOGUE.read_text(encoding="utf-8"))
+    assert payload["authority"] == ACCEPTED_CATALOGUE_AUTHORITY
 
 
 @pytest.mark.dc006
