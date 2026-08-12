@@ -16,7 +16,7 @@ Can `DEF-02`, `DEF-03` and `DEF-04` be evaluated from their existing one-run sou
 
 Finding: **No, not with their current full wording.** Each selector supplies the current run's facts, while the trailing clause of each expected value explains the result of a different configuration/run. The accepted architecture prohibits binding that other run into the direct `SCENARIO_EXECUTION` context.
 
-The minimum correction is to retain the current-run proposition and remove only the unsupported cross-configuration explanation from criterion-level expected values.
+The minimum correction changes the controlled expected-value wording to retain the current-run proposition and remove only the unsupported cross-configuration explanation. The underlying engineering answer key and expected v1.0/v1.1 outcomes do not change.
 
 ## 2. Selector-to-proposition provenance
 
@@ -27,6 +27,19 @@ The minimum correction is to retain the current-run proposition and remove only 
 | `DEF-04` | Current configuration-difference role and current source paths | Explanation that v1.0's ordinary source path does not satisfy the record | Retain only the current corrected endpoint/no-FDR-B-path proposition |
 
 The removed clauses remain valid test-level rationale. They are not discarded from the project answer key; they are relocated conceptually to the level where both separate executions are reviewed.
+
+### 2.1 DEF-04 source semantics
+
+`configuration_difference_role` is **not** a generic configuration-role label or a pre-written proposition. It must be a backend-derived current-run configuration fact resolved from the immutable Network Configuration authority and must expose the actual controlled `SW-A23` endpoint relationship applicable to that run:
+
+- Network Configuration v1.0 → `SW-A23` endpoint 1 = `SEC-B3`;
+- Network Configuration v1.1 → `SW-A23` endpoint 1 = `SEC-A2`.
+
+`source_paths` remains the current topology/source-attribution authority output. Under the retained selector `CurrentScenarioExecutionAdapter.{configuration_difference_role,source_paths}`, `DEF-04` may produce the corrected proposition only when the current run itself establishes both `SW-A23` endpoint = `SEC-A2` and no active FDR-B path through `SEC-B3`/`SW-A23` to A3/A4.
+
+The v1.0 run must independently expose `SEC-B3` and the defective current source-path facts and therefore produce `NOT_SATISFIED`. No additional run or selector change is required or permitted.
+
+The stopped PR #12 implementation's generic `CONTROLLED_PACKAGE_IDENTITY` placeholder does not establish this source provenance and is insufficient. A later authorised QA-053 implementation must replace it with the genuine source-derived current-configuration projection described above.
 
 ## 3. Rejected alternatives
 
@@ -104,7 +117,7 @@ The accepted document identities remain controlling; no DOCX has been modified b
 
 ## 7. Candidate identity calculation basis
 
-The proposed hashes in DC-007 were calculated in memory against the exact unaccepted Validation Catalogue v1.2 candidate present at PR #12 head `a214b78fb425ca9a40108745d660f10888565080` using:
+The proposed hashes in DC-007 were calculated in memory against the exact unaccepted Validation Catalogue v1.2 candidate present at PR #12 head `a214b78fb425ca9a40108745d660f10888565080` using the changed controlled expected-value wording while retaining the unchanged engineering answer key and expected v1.0/v1.1 outcomes, specifically:
 
 - the three exact proposed expected values;
 - criterion version increments 1.0 → 1.1;
@@ -130,6 +143,8 @@ A separately authorised DC-007 application should verify:
 9. no direct context contains two runs and no meta-`PASS` exists;
 10. DC-004/DC-005, configuration, topology/outage/restoration and dependency identities remain unchanged; and
 11. QA-053 resumes only after the authoritative and machine identities are separately accepted.
+
+The later QA-053 application must additionally prove that `configuration_difference_role` is resolved from the immutable current-run Network Configuration authority, that `source_paths` is supplied by the existing topology/source-attribution authority, and that altering either controlling fact remains visible as `NOT_SATISFIED`. The generic `CONTROLLED_PACKAGE_IDENTITY` placeholder is not acceptable evidence for `DEF-04`.
 
 ## 9. Current gate
 

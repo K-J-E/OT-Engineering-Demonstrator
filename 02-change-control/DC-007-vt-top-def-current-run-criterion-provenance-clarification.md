@@ -27,7 +27,7 @@ QA-053 established that each affected criterion currently combines:
 
 This makes exact source-derived observation translation impossible without importing facts from another run or manufacturing explanatory text. Both treatments would contradict the accepted one-run `SCENARIO_EXECUTION` boundary.
 
-DC-007 removes only those cross-configuration explanatory clauses from the three criterion-level expected values. It does not change the engineering answer key, selectors, operators, normalisation, requirement mappings, method structure, test procedure or evidence classes.
+DC-007 changes the controlled expected-value wording of `DEF-02`, `DEF-03` and `DEF-04` by removing only those cross-configuration explanatory clauses. Existing selectors, operators, normalisation and criterion-to-requirement mappings remain unchanged. The underlying engineering answer key and expected v1.0/v1.1 outcomes remain unchanged, as do the method structure, test procedure and evidence classes.
 
 This proposal grants no authority to amend authoritative DOCX files, modify the machine Validation Catalogue, change application code or resume I9.
 
@@ -99,9 +99,23 @@ The removed sentence correctly described the separate v1.0 execution, but it was
 
 The removed sentence described why the separate v1.0 source-path record fails. The criterion itself remains fixed to the corrected current-run proposition, so v1.0 continues to produce `NOT_SATISFIED` from its own observed source paths.
 
-## 4. Why the engineering answer key does not change
+`configuration_difference_role` is **not** a generic configuration-role label or a pre-written proposition. It must be a backend-derived current-run configuration fact resolved from the immutable Network Configuration authority and must expose the actual controlled `SW-A23` endpoint relationship applicable to that run:
 
-The proposed wording narrows criterion provenance; it does not alter any expected engineering state.
+- Network Configuration v1.0 → `SW-A23` endpoint 1 = `SEC-B3`;
+- Network Configuration v1.1 → `SW-A23` endpoint 1 = `SEC-A2`.
+
+`source_paths` remains the current topology/source-attribution authority output. `DEF-04` may produce the corrected proposition only when the current run itself establishes both:
+
+- `SW-A23` endpoint = `SEC-A2`; and
+- no active FDR-B path through `SEC-B3`/`SW-A23` to A3/A4.
+
+The v1.0 run must independently expose `SEC-B3` and the defective current source-path facts and therefore produce `NOT_SATISFIED`. No other run is introduced and the selector remains unchanged.
+
+The stopped PR #12 implementation's generic `CONTROLLED_PACKAGE_IDENTITY` placeholder is insufficient for this criterion. A later authorised QA-053 implementation must replace it with this genuine source-derived current-configuration projection; this proposal does not authorise or perform that implementation change.
+
+## 4. Controlled wording changes; engineering answer key does not change
+
+The controlled expected-value wording changes to narrow criterion provenance. The underlying engineering answer key and expected v1.0/v1.1 outcomes do not change, and no expected engineering state is altered.
 
 | Controlled result | Before DC-007 | Proposed DC-007 | Change |
 |---|---|---|---|
