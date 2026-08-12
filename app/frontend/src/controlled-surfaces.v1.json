@@ -1,0 +1,63 @@
+{
+  "registry_id": "CONTROLLED-SURFACES-V1",
+  "version": "1.0",
+  "fixed_notice": "Simulated operation only — no real equipment control",
+  "surfaces": [
+    {
+      "surface_id": "Start / Run Setup",
+      "view_id": "setup",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/run-setup/RunSetup.tsx",
+      "required_identity_profile": "Fixed notice; mode; test and Validation Catalogue identity; Network Configuration identity; Exploration fault selection where applicable; backend build identity; initial-condition preview; full run identity after creation."
+    },
+    {
+      "surface_id": "Operational Workspace",
+      "view_id": "operational",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/operational/OperationalWorkspace.tsx",
+      "required_identity_profile": "Fixed notice; full run identity; mode; Network Configuration identity; selected/controlled fault; workflow/N-state; state revision; evidence class; backend build identity."
+    },
+    {
+      "surface_id": "Telemetry & Events",
+      "view_id": "telemetry-events",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx|app/frontend/src/features/telemetry-events/EventTimeline.tsx",
+      "required_identity_profile": "Fixed notice; full run identity; telemetry value/quality/timestamp/age/freshness/reasons; exact event type/sequence/time/revision/source identity."
+    },
+    {
+      "surface_id": "Restoration Assessment",
+      "view_id": "restoration",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/restoration/RestorationView.tsx",
+      "required_identity_profile": "Fixed notice; full run and Network Configuration identities; assessment/candidate identities; bound revisions/evidence; permissives; calculation inputs/results; outcome/status."
+    },
+    {
+      "surface_id": "Formal Validation",
+      "view_id": "validation",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/validation/ValidationView.tsx",
+      "required_identity_profile": "Fixed notice; Validation Catalogue/test/method/criterion identities; execution/run/Network Configuration/build identities; FORMAL evidence class; checkpoints/findings/result."
+    },
+    {
+      "surface_id": "Evidence Library",
+      "view_id": "evidence",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/validation/EvidenceLibrary.tsx",
+      "required_identity_profile": "Fixed notice; evidence/package identities and class; source catalogue/configuration/execution/build identities; separate generation-build identity; immutable hashes/links."
+    },
+    {
+      "surface_id": "Defect Investigation",
+      "view_id": "investigation",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx",
+      "required_identity_profile": "Fixed notice; Network Configuration v1.0 failure, DEF-001, COR-001, corrected v1.1 repeat/regression identities; same-build and source-catalogue provenance."
+    },
+    {
+      "surface_id": "Engineering Basis",
+      "view_id": "engineering",
+      "fixed_notice": "Simulated operation only — no real equipment control",
+      "component_module": "app/frontend/src/features/engineering/EngineeringBasis.tsx",
+      "required_identity_profile": "Fixed notice; authoritative artefact/version/hash; requirement/source/module/view traceability; build metadata; read-only/no operational action."
+    }
+  ]
+}

@@ -30,6 +30,7 @@ _NUMBER = re.compile(r"(?<![A-Za-z0-9])[-−]?\d[\d,]*(?:\.\d+)?")
 _GENERATED_ID_FIELDS = frozenset(
     {
         "scenario_run_id", "validation_execution_id", "evidence_snapshot_id",
+        "run_id", "execution_id", "repeat_of_execution_id", "immutable_result_identity",
         "criterion_finding_id", "executed_result_id", "command_id", "event_id",
         "alarm_id", "assessment_id", "created_at", "captured_at", "finalised_at",
     }
@@ -83,7 +84,11 @@ def normalise(profile: str, value: Any, *, expected: bool) -> Any:
             "percent one decimal" in profile or "percentage one decimal" in profile
         ) else 0
         quantum = Decimal(1).scaleb(-decimals)
-        converted = tuple(item.quantize(quantum, rounding=ROUND_HALF_UP) for item in numbers)
+        quantised = tuple(item.quantize(quantum, rounding=ROUND_HALF_UP) for item in numbers)
+        converted = tuple(
+            int(item) if item == item.to_integral_value() else float(item)
+            for item in quantised
+        )
         return converted[0] if len(converted) == 1 else converted
     raise NormalisationError(f"profile has no executable treatment: {profile}")
 

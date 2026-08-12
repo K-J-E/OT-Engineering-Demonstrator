@@ -214,3 +214,6 @@ pre { max-height: 18rem; overflow: auto; white-space: pre-wrap; overflow-wrap: a
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
+.controlled-surface { display: contents; }
+.surface-assurance { display: flex; justify-content: space-between; gap: 1rem; align-items: center; margin: 0 0 .75rem; padding: .55rem .75rem; border: 1px solid var(--line); border-radius: .5rem; background: var(--surface-raised); color: var(--muted); font-size: .75rem; }
+.surface-assurance strong { color: var(--warning); }

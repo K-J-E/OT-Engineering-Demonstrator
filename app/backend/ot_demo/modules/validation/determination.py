@@ -33,6 +33,7 @@ from .models import (
     EngineeringReviewProposal,
     ExecutedValidationResult,
     ValidationExecution,
+    ValidationExecutionLinks,
 )
 from .normalisation import NormalisationError, normalise
 from .actor_roles import controlled_actor_role
@@ -76,6 +77,7 @@ class DeterminationService:
         frozen_at,
         scenario_run_id: UUID | None = None,
         validation_execution_id: UUID | None = None,
+        repeat_of_execution_id: UUID | None = None,
     ) -> DeterminationContext:
         """Resolve exact backend authority membership, persist it, then bind."""
 
@@ -103,6 +105,7 @@ class DeterminationService:
             frozen_at=frozen_at,
             scenario_run_id=scenario_run_id,
             validation_execution_id=validation_execution_id,
+            repeat_of_execution_id=repeat_of_execution_id,
         )
 
     def _persist_produced_source(
@@ -205,6 +208,7 @@ class DeterminationService:
         frozen_at,
         scenario_run_id: UUID | None = None,
         validation_execution_id: UUID | None = None,
+        repeat_of_execution_id: UUID | None = None,
     ) -> DeterminationContext:
         attempt = self._validation_repository.get_attempt(validation_attempt_id)
         if attempt.status not in {
@@ -281,6 +285,9 @@ class DeterminationService:
                     expected_comparison_values=None,
                     validation_attempt_id=attempt.validation_attempt_id,
                     target_selection_id=target.target_selection_id,
+                    links=ValidationExecutionLinks(
+                        repeat_of_execution_id=repeat_of_execution_id
+                    ),
                 )
                 self._validation_repository.bind_attempt_procedure_execution(
                     active_attempt, execution

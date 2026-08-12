@@ -7,8 +7,29 @@ import { RestorationView } from './features/restoration/RestorationView'
 import { TelemetryView } from './features/telemetry-events/TelemetryView'
 import { ValidationView } from './features/validation/ValidationView'
 import { makeProjection, permittedAssessment } from './test-fixtures'
+import { ControlledSurface } from './components/ControlledSurface'
+import controlledSurfaces from './controlled-surfaces.v1.json'
 
 describe('I6 engineering presentation components', () => {
+  it('renders the exact eight controlled surfaces with their frozen notice and identity profiles', () => {
+    expect(controlledSurfaces.surfaces.map((surface) => surface.surface_id)).toEqual([
+      'Start / Run Setup', 'Operational Workspace', 'Telemetry & Events',
+      'Restoration Assessment', 'Formal Validation', 'Evidence Library',
+      'Defect Investigation', 'Engineering Basis',
+    ])
+    for (const surface of controlledSurfaces.surfaces) {
+      const rendered = render(<ControlledSurface
+        surfaceId={surface.surface_id}
+        identityProfile={surface.required_identity_profile}
+        fixedNotice={surface.fixed_notice}
+      ><span>content</span></ControlledSurface>)
+      const region = rendered.container.querySelector('[data-controlled-surface]')
+      expect(region).toHaveAttribute('data-controlled-surface', surface.surface_id)
+      expect(region).toHaveAttribute('data-identity-profile', surface.required_identity_profile)
+      expect(screen.getByText(surface.fixed_notice)).toBeVisible()
+      rendered.unmount()
+    }
+  })
   it('keeps the approved context fields continuously explicit', () => {
     render(<ContextRibbon projection={makeProjection()} />)
     expect(screen.getAllByText('FORMAL')).toHaveLength(2)

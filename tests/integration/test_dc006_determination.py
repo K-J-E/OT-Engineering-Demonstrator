@@ -29,20 +29,26 @@ from ot_demo.infrastructure.hashing import canonical_json_bytes, sha256_bytes
 from ot_demo.infrastructure.investigation_repository import InvestigationRepository
 from ot_demo.infrastructure.scenario_repository import ScenarioRepository
 from ot_demo.infrastructure.validation_repository import ValidationRepository
-from ot_demo.modules.evidence_export.models import EvidencePackage
+from ot_demo.modules.evidence_export.service import EvidenceExportService
 from ot_demo.modules.scenario.models import InitialiseRunRequest, ScenarioCommandRequest
 from ot_demo.modules.telemetry.service import TelemetryValidityService
+from ot_demo.modules.restoration.service import RestorationService
+from ot_demo.modules.restoration.models import PermissiveResult
+from ot_demo.domain.enums import PermissiveStatus, RestorationCriterion
 from ot_demo.modules.validation.actor_roles import (
     CONTROLLED_LOCAL_ACTOR_ROLES,
     controlled_actor_role,
 )
 from ot_demo.modules.validation.catalogue import ValidationCatalogueResolver
+from ot_demo.modules.validation.catalogue import ValidationCatalogueLoader
 from ot_demo.modules.validation.determination import DeterminationBoundaryError, DeterminationService
 from ot_demo.modules.validation.service import ValidationService
+from ot_demo.modules.validation.models import ValidationExecutionLinks
 from ot_demo.modules.validation.source_authority import (
     RegisteredSourceAuthority,
     SourceAuthorityDependencies,
 )
+from ot_demo.modules.validation.structural_registry import resolved_structural_registry
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -87,6 +93,11 @@ def harness(
     configuration_root: Path | None = None,
     repository_root: Path = ROOT,
     telemetry: TelemetryValidityService | None = None,
+    validation_database: Path | None = None,
+    catalogue_path: Path = CATALOGUE,
+    package_archive_root: Path | None = None,
+    structural_registry: dict[str, dict[str, str]] | None = None,
+    restoration: RestorationService | None = None,
 ) -> Harness:
     tmp_path.mkdir(parents=True, exist_ok=True)
     loader = JsonConfigurationLoader(configuration_root or ROOT / "config/network")
@@ -96,13 +107,17 @@ def harness(
         application_build_manifest=BUILD,
     )
     catalogue = ValidationCatalogueResolver(
-        CATALOGUE,
-        (
-            CATALOGUE.parent / "history/v1.0/catalogue.json",
-            CATALOGUE.parent / "history/v1.1/catalogue.json",
+        catalogue_path,
+        tuple(
+            item for item in (
+                CATALOGUE.parent / "history/v1.0/catalogue.json",
+                CATALOGUE.parent / "history/v1.1/catalogue.json",
+            )
+            if item != catalogue_path
         ),
     )
-    validation_records = ValidationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    validation_path = validation_database or tmp_path / "validation.sqlite3"
+    validation_records = ValidationRepository(validation_path, MIGRATIONS)
     validation = ValidationService(
         validation_records,
         catalogue,
@@ -110,9 +125,9 @@ def harness(
         loader,
         application_build_manifest=BUILD,
     )
-    determinations = DeterminationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
-    investigation_records = InvestigationRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
-    packages = EvidencePackageRepository(tmp_path / "validation.sqlite3", MIGRATIONS)
+    determinations = DeterminationRepository(validation_path, MIGRATIONS)
+    investigation_records = InvestigationRepository(validation_path, MIGRATIONS)
+    packages = EvidencePackageRepository(validation_path, MIGRATIONS)
     authority = RegisteredSourceAuthority(SourceAuthorityDependencies(
         repository_root=repository_root,
         build=BUILD,
@@ -124,6 +139,9 @@ def harness(
         packages=packages,
         determination=determinations,
         telemetry=telemetry or TelemetryValidityService(),
+        package_archive_root=package_archive_root,
+        structural_registry=structural_registry,
+        restoration=restoration or RestorationService(),
     ))
     determination = DeterminationService(
         determinations,
@@ -207,6 +225,133 @@ def start_scenario_context(h: Harness, test_id: str, *, command_id: int, trip: b
     return context
 
 
+def execute_available(
+    h: Harness,
+    run_id: UUID,
+    command_type: ScenarioCommandType,
+    *,
+    command_id: int,
+    target: str | None = None,
+):
+    snapshot = h.scenarios.snapshot(run_id)
+    action = next(
+        item for item in snapshot.allowed_actions
+        if item.command_type is command_type
+        and item.available
+        and (target is None or item.target_entity_id == target)
+    )
+    seconds = {
+        ScenarioCommandType.INITIATE_FAULT: 10,
+        ScenarioCommandType.ACKNOWLEDGE_ALARM: 11,
+        ScenarioCommandType.RESTORE_NORMAL_SOURCE: 40,
+        ScenarioCommandType.ASSESS_RESTORATION: 50,
+        ScenarioCommandType.EXECUTE_RESTORATION: 55,
+    }.get(command_type, 20 if target == "SW-A12" else 30)
+    return h.scenarios.execute(run_id, ScenarioCommandRequest(
+        command_id=UUID(int=command_id),
+        scenario_run_id=run_id,
+        actor="Graduate Engineer",
+        expected_revision=snapshot.run.state_revision,
+        command_type=action.command_type,
+        scenario_time=T0 + timedelta(seconds=seconds),
+        target_entity_id=action.target_entity_id,
+        requested_state=action.requested_state,
+        alarm_id=action.alarm_id,
+        assessment_id=action.assessment_id,
+    ))
+
+
+def full_formal_context(
+    h: Harness,
+    *,
+    command_id: int = 20_000,
+    repeat_of_execution_id: UUID | None = None,
+):
+    initial = initialise(h, command_id=command_id)
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = h.validation.start_execution(
+        "VT-FML-N0-N5-001", run_id,
+        links=ValidationExecutionLinks(
+            repeat_of_execution_id=repeat_of_execution_id
+        ),
+    )
+    h.validation.capture_checkpoint(execution.validation_execution_id, "N0")
+    steps = (
+        (ScenarioCommandType.INITIATE_FAULT, None, "N1"),
+        (ScenarioCommandType.ACKNOWLEDGE_ALARM, None, None),
+        (ScenarioCommandType.OPERATE_ISOLATION_DEVICE, "SW-A12", None),
+        (ScenarioCommandType.OPERATE_ISOLATION_DEVICE, "SW-A23", "N2"),
+        (ScenarioCommandType.RESTORE_NORMAL_SOURCE, "BRK-A", "N3"),
+        (ScenarioCommandType.ASSESS_RESTORATION, None, "N4"),
+        (ScenarioCommandType.EXECUTE_RESTORATION, None, "N5"),
+    )
+    for offset, (command_type, target, checkpoint) in enumerate(steps, 1):
+        execute_available(
+            h, run_id, command_type,
+            command_id=command_id + offset,
+            target=target,
+        )
+        if checkpoint:
+            h.validation.capture_checkpoint(execution.validation_execution_id, checkpoint)
+    return h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=56),
+    )
+
+
+def finalise_determined(h: Harness, context, *, at: datetime):
+    evaluate(h, context, at=at)
+    result = h.determination.finalise_result(
+        context.determination_context_id,
+        finalised_at=at + timedelta(milliseconds=3),
+    )
+    return result
+
+
+def fixture_context(
+    h: Harness,
+    test_id: str,
+    *,
+    at: datetime,
+    repeat_of_execution_id: UUID | None = None,
+):
+    _, attempt = h.validation.create_target_selection(test_id, created_at=at)
+    return h.determination.prepare_context(
+        validation_attempt_id=attempt.validation_attempt_id,
+        repeat_of_execution_id=repeat_of_execution_id,
+        frozen_at=at + timedelta(milliseconds=1),
+    )
+
+
+def corrected_post_trip_context(
+    h: Harness,
+    *,
+    command_id: int,
+    repeat_of_execution_id: UUID | None = None,
+):
+    initial = initialise(h, command_id=command_id)
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = h.validation.start_execution(
+        "VT-TOP-DEF-001", run_id,
+        links=ValidationExecutionLinks(
+            repeat_of_execution_id=repeat_of_execution_id
+        ),
+    )
+    execute_available(
+        h, run_id, ScenarioCommandType.INITIATE_FAULT,
+        command_id=command_id + 1,
+    )
+    h.validation.capture_checkpoint(execution.validation_execution_id, "POST_TRIP")
+    return h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=11),
+    )
+
+
 def altered_configuration_root(tmp_path: Path) -> Path:
     destination = tmp_path / "config/network"
     shutil.copytree(ROOT / "config/network", destination)
@@ -233,16 +378,12 @@ def nfr_repository(tmp_path: Path, *, complete: bool) -> Path:
     (root / "app/frontend/playwright.config.ts").write_text(
         "const baseURL = 'http://127.0.0.1:8000'\n", encoding="utf-8"
     )
-    (root / "app/frontend/src").mkdir(parents=True)
-    probes = (
-        "RunSetup workspace-main TelemetryView RestorationView ValidationView "
-        "EvidenceLibrary InvestigationWorkspace Engineering Basis"
-    )
-    notice = "Simulated operation only — no real equipment control."
-    (root / "app/frontend/src/review.tsx").write_text(
-        probes + "\n" + "\n".join([notice] * (8 if complete else 7)),
-        encoding="utf-8",
-    )
+    shutil.copytree(ROOT / "app/frontend/src", root / "app/frontend/src")
+    if not complete:
+        registry_path = root / "app/frontend/src/controlled-surfaces.v1.json"
+        registry = json.loads(registry_path.read_text(encoding="utf-8"))
+        registry["surfaces"][3]["fixed_notice"] = "Uncontrolled substitute notice"
+        registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
     return root
 
 
@@ -276,9 +417,31 @@ def test_scenario_producer_reads_actual_topology_outage_and_detects_post_trip_mi
     assert finding(post_trip_findings, "TOP-N0-06").status is CriterionFindingStatus.NOT_SATISFIED
 
 
+@pytest.mark.dc006
+def test_full_formal_n0_n5_campaign_uses_real_run_and_satisfies_all_controlled_criteria(
+    tmp_path: Path,
+) -> None:
+    h = harness(tmp_path)
+    context = full_formal_context(h)
+    findings = evaluate(h, context, at=T0 + timedelta(seconds=56))
+    assert len(findings) == 8
+    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
+
+
 class NonconformingTelemetryAuthority(TelemetryValidityService):
     def classify(self, point, scenario_time):
         return super().classify(point, scenario_time - timedelta(milliseconds=1))
+
+
+class NonconformingRadialityAuthority(RestorationService):
+    @staticmethod
+    def evaluate_radiality(proposed, evidence_point_ids=()):
+        return PermissiveResult(
+            criterion=RestorationCriterion.RADIAL_TOPOLOGY,
+            status=PermissiveStatus.PASS,
+            reason_codes=("TOPOLOGY_RADIAL",),
+            evidence_point_ids=evidence_point_ids,
+        )
 
 
 @pytest.mark.dc006
@@ -300,6 +463,25 @@ def test_fixture_producer_executes_real_telemetry_authority_and_detects_changed_
 
 
 @pytest.mark.dc006
+def test_radial_fixture_builds_a_real_energised_loop_and_uses_restoration_authority(
+    tmp_path: Path,
+) -> None:
+    valid = harness(tmp_path / "valid")
+    context = prepare_record_context(valid, "VT-RST-RADIAL-001")
+    findings = evaluate(valid, context)
+    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
+
+    changed = harness(
+        tmp_path / "changed",
+        restoration=NonconformingRadialityAuthority(),
+    )
+    changed_context = prepare_record_context(changed, "VT-RST-RADIAL-001")
+    changed_findings = evaluate(changed, changed_context)
+    assert finding(changed_findings, "RAD-03").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(changed_findings, "RAD-04").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
 def test_event_producer_reads_actual_registry_history_for_pass_and_missing_switching_mismatch(tmp_path: Path) -> None:
     h = harness(tmp_path)
     context = start_scenario_context(h, "VT-ALM-EVT-001", command_id=3, trip=True)
@@ -316,6 +498,17 @@ def test_investigation_producer_reads_real_failure_history_and_detects_wrong_fai
     findings = evaluate(valid, context, at=T0 + timedelta(hours=1))
     assert finding(findings, "INV-01").status is CriterionFindingStatus.SATISFIED
 
+    valid.investigation.start_failure("Graduate Engineer")
+    ambiguous_context = prepare_record_context(
+        valid, "VT-CFG-INV-001", at=T0 + timedelta(hours=2)
+    )
+    ambiguous_findings = evaluate(
+        valid, ambiguous_context, at=T0 + timedelta(hours=2)
+    )
+    assert finding(
+        ambiguous_findings, "INV-01"
+    ).status is CriterionFindingStatus.NOT_SATISFIED
+
     changed_root = altered_configuration_root(tmp_path / "altered")
     changed = harness(tmp_path / "changed-db", configuration_root=changed_root)
     _, _, failed = run_configuration_determination(changed, at=T0)
@@ -326,71 +519,151 @@ def test_investigation_producer_reads_real_failure_history_and_detects_wrong_fai
 
 
 @pytest.mark.dc006
-def test_repeat_producer_reads_finalised_execution_findings_and_detects_engineering_change(tmp_path: Path) -> None:
-    valid = harness(tmp_path / "valid")
-    run_configuration_determination(valid, at=T0)
-    run_configuration_determination(valid, at=T0 + timedelta(seconds=1))
-    context = prepare_record_context(valid, "VT-DET-REPEAT-001", at=T0 + timedelta(seconds=2))
-    findings = evaluate(valid, context, at=T0 + timedelta(seconds=2))
-    assert finding(findings, "DET-03").status is CriterionFindingStatus.SATISFIED
-
-    config_root = tmp_path / "mutable/config/network"
-    shutil.copytree(ROOT / "config/network", config_root)
-    changed = harness(tmp_path / "changed-db", configuration_root=config_root)
-    run_configuration_determination(changed, at=T0)
-    altered_configuration_root(tmp_path / "replacement")
-    replacement = tmp_path / "replacement/config/network"
-    shutil.copy2(replacement / "v1.1/network.json", config_root / "v1.1/network.json")
-    shutil.copy2(replacement / "v1.1/manifest.json", config_root / "v1.1/manifest.json")
-    run_configuration_determination(changed, at=T0 + timedelta(seconds=1))
-    changed_context = prepare_record_context(changed, "VT-DET-REPEAT-001", at=T0 + timedelta(seconds=2))
-    changed_findings = evaluate(changed, changed_context, at=T0 + timedelta(seconds=2))
-    assert finding(changed_findings, "DET-03").status is CriterionFindingStatus.NOT_SATISFIED
-
-
-def insert_package(h: Harness, archive: Path, *, command_id: int, package_id: str) -> None:
-    initial = initialise(h, command_id=command_id)
-    execution = h.validation.start_execution(
-        "VT-FML-N0-N5-001", initial.snapshot.run.scenario_run_id
+def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_membership(tmp_path: Path) -> None:
+    empty = harness(tmp_path / "empty")
+    empty_context = prepare_record_context(
+        empty, "VT-DET-REPEAT-001", at=T0 - timedelta(hours=1)
     )
-    h.packages.insert(EvidencePackage(
-        package_id=package_id,
-        validation_execution_id=execution.validation_execution_id,
-        test_id="VT-FML-N0-N5-001",
-        test_definition_version="1.0",
-        test_definition_sha256="a" * 64,
-        source_catalogue_version="1.1",
-        source_catalogue_sha256="b" * 64,
-        evidence_class=EvidenceClass.FORMAL,
-        scenario_run_id=initial.snapshot.run.scenario_run_id,
-        configuration_id="network-configuration-v1.1",
-        configuration_version="1.1",
-        application_build_id=BUILD.application_build_id,
-        generation_application_build_id=BUILD.application_build_id,
-        evidence_snapshot_ids=(UUID(int=302),),
-        manifest_sha256="c" * 64,
-        archive_sha256="d" * 64,
-        archive_path=str(archive),
-        verification_status="VERIFIED",
-        source_record_references=("records/validation-execution.json",),
-    ))
+    empty_findings = evaluate(empty, empty_context, at=T0 - timedelta(hours=1))
+    assert finding(empty_findings, "DET-01").status is CriterionFindingStatus.NOT_SATISFIED
+
+    shared = tmp_path / "valid/validation.sqlite3"
+    valid = harness(tmp_path / "valid/formal-one", validation_database=shared)
+    formal_one = full_formal_context(valid, command_id=30_000)
+    formal_one_result = finalise_determined(valid, formal_one, at=T0 + timedelta(seconds=56))
+    valid = harness(tmp_path / "valid/formal-two", validation_database=shared)
+    formal_two = full_formal_context(
+        valid, command_id=31_000,
+        repeat_of_execution_id=formal_one_result.validation_execution_id,
+    )
+    finalise_determined(valid, formal_two, at=T0 + timedelta(seconds=57))
+
+    valid = harness(tmp_path / "valid/negative-one", validation_database=shared)
+    negative_one = fixture_context(valid, "VT-TEL-STALE-001", at=T0 + timedelta(hours=1))
+    negative_one_result = finalise_determined(valid, negative_one, at=T0 + timedelta(hours=1))
+    valid = harness(tmp_path / "valid/negative-two", validation_database=shared)
+    negative_two = fixture_context(
+        valid, "VT-TEL-STALE-001", at=T0 + timedelta(hours=1),
+        repeat_of_execution_id=negative_one_result.validation_execution_id,
+    )
+    finalise_determined(valid, negative_two, at=T0 + timedelta(hours=1, seconds=1))
+
+    valid = harness(tmp_path / "valid/corrected-one", validation_database=shared)
+    corrected_one = corrected_post_trip_context(valid, command_id=32_000)
+    corrected_one_result = finalise_determined(valid, corrected_one, at=T0 + timedelta(hours=2))
+    valid = harness(tmp_path / "valid/corrected-two", validation_database=shared)
+    corrected_two = corrected_post_trip_context(
+        valid, command_id=33_000,
+        repeat_of_execution_id=corrected_one_result.validation_execution_id,
+    )
+    finalise_determined(valid, corrected_two, at=T0 + timedelta(hours=2, seconds=1))
+
+    valid = harness(tmp_path / "valid/repeat", validation_database=shared)
+    context = prepare_record_context(valid, "VT-DET-REPEAT-001", at=T0 + timedelta(hours=3))
+    findings = evaluate(valid, context, at=T0 + timedelta(hours=3))
+    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
+
+    third = harness(tmp_path / "valid/formal-three", validation_database=shared)
+    third_context = full_formal_context(third, command_id=34_000)
+    finalise_determined(third, third_context, at=T0 + timedelta(hours=3, seconds=1))
+    ambiguous = harness(tmp_path / "valid/ambiguous", validation_database=shared)
+    ambiguous_context = prepare_record_context(
+        ambiguous, "VT-DET-REPEAT-001", at=T0 + timedelta(hours=4)
+    )
+    ambiguous_findings = evaluate(
+        ambiguous, ambiguous_context, at=T0 + timedelta(hours=4)
+    )
+    assert finding(ambiguous_findings, "DET-01").status is CriterionFindingStatus.NOT_SATISFIED
+
+    incomplete = harness(tmp_path / "incomplete")
+    only_one = fixture_context(incomplete, "VT-TEL-STALE-001", at=T0)
+    finalise_determined(incomplete, only_one, at=T0)
+    incomplete_context = prepare_record_context(
+        incomplete, "VT-DET-REPEAT-001", at=T0 + timedelta(hours=1)
+    )
+    incomplete_findings = evaluate(
+        incomplete, incomplete_context, at=T0 + timedelta(hours=1)
+    )
+    assert finding(incomplete_findings, "DET-01").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+def export_service(h: Harness, output_root: Path) -> EvidenceExportService:
+    return EvidenceExportService(
+        h.packages,
+        h.validation_records,
+        h.investigation_records,
+        h.scenarios,
+        JsonConfigurationLoader(ROOT / "config/network"),
+        h.catalogue,
+        h.determinations,
+        application_build_manifest=BUILD,
+        output_directory=output_root / "evidence/exports",
+    )
 
 
 @pytest.mark.dc006
-def test_evidence_package_producer_reads_repository_and_detects_missing_archive(tmp_path: Path) -> None:
-    valid = harness(tmp_path / "valid")
-    archive = tmp_path / "valid/package.zip"
-    archive.write_bytes(b"controlled package")
-    insert_package(valid, archive, command_id=301, package_id="PKG-000000000001")
+def test_evidence_package_producer_uses_exact_formal_and_historical_defect_archives(
+    tmp_path: Path,
+) -> None:
+    output_root = tmp_path / "campaign"
+    database = output_root / "validation.sqlite3"
+
+    formal = harness(
+        tmp_path / "formal", validation_database=database,
+        package_archive_root=output_root,
+    )
+    formal_context = full_formal_context(formal, command_id=40_000)
+    formal_result = finalise_determined(
+        formal, formal_context, at=T0 + timedelta(seconds=56)
+    )
+    formal_package = export_service(formal, output_root).generate(
+        formal_result.validation_execution_id
+    )
+
+    historical = harness(
+        tmp_path / "historical",
+        validation_database=database,
+        catalogue_path=CATALOGUE.parent / "history/v1.1/catalogue.json",
+        package_archive_root=output_root,
+    )
+    failure = historical.investigation.start_failure("Graduate Engineer")
+    failure_execution = failure.original_failure.execution
+    assert failure_execution.verdict is ValidationVerdict.FAIL
+    defect_package = export_service(historical, output_root).generate(
+        failure_execution.validation_execution_id
+    )
+
+    valid = harness(
+        tmp_path / "verification", validation_database=database,
+        package_archive_root=output_root,
+    )
     context = prepare_record_context(valid, "VT-PKG-EVIDENCE-001")
     findings = evaluate(valid, context)
-    assert finding(findings, "PKG-04").status is CriterionFindingStatus.SATISFIED
+    assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
+    assert formal_package.package_id != defect_package.package_id
+    assert {item.package_id for item in valid.packages.list()} == {
+        formal_package.package_id, defect_package.package_id,
+    }
+    assert valid.validation_records.get_execution(
+        formal_result.validation_execution_id
+    ).executed_result_id == formal_result.executed_result_id
+    assert valid.validation_records.get_execution(
+        failure_execution.validation_execution_id
+    ).verdict is ValidationVerdict.FAIL
 
-    missing = harness(tmp_path / "missing")
-    insert_package(missing, tmp_path / "missing/not-created.zip", command_id=401, package_id="PKG-000000000002")
-    missing_context = prepare_record_context(missing, "VT-PKG-EVIDENCE-001")
-    missing_findings = evaluate(missing, missing_context)
-    assert finding(missing_findings, "PKG-04").status is CriterionFindingStatus.NOT_SATISFIED
+    archive = output_root / defect_package.archive_path
+    archive.write_bytes(archive.read_bytes() + b"tampered")
+    changed = harness(
+        tmp_path / "tampered", validation_database=database,
+        package_archive_root=output_root,
+    )
+    changed_context = prepare_record_context(
+        changed, "VT-PKG-EVIDENCE-001", at=T0 + timedelta(hours=1)
+    )
+    changed_findings = evaluate(
+        changed, changed_context, at=T0 + timedelta(hours=1)
+    )
+    assert finding(changed_findings, "PKG-03").status is CriterionFindingStatus.NOT_SATISFIED
 
 
 @pytest.mark.dc006
@@ -408,6 +681,71 @@ def test_nfr_producer_reads_build_surface_and_structural_sources_for_pass_and_no
     changed_findings = evaluate(changed, changed_context)
     assert finding(changed_findings, "NFR-M06").status is CriterionFindingStatus.NOT_SATISFIED
 
+    wrong_profile_root = nfr_repository(tmp_path / "wrong-profile", complete=True)
+    surface_path = wrong_profile_root / "app/frontend/src/controlled-surfaces.v1.json"
+    surface_payload = json.loads(surface_path.read_text(encoding="utf-8"))
+    surface_payload["surfaces"][0]["required_identity_profile"] = "Wrong profile"
+    surface_path.write_text(json.dumps(surface_payload, indent=2) + "\n", encoding="utf-8")
+    wrong_profile = harness(tmp_path / "wrong-profile-db", repository_root=wrong_profile_root)
+    wrong_profile_context = prepare_record_context(wrong_profile, "VT-NFR-REVIEW-001")
+    wrong_profile_findings = evaluate(wrong_profile, wrong_profile_context)
+    assert finding(wrong_profile_findings, "NFR-M06").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+@pytest.mark.parametrize("mutation", ["concentrated", "extra", "substituted"])
+def test_nfr_surface_registry_rejects_concentrated_notices_and_wrong_exact_membership(
+    tmp_path: Path, mutation: str,
+) -> None:
+    root = nfr_repository(tmp_path / mutation, complete=True)
+    registry_path = root / "app/frontend/src/controlled-surfaces.v1.json"
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    if mutation == "concentrated":
+        app_path = root / "app/frontend/src/App.tsx"
+        source = app_path.read_text(encoding="utf-8")
+        first_id = registry["surfaces"][0]["surface_id"]
+        for surface in registry["surfaces"][1:]:
+            source = source.replace(
+                f'<Surface id="{surface["surface_id"]}">',
+                f'<Surface id="{first_id}">',
+            )
+        app_path.write_text(source, encoding="utf-8")
+    elif mutation == "extra":
+        extra = dict(registry["surfaces"][-1])
+        extra["surface_id"] = "Uncontrolled Extra Surface"
+        registry["surfaces"].append(extra)
+        registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+    else:
+        registry["surfaces"][-1]["surface_id"] = "Substituted Engineering Surface"
+        registry_path.write_text(json.dumps(registry, indent=2) + "\n", encoding="utf-8")
+
+    h = harness(tmp_path / f"{mutation}-db", repository_root=root)
+    context = prepare_record_context(h, "VT-NFR-REVIEW-001")
+    findings = evaluate(h, context)
+    assert finding(findings, "NFR-M03").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+@pytest.mark.parametrize("mutation", ["missing", "extra", "wrong_owner"])
+def test_nfr_structural_registry_detects_missing_extra_and_wrong_owner(
+    tmp_path: Path, mutation: str,
+) -> None:
+    registry = resolved_structural_registry()
+    if mutation == "missing":
+        registry.pop("EvidencePackage")
+    elif mutation == "extra":
+        registry["UncontrolledRecord"] = {
+            "owner": "validation",
+            "symbol": "ot_demo.modules.validation.models.ValidationExecution",
+        }
+    else:
+        registry["EvidencePackage"]["owner"] = "validation"
+    h = harness(tmp_path, structural_registry=registry)
+    context = prepare_record_context(h, "VT-NFR-REVIEW-001")
+    findings = evaluate(h, context)
+    assert finding(findings, "NFR-M04").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(findings, "NFR-M07").status is CriterionFindingStatus.NOT_SATISFIED
+
 
 @pytest.mark.dc006
 def test_backend_produces_unique_attempt_role_membership_and_caller_cannot_select_source_ids(tmp_path: Path) -> None:
@@ -424,6 +762,77 @@ def test_backend_produces_unique_attempt_role_membership_and_caller_cannot_selec
             validation_attempt_id=attempt.validation_attempt_id,
             frozen_at=T0 + timedelta(milliseconds=2),
         )
+
+
+@pytest.mark.dc006
+def test_all_35_methods_and_214_criteria_have_exactly_one_producer_role_selector_path(
+    tmp_path: Path,
+) -> None:
+    """Catalogue-wide QA-053 producer→role→selector closure gate."""
+
+    methods = []
+    for loaded in ValidationCatalogueLoader(CATALOGUE).load():
+        definition = loaded.definition
+        methods.extend(
+            (definition.determination_method,)
+            if definition.determination_method is not None
+            else tuple(case.determination_method for case in definition.constituent_cases)
+        )
+    assert len(methods) == 35
+    assert sum(len(method.criteria) for method in methods) == 214
+
+    command_id = 10_000
+    contexts = []
+    criterion_total = 0
+    for method in methods:
+        h = harness(tmp_path / f"method-{command_id}")
+        if method.context_kind is not DeterminationContextKind.SCENARIO_EXECUTION:
+            _, attempt = h.validation.create_target_selection(
+                method.test_id,
+                case_id=method.case_id,
+                created_at=T0,
+            )
+            context = h.determination.prepare_context(
+                validation_attempt_id=attempt.validation_attempt_id,
+                frozen_at=T0 + timedelta(milliseconds=1),
+            )
+            contexts.append(context)
+            criterion_total += len(method.criteria)
+            command_id += 1
+            continue
+
+        mode = EvidenceClass.EXPLORATORY if method.evidence_class is EvidenceClass.EXPLORATORY else EvidenceClass.FORMAL
+        section = "SEC-A2"
+        if method.case_id:
+            for candidate in ("A1", "A2", "A3", "A4", "B1", "B2", "B3", "B4"):
+                if f"-{candidate}" in method.case_id:
+                    section = f"SEC-{candidate}"
+                    break
+        initial = h.scenarios.initialise(InitialiseRunRequest(
+            command_id=UUID(int=command_id),
+            actor="Graduate Engineer",
+            mode=(ScenarioMode.EXPLORATION if mode is EvidenceClass.EXPLORATORY else ScenarioMode.FORMAL),
+            configuration_version="1.1",
+            fault_section_id=section if mode is EvidenceClass.EXPLORATORY else None,
+            scenario_time=T0,
+        ))
+        execution = h.validation.start_execution(
+            method.test_id,
+            initial.snapshot.run.scenario_run_id,
+            case_id=method.case_id,
+        )
+        context = h.determination.prepare_context(
+            validation_attempt_id=execution.validation_attempt_id,
+            scenario_run_id=initial.snapshot.run.scenario_run_id,
+            validation_execution_id=execution.validation_execution_id,
+            frozen_at=T0 + timedelta(seconds=1),
+        )
+        contexts.append(context)
+        criterion_total += len(method.criteria)
+        command_id += 1
+
+    assert len(contexts) == 35
+    assert criterion_total == 214
 
 
 @pytest.mark.dc006

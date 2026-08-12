@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { InvestigationWorkspace as InvestigationModel, ValidationWorkspaceAction, WorkspaceAction, WorkspaceBootstrap, WorkspaceProjection } from './api/contracts'
 import { workspaceApi, type WorkspaceApi } from './api/client'
 import { ContextRibbon } from './features/operational/ContextRibbon'
@@ -10,8 +11,11 @@ import { TelemetryView } from './features/telemetry-events/TelemetryView'
 import { EvidenceLibrary } from './features/validation/EvidenceLibrary'
 import { ValidationView } from './features/validation/ValidationView'
 import { InvestigationWorkspace } from './features/investigation/InvestigationWorkspace'
+import { EngineeringBasis } from './features/engineering/EngineeringBasis'
+import { ControlledSurface } from './components/ControlledSurface'
+import controlledSurfaces from './controlled-surfaces.v1.json'
 
-type View = 'operational' | 'telemetry' | 'events' | 'restoration' | 'validation' | 'evidence' | 'investigation'
+type View = 'operational' | 'telemetry' | 'events' | 'restoration' | 'validation' | 'evidence' | 'investigation' | 'engineering'
 const RUN_STORAGE_KEY = 'ot-demo-current-run-id'
 const INVESTIGATION_STORAGE_KEY = 'ot-demo-investigation-failure-id'
 const navigation: Array<{ id: View; label: string }> = [
@@ -22,7 +26,16 @@ const navigation: Array<{ id: View; label: string }> = [
   { id: 'validation', label: 'Validation' },
   { id: 'evidence', label: 'Evidence' },
   { id: 'investigation', label: 'Investigation' },
+  { id: 'engineering', label: 'Engineering Basis' },
 ]
+
+const surfaceById = Object.fromEntries(controlledSurfaces.surfaces.map((surface) => [surface.surface_id, surface]))
+
+function Surface({ id, children }: { id: string; children: ReactNode }) {
+  const surface = surfaceById[id]
+  if (surface === undefined) throw new Error(`Controlled surface is not registered: ${id}`)
+  return <ControlledSurface surfaceId={surface.surface_id} identityProfile={surface.required_identity_profile} fixedNotice={surface.fixed_notice}>{children}</ControlledSurface>
+}
 
 export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
   const [bootstrap, setBootstrap] = useState<WorkspaceBootstrap | null>(null)
@@ -101,7 +114,7 @@ export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
   }
 
   if (bootstrap === null) return <main className="loading-page"><h1>OT Graduate Demonstrator</h1><p>{error ?? 'Loading backend-controlled workspace context…'}</p></main>
-  if (runId === null || projection === null) return <><RunSetup bootstrap={bootstrap} busy={busyActionId !== null} onStart={startRun} onStartInvestigation={startInvestigation} />{error !== null && <div className="global-error" role="alert">{error}</div>}</>
+  if (runId === null || projection === null) return <><Surface id="Start / Run Setup"><RunSetup bootstrap={bootstrap} busy={busyActionId !== null} onStart={startRun} onStartInvestigation={startInvestigation} /></Surface>{error !== null && <div className="global-error" role="alert">{error}</div>}</>
 
   return <div className="app-shell">
     <header className="app-header"><div><span className="eyebrow">TasGrid East · fictional engineering demonstrator</span><h1>OT Graduate Demonstrator</h1></div><div className="safety-label"><span aria-hidden="true">◇</span><strong>LOCAL · SIMULATED · NO REAL CONTROL</strong></div></header>
@@ -109,15 +122,17 @@ export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
     <nav className="primary-nav" aria-label="Workspace views">{navigation.map((item) => <button type="button" key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>{item.label}</button>)}</nav>
     {error !== null && <div className="global-error" role="alert">{error}</div>}
     <main className="workspace-main">
-      {view === 'operational' && <OperationalWorkspace projection={projection} busyActionId={busyActionId} onExecute={executeAction} />}
-      {view === 'telemetry' && <TelemetryView projection={projection} />}
-      {view === 'events' && <EventTimeline projection={projection} />}
-      {view === 'restoration' && <RestorationView projection={projection} busyActionId={busyActionId} onExecute={executeAction} />}
-      {view === 'validation' && <ValidationView projection={projection} busy={validationBusy} onAction={executeValidationAction} />}
-      {view === 'evidence' && <EvidenceLibrary projection={projection} api={api} />}
-      {view === 'investigation' && (failureExecutionId === null
+      {view === 'operational' && <Surface id="Operational Workspace"><OperationalWorkspace projection={projection} busyActionId={busyActionId} onExecute={executeAction} /></Surface>}
+      {(view === 'telemetry' || view === 'events') && <Surface id="Telemetry & Events">{view === 'telemetry'
+        ? <TelemetryView projection={projection} />
+        : <EventTimeline projection={projection} />}</Surface>}
+      {view === 'restoration' && <Surface id="Restoration Assessment"><RestorationView projection={projection} busyActionId={busyActionId} onExecute={executeAction} /></Surface>}
+      {view === 'validation' && <Surface id="Formal Validation"><ValidationView projection={projection} busy={validationBusy} onAction={executeValidationAction} /></Surface>}
+      {view === 'evidence' && <Surface id="Evidence Library"><EvidenceLibrary projection={projection} api={api} /></Surface>}
+      {view === 'investigation' && <Surface id="Defect Investigation">{failureExecutionId === null
         ? <section className="panel"><span className="eyebrow">Controlled defect workflow</span><h2>Begin DEF-001 investigation</h2><p>Run the actual immutable v1.0 post-trip test before reviewing the consequence-to-source evidence.</p><button type="button" className="primary-action" disabled={busyActionId !== null} onClick={() => startInvestigation(actor)}>Run v1.0 test and investigate</button></section>
-        : <InvestigationWorkspace api={api} failureExecutionId={failureExecutionId} actor={actor} initial={initialInvestigation} onUpdate={investigationUpdated} />)}
+        : <InvestigationWorkspace api={api} failureExecutionId={failureExecutionId} actor={actor} initial={initialInvestigation} onUpdate={investigationUpdated} />}</Surface>}
+      {view === 'engineering' && <Surface id="Engineering Basis"><EngineeringBasis projection={projection} /></Surface>}
     </main>
     <footer><p>{projection.conceptual_boundary_notice}</p><p>Conceptual GIS · SCADA · ADMS Topology · ADMS Restoration · OMS functions within one local demonstrator.</p></footer>
   </div>

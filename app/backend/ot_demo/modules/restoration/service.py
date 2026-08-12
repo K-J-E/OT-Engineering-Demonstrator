@@ -149,15 +149,8 @@ class RestorationService:
             evidence_point_ids=(candidate.alternate_source_breaker_id,),
         )
 
-        radial_pass = proposed.radiality_status is RadialityStatus.RADIAL
-        radial = PermissiveResult(
-            criterion=RestorationCriterion.RADIAL_TOPOLOGY,
-            status=(PermissiveStatus.PASS if radial_pass else PermissiveStatus.FAIL),
-            reason_codes=(
-                ("PROPOSED_TOPOLOGY_RADIAL",)
-                if radial_pass
-                else ("PROPOSED_TOPOLOGY_UNINTENDED_LOOP",)
-            ),
+        radial = self.evaluate_radiality(
+            proposed,
             evidence_point_ids=tuple(item.point_id for item in evidence),
         )
 
@@ -241,6 +234,26 @@ class RestorationService:
             calculation=calculation,
             outcome=outcome,
             reason_codes=reasons,
+        )
+
+    @staticmethod
+    def evaluate_radiality(
+        proposed: TopologyResult,
+        *,
+        evidence_point_ids: tuple[str, ...] = (),
+    ) -> PermissiveResult:
+        """Apply the production radial-topology permissive to a derived topology."""
+
+        radial_pass = proposed.radiality_status is RadialityStatus.RADIAL
+        return PermissiveResult(
+            criterion=RestorationCriterion.RADIAL_TOPOLOGY,
+            status=(PermissiveStatus.PASS if radial_pass else PermissiveStatus.FAIL),
+            reason_codes=(
+                ("PROPOSED_TOPOLOGY_RADIAL",)
+                if radial_pass
+                else ("PROPOSED_TOPOLOGY_UNINTENDED_LOOP",)
+            ),
+            evidence_point_ids=evidence_point_ids,
         )
 
     def discover_candidate(
