@@ -1,6 +1,10 @@
 # DC-007 — VT-TOP-DEF-001 Current-Run Criterion Provenance Clarification
 
-Status: **Proposed — pending independent engineering design review**
+Status: **Design accepted — authoritative-document and machine application pending separate authorisation**
+
+Independent technical acceptance: exact reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`
+
+Design-review findings: `DC007-DR-01` and `DC007-DR-02` closed
 
 Date raised: 2026-08-12
 
@@ -229,13 +233,15 @@ DC-007 preserves exactly:
 
 ## 9. Lifecycle and stop state
 
+- DC-007 technical design is independently accepted at reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`.
+- `DC007-DR-01` and `DC007-DR-02` are closed.
 - PR #12 remains draft and unmerged.
-- Its uncommitted QA-054, QA-055 and partial QA-053 work remains WIP and shall not be committed or pushed while DC-007 is unresolved.
+- Its uncommitted QA-054, QA-055 and partial QA-053 work remains WIP and shall not be committed or pushed before separately authorised DC-007 application and QA-053 resumption.
 - QA-053 implementation remains stopped.
-- No authoritative-document application is authorised by this proposal.
-- No machine catalogue/application work is authorised by this proposal.
+- No authoritative-document application is authorised by this design acceptance.
+- No machine catalogue/application work is authorised by this design acceptance.
 - I9 remains stopped.
 
-The next gate is independent engineering design review of DC-007. Any accepted authoritative-document application, candidate catalogue rebuild or resumption of QA-053 requires separate authorisation.
+The next gate is separately authorised DC-007 authoritative-document application. Candidate catalogue rebuild and resumption of QA-053 also require separate authorisation.
 
 **V2 Automation Candidate:** a criterion-provenance linter could compare every expected proposition with its declared selector/source membership and flag unsupported cross-run clauses before catalogue publication.

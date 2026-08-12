@@ -1,6 +1,6 @@
 # DC-007 Provenance and Impact Analysis
 
-Status: **Derived design-review analysis — proposal pending independent review**
+Status: **Derived analysis supporting accepted DC-007 technical design — application pending separate authorisation**
 
 Authority: **Derived reference only; does not override authoritative engineering documents, accepted change records or controlled machine packages**
 
@@ -148,4 +148,4 @@ The later QA-053 application must additionally prove that `configuration_differe
 
 ## 9. Current gate
 
-DC-007 is proposed only. PR #12 remains draft/unmerged, its local WIP remains preserved, QA-053 remains stopped and I9 remains stopped pending independent design review.
+DC-007 technical design is independently accepted at exact reviewed tip `92d56720229c77f1760c55ade136f9a5e5ce8f08`; `DC007-DR-01` and `DC007-DR-02` are closed. Authoritative-document and machine application remain pending separate authorisation. PR #12 remains draft/unmerged, its local WIP remains preserved, QA-053 remains stopped and I9 remains stopped.
