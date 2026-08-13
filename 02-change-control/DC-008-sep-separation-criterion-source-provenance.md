@@ -1,6 +1,6 @@
 # DC-008 — SEP Separation-Criterion Source Provenance Clarification
 
-Status: **Design accepted — Validation Plan v1.5 authoritative-document application complete and pending independent review; machine-catalogue/application pending separate authorisation**
+Status: **Design and Validation Plan v1.5 authoritative-document application accepted; machine-catalogue/application proceeding under the Showcase V1 Release Convergence Sprint**
 
 Independent technical acceptance: exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`
 
@@ -181,7 +181,7 @@ The minimum authoritative amendment is:
 - Section 21.3.19 only: retain all expected propositions, operators, normalisation, evidence roles and requirement mappings, but replace the `SEP-01`, `SEP-02` and `SEP-03` source-selector/provenance text with the accepted DC-008 contracts;
 - add the minimum revision/change-history entry identifying a source-provenance correction with no answer-key change.
 
-The authorised document application generated proposed Validation Plan v1.5 with SHA-256 `33d8f46dca170045a352e022cc1d9312a6f821d93c1113c4926d40a7a0286c9b`. Accepted Validation Plan v1.4 remains preserved in repository history at SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f` and remains authoritative until v1.5 is independently reviewed and accepted.
+The authorised document application generated Validation Plan v1.5 with SHA-256 `33d8f46dca170045a352e022cc1d9312a6f821d93c1113c4926d40a7a0286c9b`; independent review accepted PR #16 at exact technical tip `194fc3bfa0876e3e51e9c4831236c22665f9af3f`. Validation Plan v1.5 is the accepted current baseline. Superseded Validation Plan v1.4 remains preserved in repository history at SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f`.
 
 Inspection found no SEP criterion/selector text in System Architecture v0.4, Workflow Design v0.4 or Demonstrator Design v0.5. Their existing separation architecture is already consistent, so no technical amendment is proposed. Requirements Specification, Engineering Design Brief and Network Model remain unchanged.
 
@@ -205,9 +205,8 @@ A later application must prove at minimum:
 ## 9. Lifecycle gate
 
 - DC-008 technical design is independently accepted at exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`; `DC008-DR-01` is closed.
-- Validation Plan v1.5 authoritative-document application is complete on its dedicated branch and is pending independent review; it is not yet the accepted baseline.
-- No catalogue or application implementation is authorised.
-- PR #12 remains draft/unmerged and unchanged at its published head.
-- QA-053 remains stopped at `SEP-01`.
-- QA-054/055 WIP remains preserved.
-- I9 remains stopped.
+- Validation Plan v1.5 authoritative-document application is independently accepted at PR #16 technical tip `194fc3bfa0876e3e51e9c4831236c22665f9af3f` and is the accepted current baseline.
+- DC-008 machine-catalogue/application work is authorised under the Showcase V1 Release Convergence Sprint.
+- PR #12 remains draft/unmerged at this acceptance point and will be reconciled without rewriting its reviewed history.
+- QA-053/054/055 work resumes within the release-bounded convergence gate; preserved WIP remains authoritative input to that pass.
+- I9 remains stopped until converged PR #12 incorporation, then proceeds as Showcase Packaging under the same sprint authority.
