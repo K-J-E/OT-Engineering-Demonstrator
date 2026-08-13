@@ -1,6 +1,6 @@
 # DC-008 — SEP Separation-Criterion Source Provenance Clarification
 
-Status: **Design accepted — authoritative-document and machine-catalogue/application pending separate authorisation**
+Status: **Design accepted — Validation Plan v1.5 authoritative-document application complete and pending independent review; machine-catalogue/application pending separate authorisation**
 
 Independent technical acceptance: exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`
 
@@ -181,7 +181,7 @@ The minimum authoritative amendment is:
 - Section 21.3.19 only: retain all expected propositions, operators, normalisation, evidence roles and requirement mappings, but replace the `SEP-01`, `SEP-02` and `SEP-03` source-selector/provenance text with the accepted DC-008 contracts;
 - add the minimum revision/change-history entry identifying a source-provenance correction with no answer-key change.
 
-The Validation Plan v1.5 SHA-256 cannot exist until a separately authorised document application generates the file. Validation Plan v1.4 remains immutable and authoritative until then.
+The authorised document application generated proposed Validation Plan v1.5 with SHA-256 `33d8f46dca170045a352e022cc1d9312a6f821d93c1113c4926d40a7a0286c9b`. Accepted Validation Plan v1.4 remains preserved in repository history at SHA-256 `0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f` and remains authoritative until v1.5 is independently reviewed and accepted.
 
 Inspection found no SEP criterion/selector text in System Architecture v0.4, Workflow Design v0.4 or Demonstrator Design v0.5. Their existing separation architecture is already consistent, so no technical amendment is proposed. Requirements Specification, Engineering Design Brief and Network Model remain unchanged.
 
@@ -205,7 +205,7 @@ A later application must prove at minimum:
 ## 9. Lifecycle gate
 
 - DC-008 technical design is independently accepted at exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`; `DC008-DR-01` is closed.
-- No authoritative-document application is authorised.
+- Validation Plan v1.5 authoritative-document application is complete on its dedicated branch and is pending independent review; it is not yet the accepted baseline.
 - No catalogue or application implementation is authorised.
 - PR #12 remains draft/unmerged and unchanged at its published head.
 - QA-053 remains stopped at `SEP-01`.
