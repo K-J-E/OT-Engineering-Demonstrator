@@ -56,7 +56,7 @@ Release-critical outcomes reconfirmed:
 
 - The complete controlled 24-test campaign has not been executed. Implementation tests are conformance evidence only; absent campaign evidence remains `NOT_EVALUATED` / `INCOMPLETE` and no PASS/FAIL is manufactured.
 - The production JavaScript bundle is approximately 709 kB before gzip and emits Vite's non-blocking code-splitting advisory. It loads correctly in the local showcase; optimisation is post-outreach work.
-- The fresh-checkout environment used Node.js 24.19.0 with npm 11.11.0. The controlled project metadata records npm 11.17.0; no dependency or lock content changed and the install/build passed. Exact patch-toolchain reproduction remains an assurance follow-up, not a showcase behaviour claim.
+- The final fresh-checkout environment used Node.js 24.14.1 with npm 11.11.0. The controlled project metadata records Node.js 24.19.0 and npm 11.17.0; no dependency or lock content changed, the supported major-version gate passed and the install/build passed. Exact patch-toolchain reproduction remains an assurance follow-up, not a showcase behaviour claim.
 - Wider catalogue campaign execution, additional manual accessibility/browser review and V2 assurance automation remain post-outreach work.
 
 ## 6. Review gate
