@@ -5,6 +5,7 @@ SCRIPT_DIRECTORY=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 REPOSITORY_ROOT=$(CDPATH= cd -- "$SCRIPT_DIRECTORY/.." && pwd)
 FRONTEND_DIRECTORY="$REPOSITORY_ROOT/app/frontend"
 COMMAND=${1:-start}
+PYTHON_COMMAND=${OT_DEMO_PYTHON:-}
 
 fail() {
   printf 'Showcase setup error: %s\n' "$1" >&2
@@ -12,11 +13,20 @@ fail() {
 }
 
 check_prerequisites() {
-  command -v python3 >/dev/null 2>&1 || fail 'Python 3.13 is required.'
+  if [ -z "$PYTHON_COMMAND" ]; then
+    if command -v python3.13 >/dev/null 2>&1; then
+      PYTHON_COMMAND=$(command -v python3.13)
+    elif command -v python3 >/dev/null 2>&1; then
+      PYTHON_COMMAND=$(command -v python3)
+    else
+      fail 'Python 3.13 is required.'
+    fi
+  fi
+  [ -x "$PYTHON_COMMAND" ] || fail "Python command is not executable: $PYTHON_COMMAND"
   command -v node >/dev/null 2>&1 || fail 'Node.js 24 is required.'
   command -v npm >/dev/null 2>&1 || fail 'npm 11 is required.'
 
-  PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+  PYTHON_VERSION=$("$PYTHON_COMMAND" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
   NODE_VERSION=$(node -p 'process.versions.node.split(".")[0]')
   NPM_VERSION=$(npm --version | cut -d. -f1)
   [ "$PYTHON_VERSION" = '3.13' ] || fail "Python 3.13 is required; found $PYTHON_VERSION."
@@ -29,7 +39,7 @@ setup() {
   cd "$REPOSITORY_ROOT"
   if [ ! -x .venv/bin/python ]; then
     printf 'Creating the local Python environment…\n'
-    python3 -m venv .venv
+    "$PYTHON_COMMAND" -m venv .venv
   fi
   printf 'Installing locked backend dependencies…\n'
   .venv/bin/python -m pip install --disable-pip-version-check -r requirements.lock
