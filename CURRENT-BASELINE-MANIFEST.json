@@ -1,7 +1,7 @@
 {
   "baseline_date": "2026-08-13",
-  "baseline_name": "Showcase V1 Release Candidate baseline through DC-008 and I9 packaging",
-  "baseline_status": "DC-001 THROUGH DC-008 APPLIED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION INCORPORATED; I9 SHOWCASE PACKAGING PENDING FINAL RC REVIEW",
+  "baseline_name": "Accepted Showcase V1 baseline through DC-008 and I9 packaging",
+  "baseline_status": "SHOWCASE V1 ACCEPTED; DC-001 THROUGH DC-008 APPLIED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION INCORPORATED; I9 ACCEPTED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -26,7 +26,7 @@
     "branch": "agent/i9-showcase-release",
     "base_commit": "e4a934c97c84bcbcf7be9d2b0539aa9c24c52191",
     "reviewed_technical_tip": "b999889103de438e04194b361d57dc3ab7d50a97",
-    "implementation_boundary": "DC-008 catalogue/source application and QA-053–QA-055 release treatment are incorporated at main e4a934c97c84bcbcf7be9d2b0539aa9c24c52191; I9 packaging is isolated for final Showcase RC review"
+    "implementation_boundary": "DC-008 catalogue/source application and QA-053–QA-055 release treatment are incorporated at main e4a934c97c84bcbcf7be9d2b0539aa9c24c52191; I9 and Showcase V1 are independently accepted at reviewed technical tip 27056683dc9b4ee336409b4ca9ac3d3951ae57c4"
   },
   "documents": [
     {
@@ -342,10 +342,10 @@
     }
   ],
   "implementation_baseline": {
-    "accepted_through_increment": "I8 plus incorporated DC-004 through DC-008 machine/application boundary at main e4a934c97c84bcbcf7be9d2b0539aa9c24c52191",
-    "accepted_reviewed_implementation_tip": "e4a934c97c84bcbcf7be9d2b0539aa9c24c52191",
-    "next_increment": "I9 Showcase Packaging final RC review",
-    "next_increment_authorised": true,
+    "accepted_through_increment": "I9 accepted as the Showcase V1 implementation baseline at independently reviewed technical tip 27056683dc9b4ee336409b4ca9ac3d3951ae57c4",
+    "accepted_reviewed_implementation_tip": "27056683dc9b4ee336409b4ca9ac3d3951ae57c4",
+    "next_increment": "None — engineering work stopped for outreach; V2 not authorised",
+    "next_increment_authorised": false,
     "dc004_application_status": "INDEPENDENTLY ACCEPTED WITH DC-005 APPLICATION AT EXACT REVIEWED PR #10 TIP eced7c06c27b959cdb29d3aaa9351ca11cb5e258; QA-041 THROUGH QA-049 CLOSED; INCORPORATED INTO REVIEWED MAIN",
     "dc004_application_pr": {
       "number": 10,
@@ -356,7 +356,7 @@
     },
     "dc006_authoritative_document_status": "ACCEPTED AT REVIEWED TECHNICAL TIP c19451134c36d13d54f2185a3eaa0f20fcce95f0; DR-01–DR-07 AND AA-01–AA-04 CLOSED",
     "dc006_machine_catalogue_application_status": "INCORPORATED WITH DC-007/DC-008 RELEASE CONVERGENCE AT MAIN e4a934c97c84bcbcf7be9d2b0539aa9c24c52191; FULL CATALOGUE CAMPAIGN NOT CLAIMED",
-    "i9_status": "AUTHORISED SHOWCASE PACKAGING — FINAL RC REVIEW PENDING"
+    "i9_status": "INDEPENDENTLY ACCEPTED — SHOWCASE V1 IMPLEMENTATION BASELINE AT REVIEWED TECHNICAL TIP 27056683DC9B4EE336409B4CA9AC3D3951AE57C4"
   },
   "validation_catalogue_baseline": {
     "active_version": "1.2",
@@ -375,7 +375,7 @@
     "criterion_definition_count": 214,
     "direct_criterion_count": 147,
     "constituent_case_criterion_count": 67,
-    "application_review_status": "SHOWCASE_RELEASE_CONVERGENCE_VERIFIED_FINAL_RC_REVIEW_PENDING",
+    "application_review_status": "SHOWCASE_V1_INDEPENDENTLY_ACCEPTED_AT_27056683DC9B4EE336409B4CA9AC3D3951AE57C4",
     "dc006_promotion_status": "ACTIVE V1.2 WITH DC-007/DC-008 PROVENANCE CLARIFICATIONS INCORPORATED; V1.0/V1.1 PRESERVED AS IMMUTABLE HISTORY"
   },
   "historical_manifest": "BASELINE-MANIFEST.json",
@@ -389,7 +389,7 @@
     "Demonstrator Design v0.5 establishes the Step 8 practical local application and accepted DC-004/DC-005/DC-006 validation-assurance design without changing approved engineering behaviour.",
     "Validation Plan v1.5 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, accepted DC-003 through DC-008 assurance treatment, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "I1-I8 and the DC-004 through DC-008 machine/application history are incorporated into main at e4a934c97c84bcbcf7be9d2b0539aa9c24c52191. I9 packages the Showcase V1 Release Candidate without claiming that the full controlled catalogue campaign has executed.",
+    "I1-I9 and the DC-004 through DC-008 machine/application history form the accepted Showcase V1 baseline. I9 was independently accepted at reviewed technical tip 27056683dc9b4ee336409b4ca9ac3d3951ae57c4 without claiming that the full controlled catalogue campaign has executed or that the demonstrator is a production or real-OT-control system.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
     "The five independently reviewed DC-005 proposal identities are preserved separately from their accepted authoritative identities; the accepted versions supersede the prior DC-004-era identities without erasing either history.",
     "For each DC-006-amended authoritative document, the rejected first-application identity, independently reviewed technical-content identity at c19451134c36d13d54f2185a3eaa0f20fcce95f0 and metadata-only administratively accepted identity are preserved separately.",

@@ -1,5 +1,5 @@
 ---
-Status: Active implementation control plan — I9 Showcase Packaging in final RC review
+Status: Active implementation control plan — I1–I9 accepted for Showcase V1
 Authority: Derived reference and delivery-control aid only
 Owner: Project engineering and implementation review process
 Updated: 2026-08-13
@@ -28,7 +28,7 @@ Accepted DC-004 makes Demonstrator Design Section 36 and Validation Plan Section
 
 Accepted DC-005 makes Requirements Specification v0.4 `REQ-VAL-007`–`REQ-VAL-009`, Validation Plan v1.3 Section 20, Demonstrator Design v0.5 Section 37, System Architecture v0.4 Section 27 and Workflow Design v0.4 Section 28 controlling. Its complete machine/application treatment is independently accepted at the same reviewed PR #10 tip; QA-041 through QA-049 are closed for this boundary. The reviewed history is incorporated into `main` without rewriting commits.
 
-Accepted DC-006 makes Validation Plan Section 21, System Architecture v0.4 Section 28, Workflow Design v0.4 Section 29 and Demonstrator Design v0.5 Section 38 controlling. DC-007 and DC-008 clarify only the accepted current-run and SEP source-provenance contracts in Validation Plan v1.5 and Validation Catalogue v1.2. Their machine application and the release-bounded QA-053–QA-055 treatment are incorporated into main at `e4a934c97c84bcbcf7be9d2b0539aa9c24c52191`. The complete 24-test campaign is not claimed; missing campaign evidence remains INCOMPLETE.
+Accepted DC-006 makes Validation Plan Section 21, System Architecture v0.4 Section 28, Workflow Design v0.4 Section 29 and Demonstrator Design v0.5 Section 38 controlling. DC-007 and DC-008 clarify only the accepted current-run and SEP source-provenance contracts in Validation Plan v1.5 and Validation Catalogue v1.2. Their machine application and the release-bounded QA-053–QA-055 treatment are incorporated into main at `e4a934c97c84bcbcf7be9d2b0539aa9c24c52191`. Showcase V1 and I9 are independently accepted at reviewed technical tip `27056683dc9b4ee336409b4ca9ac3d3951ae57c4`. The complete 24-test campaign is not claimed; missing campaign evidence remains INCOMPLETE.
 
 The detailed source documents remain authoritative. Requirement ranges and catalogue-test references below are navigation and delivery controls, not substitutes for reading the exact rows and test definitions.
 
@@ -46,7 +46,7 @@ The Step 8 ordering is preserved because each increment supplies an implementati
 | I6 | Operational UI | **Accepted implementation baseline** |
 | I7 | Investigation/correction | **Accepted implementation baseline** |
 | I8 | Exploration and export | **Accepted implementation baseline** |
-| I9 | Packaging/review | **Showcase packaging implemented on a fresh release branch; final independent RC review pending** |
+| I9 | Packaging/review | **Accepted Showcase V1 implementation baseline** |
 
 No later increment starts automatically after the current one completes. Completion closes only the authorised increment; the repository then remains stopped until the increment branch is independently reviewed and accepted, merged to `main`, and the user separately authorises the next increment. The next increment starts from that reviewed `main` baseline on its own branch.
 

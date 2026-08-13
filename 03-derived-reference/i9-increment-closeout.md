@@ -1,5 +1,5 @@
 ---
-Status: Showcase V1 Release Candidate — pending final independent review
+Status: Accepted Showcase V1 implementation baseline
 Authority: Derived implementation assurance record only
 Owner: Project implementation review process
 Updated: 2026-08-13
@@ -61,6 +61,8 @@ Release-critical outcomes reconfirmed:
 
 ## 6. Review gate
 
-The branch is ready for the single final independent Showcase Release Candidate review. It must not be described as a completed production OT product or a completed 24-test campaign. Proposed release name: **Showcase V1 Release Candidate 1**; proposed tag after acceptance: `showcase-v1-rc1`.
+Independent review accepted the complete Showcase V1 Release Candidate at exact technical tip `27056683dc9b4ee336409b4ca9ac3d3951ae57c4`. I9 is accepted as the Showcase V1 implementation baseline and the externally relevant accepted tag is `showcase-v1`.
+
+This acceptance does not claim execution of the complete controlled 24-test campaign and does not represent the demonstrator as a production or real-OT-control system. The limitations in Section 5 remain post-outreach work.
 
 **V2 Automation Candidate — release evidence assembly.** Repeating clean-checkout setup, workflow execution, hash checks and closeout collation is time-consuming and evidence-heavy. A future assurance assistant could orchestrate these existing checks and assemble the review pack without changing engineering outcomes or reviewer authority.

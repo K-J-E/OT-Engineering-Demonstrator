@@ -98,7 +98,7 @@ Before the separately authorised DC-004 application phase on a fresh `agent/dc-0
 4. accepted I5 validation/evidence and I8 exploration/export closeouts; and
 5. the unchanged catalogue rows for `VT-EXP-ALL-001` and `VT-EXP-ROLE-001` as the pre-change identity, plus the accepted I8 export service's current-catalogue equality boundary that DC-004 must correct during later controlled application.
 
-Current gate: I1–I8 and the converged DC-004 through DC-008 application history are incorporated into main. **I9 Showcase Packaging is isolated on `agent/i9-showcase-release`; final independent Showcase RC review is the next gate. Missing wider campaign evidence remains INCOMPLETE and is deferred post-outreach.**
+Current gate: I1–I9 and the converged DC-004 through DC-008 application history form the accepted Showcase V1 baseline. **Independent review accepted I9 at exact technical tip `27056683dc9b4ee336409b4ca9ac3d3951ae57c4`. Missing wider campaign evidence remains INCOMPLETE and is deferred post-outreach; no production or real-OT-control claim is made.**
 
 Do not reuse the stopped `agent/i9-packaging-review` branch for DC-004 application work.
 
@@ -130,4 +130,4 @@ Before any separately authorised DC-006 machine/catalogue application, read in o
 6. accepted DC-004 and DC-005 records and their controlling Sections 19/36 and 20/27/28/37; and
 7. `03-derived-reference/dc-006-determination-coverage-analysis.md` only as a navigation and assurance aid.
 
-The accepted document application defines 214 criteria (147 direct-test plus 67 exact DC-004 constituent-case criteria) as a reviewed document identity, while preserving the exact 24 tests, 124 requirements, 286 RTM relationships and 15 event types. The subsequently authorised machine application promotes active catalogue v1.2, preserves v1.0/v1.1 history and implements the bounded determination contracts on `agent/dc-006-validation-determination-application`; that branch remains pending independent review and is not yet an accepted baseline.
+The accepted document application defines 214 criteria (147 direct-test plus 67 exact DC-004 constituent-case criteria) as a reviewed document identity, while preserving the exact 24 tests, 124 requirements, 286 RTM relationships and 15 event types. The machine application promoted active catalogue v1.2, preserved v1.0/v1.1 history and implemented the bounded determination contracts; the converged application history is incorporated into the accepted Showcase V1 baseline.

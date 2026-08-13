@@ -84,4 +84,4 @@ The broader controlled 24-test campaign is not represented as complete merely be
 
 ## Repository status
 
-Showcase V1 Release Candidate work is isolated on its release branch for final independent review. Implementation regressions are conformance evidence; they do not manufacture catalogue PASS/FAIL verdicts.
+**Showcase V1 is accepted for outreach.** The accepted release packages the reviewed V1 engineering implementation and showcase workflows; it is not a production or real-OT-control system. The complete controlled 24-test campaign has not been executed, and implementation regressions remain conformance evidence rather than manufactured catalogue PASS/FAIL verdicts.
