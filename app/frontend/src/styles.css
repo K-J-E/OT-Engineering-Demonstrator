@@ -14,6 +14,8 @@
   --amber: #a85f09;
   --red: #b4233f;
   --shadow: 0 12px 30px rgba(16, 36, 62, 0.08);
+  --surface-raised: #f8fafc;
+  --warning: #874b05;
 }
 
 * { box-sizing: border-box; }
@@ -79,6 +81,9 @@ dd { margin: 0; overflow-wrap: anywhere; font-size: 0.82rem; }
 .safety-setup { border-top: 4px solid #d58920; }
 .primary-action, .action-row button, .validation-actions button, .empty-assessment button, .execution-panel button { padding: 0.7rem 0.9rem; border: 0; border-radius: 7px; background: var(--blue); color: white; font-weight: 750; }
 .primary-action:disabled, .action-row button:disabled, .validation-actions button:disabled, .empty-assessment button:disabled, .execution-panel button:disabled { background: #aab7c4; }
+.secondary-action { padding: 0.68rem 0.88rem; border: 1px solid #3f6f91; border-radius: 7px; color: #174e7a; background: #f7fbfe; font-weight: 750; }
+.secondary-action:hover, .secondary-action:focus-visible { background: #e7f1f7; }
+.secondary-action:disabled { border-color: #aab7c4; color: #6c7f91; background: #edf1f4; }
 
 .app-shell { min-height: 100vh; }
 .app-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 2rem; color: white; background: var(--navy); border-bottom: 4px solid #38bdf8; }
