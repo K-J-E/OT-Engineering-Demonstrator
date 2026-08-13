@@ -82,6 +82,13 @@ def create_local_app(
     determination_repository = DeterminationRepository(
         runtime_data / "validation.sqlite3", migrations
     )
+    investigation_service = InvestigationService(
+        investigation_repository,
+        configuration_loader,
+        coordinator,
+        validation_service,
+        application_build_manifest=build_manifest,
+    )
     determination_service = DeterminationService(
         determination_repository,
         validation_repository,
@@ -95,16 +102,10 @@ def create_local_app(
             validation=validation_repository,
             scenarios=coordinator,
             investigation=investigation_repository,
+            investigation_workflow=investigation_service,
             packages=evidence_package_repository,
             determination=determination_repository,
         )),
-    )
-    investigation_service = InvestigationService(
-        investigation_repository,
-        configuration_loader,
-        coordinator,
-        validation_service,
-        application_build_manifest=build_manifest,
     )
     evidence_export_service = EvidenceExportService(
         evidence_package_repository,

@@ -2,13 +2,126 @@
   "contract_id": "CONTROLLED-SURFACE-FIELD-BINDINGS-V1",
   "version": "1.0",
   "surfaces": [
-    {"surface_id": "Start / Run Setup", "bindings": [{"field_id": "mode", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_mode"}, {"field_id": "evidence_class", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_evidence_class"}, {"field_id": "configuration_id", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_configuration_id"}, {"field_id": "build_id", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.application_build_id"}, {"field_id": "fault_selection", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "explorationSection"}]},
-    {"surface_id": "Operational Workspace", "bindings": [{"field_id": "run_id", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.scenario_run_id"}, {"field_id": "mode", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.mode"}, {"field_id": "configuration_version", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.configuration_version"}, {"field_id": "fault_section", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.fault_section_id"}, {"field_id": "state_revision", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.state_revision"}, {"field_id": "evidence_class", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.evidence_class"}]},
-    {"surface_id": "Telemetry & Events", "bindings": [{"field_id": "telemetry_identity", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.entity_id"}, {"field_id": "telemetry_quality", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.quality"}, {"field_id": "telemetry_freshness", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.freshness"}, {"field_id": "event_sequence", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.event_sequence"}, {"field_id": "event_type", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.event_type"}, {"field_id": "event_revision", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.state_revision"}]},
-    {"surface_id": "Restoration Assessment", "bindings": [{"field_id": "assessment_id", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.assessment_id"}, {"field_id": "state_revision", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.state_revision"}, {"field_id": "permissive_status", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "item.status"}, {"field_id": "reason_codes", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "item.reason_codes"}]},
-    {"surface_id": "Formal Validation", "bindings": [{"field_id": "test_id", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "definition.definition.test_id"}, {"field_id": "method_id", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "directMethod?.method_id"}, {"field_id": "execution_id", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.validation_execution_id"}, {"field_id": "build_id", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.application_build_id"}, {"field_id": "evidence_hash", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "evidence.canonical_payload_sha256"}]},
-    {"surface_id": "Evidence Library", "bindings": [{"field_id": "execution_id", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.validation_execution_id"}, {"field_id": "run_id", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.scenario_run_id"}, {"field_id": "configuration_id", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.configuration_id"}, {"field_id": "source_build", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.application_build_id"}]},
-    {"surface_id": "Defect Investigation", "bindings": [{"field_id": "failure_execution", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.original_failure.execution.validation_execution_id"}, {"field_id": "configuration_version", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.original_failure.execution.configuration_version"}, {"field_id": "same_build", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.same_build_proven"}, {"field_id": "repeat_execution", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "repeat.validation_execution_id"}]},
-    {"surface_id": "Engineering Basis", "bindings": [{"field_id": "build_id", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "projection.run.application_build_id"}, {"field_id": "configuration_id", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "projection.run.configuration_id"}, {"field_id": "evidence_class", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "projection.run.evidence_class"}, {"field_id": "run_id", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "projection.run.scenario_run_id"}]}
+    {
+      "surface_id": "Start / Run Setup",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "mode", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_mode"},
+        {"field_id": "test_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.formal_test_id"},
+        {"field_id": "validation_catalogue_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.formal_definition.catalogue_sha256"},
+        {"field_id": "network_configuration_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_configuration_id"},
+        {"field_id": "exploration_fault_selection", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "explorationSection"},
+        {"field_id": "backend_build_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.application_build_id"},
+        {"field_id": "initial_condition_preview", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_scenario_time"},
+        {"field_id": "full_run_identity_after_creation", "module": "app/frontend/src/App.tsx", "token": "result.snapshot.run.scenario_run_id"}
+      ]
+    },
+    {
+      "surface_id": "Operational Workspace",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "full_run_identity", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.scenario_run_id"},
+        {"field_id": "mode", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.mode"},
+        {"field_id": "network_configuration_identity", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.configuration_id"},
+        {"field_id": "controlled_fault", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.fault_section_id"},
+        {"field_id": "workflow_state", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.workflow_stage"},
+        {"field_id": "network_state", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.network_state_label"},
+        {"field_id": "state_revision", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.state_revision"},
+        {"field_id": "evidence_class", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.evidence_class"},
+        {"field_id": "backend_build_identity", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.application_build_id"}
+      ]
+    },
+    {
+      "surface_id": "Telemetry & Events",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "full_run_identity", "module": "app/frontend/src/features/operational/ContextRibbon.tsx", "token": "run.scenario_run_id"},
+        {"field_id": "telemetry_value", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.value"},
+        {"field_id": "telemetry_quality", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.quality"},
+        {"field_id": "telemetry_timestamp", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.timestamp"},
+        {"field_id": "telemetry_age", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.age_ms"},
+        {"field_id": "telemetry_freshness", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.freshness"},
+        {"field_id": "telemetry_reasons", "module": "app/frontend/src/features/telemetry-events/TelemetryView.tsx", "token": "row.reason_codes"},
+        {"field_id": "event_type", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.event_type"},
+        {"field_id": "event_sequence", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.event_sequence"},
+        {"field_id": "event_time", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.scenario_time"},
+        {"field_id": "event_revision", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.state_revision"},
+        {"field_id": "event_source_identity", "module": "app/frontend/src/features/telemetry-events/EventTimeline.tsx", "token": "event.source"}
+      ]
+    },
+    {
+      "surface_id": "Restoration Assessment",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "full_run_identity", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "projection.run.scenario_run_id"},
+        {"field_id": "network_configuration_identity", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "projection.run.configuration_id"},
+        {"field_id": "assessment_identity", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.assessment_id"},
+        {"field_id": "candidate_identity", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.candidate.candidate_id"},
+        {"field_id": "bound_revisions_evidence", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.telemetry_snapshot_sha256"},
+        {"field_id": "permissives", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.permissives"},
+        {"field_id": "calculation_inputs", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.calculation.existing_supplied_load_kw"},
+        {"field_id": "calculation_results", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.calculation.resulting_load_kw"},
+        {"field_id": "outcome_status", "module": "app/frontend/src/features/restoration/RestorationView.tsx", "token": "assessment.outcome"}
+      ]
+    },
+    {
+      "surface_id": "Formal Validation",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "validation_catalogue_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "definition.catalogue_sha256"},
+        {"field_id": "test_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "definition.definition.test_id"},
+        {"field_id": "method_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "definition.definition.determination_method.method_id"},
+        {"field_id": "criterion_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "criterion.criterion_id"},
+        {"field_id": "execution_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.validation_execution_id"},
+        {"field_id": "full_run_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.scenario_run_id"},
+        {"field_id": "network_configuration_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.configuration_id"},
+        {"field_id": "backend_build_identity", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.application_build_id"},
+        {"field_id": "formal_evidence_class", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.evidence_class"},
+        {"field_id": "checkpoints", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.evidence_snapshots"},
+        {"field_id": "findings", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "criteria.map"},
+        {"field_id": "final_result", "module": "app/frontend/src/features/validation/ValidationView.tsx", "token": "summary.execution.verdict"}
+      ]
+    },
+    {
+      "surface_id": "Evidence Library",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "evidence_identity_class", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.evidence_snapshots"},
+        {"field_id": "package_identity", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "item.package_id"},
+        {"field_id": "source_catalogue_identity", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.catalogue_sha256"},
+        {"field_id": "source_configuration_identity", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.configuration_id"},
+        {"field_id": "source_execution_identity", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.validation_execution_id"},
+        {"field_id": "source_build_identity", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "summary.execution.application_build_id"},
+        {"field_id": "generation_build_identity", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "item.generation_application_build_id"},
+        {"field_id": "immutable_hashes", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "item.archive_sha256"},
+        {"field_id": "source_links", "module": "app/frontend/src/features/validation/EvidenceLibrary.tsx", "token": "item.source_record_references"}
+      ]
+    },
+    {
+      "surface_id": "Defect Investigation",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "v1_failure_identity", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.original_failure.execution.validation_execution_id"},
+        {"field_id": "defect_identity", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.defect_record.defect_id"},
+        {"field_id": "correction_identity", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.correction_record.correction_id"},
+        {"field_id": "corrected_repeat_regression_identities", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "regression.execution.validation_execution_id"},
+        {"field_id": "same_build_evidence", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.same_build_proven"},
+        {"field_id": "source_catalogue_provenance", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.original_failure.execution.catalogue_sha256"}
+      ]
+    },
+    {
+      "surface_id": "Engineering Basis",
+      "bindings": [
+        {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
+        {"field_id": "authoritative_artefact_identity", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "Authoritative artefact"},
+        {"field_id": "artefact_version", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "artefact versions"},
+        {"field_id": "artefact_hash", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "SHA-256 identities"},
+        {"field_id": "requirement_traceability", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "requirements"},
+        {"field_id": "source_traceability", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "Governing artefacts"},
+        {"field_id": "module_view_traceability", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "implementation modules"},
+        {"field_id": "build_metadata", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "projection.run.application_build_id"},
+        {"field_id": "read_only_operational_boundary", "module": "app/frontend/src/features/engineering/EngineeringBasis.tsx", "token": "provides no operational action"}
+      ]
+    }
   ]
 }

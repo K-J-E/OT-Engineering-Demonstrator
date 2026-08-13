@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import timedelta
+import ast
+import inspect
 import json
 from pathlib import Path, PurePosixPath
 import re
@@ -16,13 +18,16 @@ from typing import Any, Mapping
 from uuid import UUID
 from zipfile import ZipFile, BadZipFile
 
-from ...application.scenario_coordinator import ScenarioCoordinator
+from ...application.scenario_coordinator import ScenarioBoundaryError, ScenarioCoordinator
+from ...application.investigation_service import InvestigationService
 from ...domain.enums import (
     DeterminationContextKind,
     DeterminationSourceAdapterKind,
     OperationalEventType,
     PermissiveStatus,
     RestorationOutcome,
+    ScenarioCommandType,
+    ScenarioMode,
     SwitchState,
     TelemetryQuality,
 )
@@ -36,6 +41,7 @@ from ...infrastructure.hashing import sha256_file
 from ...infrastructure.investigation_repository import InvestigationRepository
 from ...infrastructure.validation_repository import ValidationRepository
 from ..restoration.service import RestorationService
+from ..scenario.models import InitialiseRunRequest, RunContext, ScenarioCommandRequest
 from ..telemetry.models import TelemetryPoint
 from ..telemetry.service import TelemetryValidityService
 from ..topology import TopologyInputs, TopologyService
@@ -48,6 +54,8 @@ from .models import (
     ValidationAttempt,
     ValidationTargetSelection,
 )
+from ..outage import OutageService
+from pydantic import ValidationError
 
 
 class SourceAuthorityError(ValueError):
@@ -99,6 +107,7 @@ class SourceAuthorityDependencies:
     validation: ValidationRepository
     scenarios: ScenarioCoordinator
     investigation: InvestigationRepository
+    investigation_workflow: InvestigationService
     packages: EvidencePackageRepository
     determination: DeterminationRepository
     telemetry: TelemetryValidityService = TelemetryValidityService()
@@ -121,6 +130,108 @@ _CONFIGURATION_ORACLE = {
         "data_sha256": "7d65b7fb2e3e7b5cb3f0fc698554c3848935222fe56aee727d25cfc324e93281",
         "schema_sha256": "ee6d42cb36be3470870028ab9983eba3a6ce33529ead73dfebc584b04b89c60c",
     },
+}
+
+
+def _engineering_algorithm_branch_audit() -> dict[str, Any]:
+    """Report relevant predicates from the actual generic engineering services.
+
+    This is source provenance, not an electrical calculation.  It inspects the
+    concrete TopologyService and OutageService classes that produced the run and
+    reports any conditional expression that refers to a configuration version or
+    to an expected validation result/outcome.
+    """
+
+    sources = {
+        "TopologyService": inspect.getsource(TopologyService),
+        "OutageService": inspect.getsource(OutageService),
+    }
+    configuration_version_predicates: list[str] = []
+    expected_result_predicates: list[str] = []
+    for source in sources.values():
+        tree = ast.parse(source)
+        predicates = [
+            ast.unparse(node.test)
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.If, ast.IfExp, ast.While))
+        ]
+        predicates.extend(
+            ast.unparse(node.subject)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Match)
+        )
+        for predicate in predicates:
+            lowered = predicate.lower()
+            if "version" in lowered:
+                configuration_version_predicates.append(predicate)
+            if any(
+                token in lowered
+                for token in ("expected_result", "expected_outcome", "expected_verdict")
+            ):
+                expected_result_predicates.append(predicate)
+    return {
+        "service_source_sha256": {
+            name: sha256_bytes(source.encode("utf-8"))
+            for name, source in sources.items()
+        },
+        "configuration_version_predicates": sorted(
+            configuration_version_predicates
+        ),
+        "expected_result_predicates": sorted(expected_result_predicates),
+    }
+
+# Independent machine expectation derived from the accepted DC-006 eight-surface
+# profiles.  The implementation binding file is evidence against this set; it
+# is deliberately not the authority that defines which fields are required.
+_REQUIRED_SURFACE_FIELD_IDS: dict[str, frozenset[str]] = {
+    "Start / Run Setup": frozenset({
+        "fixed_notice", "mode", "test_identity", "validation_catalogue_identity",
+        "network_configuration_identity", "exploration_fault_selection",
+        "backend_build_identity", "initial_condition_preview",
+        "full_run_identity_after_creation",
+    }),
+    "Operational Workspace": frozenset({
+        "fixed_notice", "full_run_identity", "mode",
+        "network_configuration_identity", "controlled_fault", "workflow_state",
+        "network_state", "state_revision", "evidence_class",
+        "backend_build_identity",
+    }),
+    "Telemetry & Events": frozenset({
+        "fixed_notice", "full_run_identity", "telemetry_value", "telemetry_quality",
+        "telemetry_timestamp", "telemetry_age", "telemetry_freshness",
+        "telemetry_reasons", "event_type", "event_sequence", "event_time",
+        "event_revision", "event_source_identity",
+    }),
+    "Restoration Assessment": frozenset({
+        "fixed_notice", "full_run_identity", "network_configuration_identity",
+        "assessment_identity", "candidate_identity", "bound_revisions_evidence",
+        "permissives", "calculation_inputs", "calculation_results",
+        "outcome_status",
+    }),
+    "Formal Validation": frozenset({
+        "fixed_notice", "validation_catalogue_identity", "test_identity",
+        "method_identity", "criterion_identity", "execution_identity",
+        "full_run_identity", "network_configuration_identity",
+        "backend_build_identity", "formal_evidence_class", "checkpoints",
+        "findings", "final_result",
+    }),
+    "Evidence Library": frozenset({
+        "fixed_notice", "evidence_identity_class", "package_identity",
+        "source_catalogue_identity", "source_configuration_identity",
+        "source_execution_identity", "source_build_identity",
+        "generation_build_identity", "immutable_hashes", "source_links",
+    }),
+    "Defect Investigation": frozenset({
+        "fixed_notice", "v1_failure_identity", "defect_identity",
+        "correction_identity", "corrected_repeat_regression_identities",
+        "same_build_evidence", "source_catalogue_provenance",
+    }),
+    "Engineering Basis": frozenset({
+        "fixed_notice", "authoritative_artefact_identity", "artefact_version",
+        "artefact_hash", "requirement_traceability", "source_traceability",
+        "module_view_traceability", "build_metadata",
+        "read_only_operational_boundary",
+    }),
 }
 
 
@@ -354,6 +465,20 @@ class RegisteredSourceAuthority:
             latest_assessment["affected_feeder_id"] = self._scenario_payload(
                 snapshot
             )["affected_feeder_id"]
+        if latest_assessment is not None:
+            pre_assessment = next(
+                (
+                    item
+                    for item in reversed(command_snapshots)
+                    if item.run.network_state_label.value == "N3"
+                ),
+                None,
+            )
+            latest_assessment["pre_assessment_state_label"] = (
+                pre_assessment.run.network_state_label.value
+                if pre_assessment is not None
+                else None
+            )
         devices = {
             item.entity_id: item.value.value for item in snapshot.telemetry
         }
@@ -421,15 +546,37 @@ class RegisteredSourceAuthority:
             "defect_id": execution.links.defect_id,
             "correction_id": execution.links.correction_id,
             "repeat_of_execution_id": str(execution.links.repeat_of_execution_id) if execution.links.repeat_of_execution_id else None,
+            "single_run_identity_verified": (
+                execution.scenario_run_id == snapshot.run.scenario_run_id
+                and execution.validation_execution_id
+                == context.validation_execution_id
+                and execution.application_build_id
+                == self._d.build.application_build_id
+                and execution.catalogue_sha256
+                == self._d.catalogue.get(execution.test_id).catalogue_sha256
+                and execution.test_definition_sha256
+                == self._d.catalogue.get(execution.test_id).definition_sha256
+                and context.method.method_sha256
+                == self._d.catalogue.get_method(
+                    execution.test_id, case_id=execution.case_id
+                ).method_sha256
+                and execution.configuration_id == snapshot.run.configuration_id
+            ),
         }
         current_scenario = {
             "configuration_identity": snapshot.run.configuration_id,
             "post_trip_input_fingerprint": {
                 "fault_section_id": snapshot.run.fault_section_id,
+                "fault_type": snapshot.run.fault_type.value,
+                "mode": snapshot.run.mode.value,
                 "scenario_time": snapshot.run.scenario_time.isoformat(),
             },
             "telemetry": {
-                item.entity_id: item.model_dump(mode="json")
+                item.entity_id: item.model_dump(mode="json") | {
+                    "freshness": self._d.telemetry.classify(
+                        item, snapshot.run.scenario_time
+                    ).freshness.value,
+                }
                 for item in snapshot.telemetry
             },
             "post_trip": {
@@ -437,10 +584,87 @@ class RegisteredSourceAuthority:
                 "outage": snapshot.outage.model_dump(mode="json"),
                 "expected_observed_comparison": execution.observed_result,
             },
-            "configuration_difference_role": "CONTROLLED_PACKAGE_IDENTITY",
             "source_paths": self._topology_payload(snapshot)["section_source_feeder_ids"],
-            "authority_path": "configuration→topology/source-path→outage/customer-zone",
         }
+        loaded_configuration = self._d.configurations.load(
+            f"v{snapshot.run.configuration_version}"
+        )
+        current_scenario["configuration_status"] = (
+            loaded_configuration.manifest.status.value
+        )
+        fault_section = next(
+            item for item in loaded_configuration.data.sections
+            if item.entity_id == snapshot.run.fault_section_id
+        )
+        affected_feeder = next(
+            item for item in loaded_configuration.data.feeders
+            if item.entity_id == fault_section.feeder_id
+        )
+        affected_sections = {
+            item.entity_id for item in loaded_configuration.data.sections
+            if item.feeder_id == affected_feeder.entity_id
+        }
+        breaker_point = next(
+            item for item in snapshot.telemetry
+            if item.entity_id == affected_feeder.source_breaker_id
+        )
+        breaker_validity = self._d.telemetry.classify(
+            breaker_point, snapshot.run.scenario_time
+        )
+        sw_a23_endpoint_edge = next(
+            item
+            for item in loaded_configuration.data.connectivity_edges
+            if item.endpoint_b_id == "SW-A23"
+        )
+        current_scenario["configuration_difference_role"] = {
+            "device_id": sw_a23_endpoint_edge.endpoint_b_id,
+            "edge_id": sw_a23_endpoint_edge.edge_id,
+            "endpoint_1_id": sw_a23_endpoint_edge.endpoint_a_id,
+        }
+        current_scenario["authority_path"] = {
+            "configuration_loader": type(self._d.configurations).__name__,
+            "topology_service": TopologyService.__name__,
+            "source_attribution_service": TopologyService.__name__,
+            "outage_service": "OutageService",
+            "customer_mapping_authority": "CustomerZoneMapping",
+            "algorithm_branch_audit": _engineering_algorithm_branch_audit(),
+        }
+        current_scenario.update({
+            "post_trip_input_verified": (
+                snapshot.run.configuration_id == context.target.configuration_id
+                and snapshot.run.mode.value == "FORMAL"
+                and breaker_point.value.value == "OPEN"
+                and breaker_point.quality.value == "GOOD"
+                and breaker_validity.freshness.value == "FRESH"
+            ),
+            "post_trip_consequence_verified": (
+                set(self._topology_payload(snapshot)["de_energised_section_ids"])
+                == affected_sections
+                and all(
+                    not self._topology_payload(snapshot)[
+                        "section_source_feeder_ids"
+                    ].get(section_id)
+                    for section_id in affected_sections
+                )
+                and snapshot.outage.affected_customer_count
+                == sum(
+                    item.customer_count
+                    for item in loaded_configuration.data.customer_zone_mappings
+                    if item.section_id in affected_sections
+                )
+            ),
+            "authority_components": [
+                type(self._d.configurations).__name__, TopologyService.__name__,
+                "OutageService", "CustomerZoneMapping",
+            ],
+        })
+        current_validation["single_run_record_verified"] = (
+            current_validation["single_run_identity_verified"]
+            and set((
+                "immutable_result_identity", "defect_id", "correction_id",
+                "repeat_of_execution_id",
+            )) <= set(current_validation)
+        )
         raw: dict[str, Any] = {
             "ScenarioRun": scenario_payload,
             "ScenarioSnapshot": scenario_payload,
@@ -457,11 +681,19 @@ class RegisteredSourceAuthority:
             "OperationalEventAdapter": event_payload,
             "OperationalEventRegistry": {"ids": [item.value for item in OperationalEventType]},
             "CurrentValidationExecutionAdapter": current_validation,
-            "CurrentScenarioExecutionAdapter": current_scenario,
-            "TelemetrySnapshot": {item.entity_id: item.model_dump(mode="json") for item in snapshot.telemetry},
+            "TelemetrySnapshot": {
+                item.entity_id: item.model_dump(mode="json") | {
+                    "freshness": self._d.telemetry.classify(
+                        item, snapshot.run.scenario_time
+                    ).freshness.value,
+                }
+                for item in snapshot.telemetry
+            },
             "DeviceState": devices,
             "CommandAvailability": actions,
         }
+        if "POST_TRIP" in checkpoint_payloads:
+            raw["CurrentScenarioExecutionAdapter"] = current_scenario
         if snapshot.topology.isolation_proof is not None:
             proof_payload = snapshot.topology.isolation_proof.model_dump(mode="json")
             telemetry_by_entity = {item.entity_id: item for item in snapshot.telemetry}
@@ -591,13 +823,27 @@ class RegisteredSourceAuthority:
     def _events(self, context: SourceAuthorityContext) -> tuple[ProducedRoleAuthority, ...]:
         run_id, execution_id = self._scenario_identity(context)
         snapshot = self._d.scenarios.snapshot(run_id)
+        lifecycle = self._d.scenarios.command_lifecycle(run_id)
+        created_alarm = next((
+            alarm.model_dump(mode="json")
+            for result in lifecycle["results"]
+            for alarm in result.snapshot.alarms
+            if alarm.acknowledgement_state.value == "UNACKNOWLEDGED"
+        ), None)
         common = self._common(context, snapshot=snapshot, execution_id=execution_id)
         events = self._event_snapshot(snapshot, context)
         alarm_payload = {
                 "alarms": [item.model_dump(mode="json") for item in snapshot.alarms],
                 "active_alarm": next(
                     (
-                        item.model_dump(mode="json") for item in snapshot.alarms
+                        item.model_dump(mode="json") | {
+                            "creation_acknowledgement_state": (
+                                created_alarm.get("acknowledgement_state")
+                                if created_alarm is not None
+                                and created_alarm.get("alarm_id") == str(item.alarm_id)
+                                else None
+                            )
+                        } for item in snapshot.alarms
                         if item.active
                     ),
                     None,
@@ -657,11 +903,14 @@ class RegisteredSourceAuthority:
         records.append(self._snapshot(
             DeterminationSourceAdapterKind.CONTROLLED_FIXTURE,
             "ConfigurationPackageAdapter", f"{fixture.fixture_id}:configuration",
-            {"before_after_sha256": (
-                "Canonical Network Configuration v1.1 bytes/hash are unchanged by fixture execution."
-                if loaded.catalog_entry.data_sha256 == oracle["data_sha256"]
-                else {"observed": loaded.catalog_entry.data_sha256, "expected": oracle["data_sha256"]}
-            )}, **common,
+            {
+                "fixture_identity": fixture.fixture_id,
+                "before_after_sha256": (
+                    loaded.catalog_entry.data_sha256 == oracle["data_sha256"]
+                ),
+                "observed_sha256": loaded.catalog_entry.data_sha256,
+                "expected_sha256": oracle["data_sha256"],
+            }, **common,
         ))
         if fixture.fixture_id == "FIX-RST-RADIAL-001":
             normal = TopologyService.normal_inputs(loaded.data)
@@ -770,6 +1019,16 @@ class RegisteredSourceAuthority:
         correction = self._d.investigation.get_correction()
         links = self._d.investigation.list_repeat_links(defect.defect_record_id) if defect else ()
         failure_summary = self._exact_defect_failure(summaries, defect)
+        investigation_steps = (
+            {
+                item.step_id: item.model_dump(mode="json")
+                for item in self._d.investigation_workflow.determination_source_steps(
+                    failure_summary.execution.validation_execution_id
+                )
+            }
+            if failure_summary is not None
+            else {}
+        )
         common = self._common(context)
         aggregate = self._snapshot(
             DeterminationSourceAdapterKind.VALIDATION_INVESTIGATION_HISTORY,
@@ -777,10 +1036,20 @@ class RegisteredSourceAuthority:
             {
                 "executions": [item.model_dump(mode="json") for item in summaries],
                 "failure": self._failure_projection(failure_summary),
-                "scada_step": self._investigation_scada_projection(failure_summary),
-                "topology_step": self._investigation_topology_projection(failure_summary),
+                "scada_step": self._investigation_scada_projection(
+                    failure_summary, investigation_steps
+                ),
+                "topology_step": self._investigation_topology_projection(
+                    failure_summary, defect
+                ),
                 "oms_step": self._investigation_oms_projection(failure_summary),
-                "chain": self._investigation_chain_projection(defect, correction, links),
+                "chain": self._investigation_chain_projection(
+                    summaries,
+                    defect,
+                    correction,
+                    links,
+                    self._d.investigation.immutability_controls(),
+                ),
                 "provenance": self._investigation_provenance_projection(
                     summaries, defect, correction, links
                 ),
@@ -864,85 +1133,359 @@ class RegisteredSourceAuthority:
             for item in summaries
             for evidence in item.evidence_snapshots
         ]
-        formal_progress = {
-            "executions": len(formal_summaries),
-            "finalised": sum(
-                item.execution.status.value == "FINALISED"
-                for item in formal_summaries
-            ),
-            "pass": sum(
-                item.execution.verdict is not None
-                and item.execution.verdict.value == "PASS"
-                for item in formal_summaries
-            ),
-            "fail": sum(
-                item.execution.verdict is not None
-                and item.execution.verdict.value == "FAIL"
-                for item in formal_summaries
-            ),
+        # Reuse the accepted workspace projection authority for both sides of
+        # the separation check.  The first call is fed only FORMAL records;
+        # the second receives the complete mixed campaign.  Equality is thus
+        # observed from the real projection behaviour, not asserted here.
+        from ...application.workspace_service import WorkspaceService
+
+        definitions = self._d.catalogue.load()
+        formal_suspensions = tuple(
+            item
+            for item in suspensions
+            if item.inherited_evidence_class.value == "FORMAL"
+        )
+        formal_only_progress = WorkspaceService._validation_progress(
+            definitions, formal_summaries, formal_suspensions
+        ).model_dump(mode="json")
+        mixed_campaign_progress = WorkspaceService._validation_progress(
+            definitions, summaries, suspensions
+        ).model_dump(mode="json")
+
+        def run_projection(snapshot: Any) -> dict[str, Any]:
+            run = snapshot.run
+            loaded = self._d.configurations.load(f"v{run.configuration_version}")
+            return {
+                **run.model_dump(mode="json"),
+                "configuration_status": loaded.manifest.status.value,
+            }
+
+        selector_roots = {
+            part.strip().split(".", 1)[0].split("[", 1)[0]
+            for criterion in context.method.criteria
+            for part in criterion.source_selector.split(" + ")
         }
+        sep_records: dict[str, Any] = {}
+        if scenario_snapshots and selector_roots & {
+            "FormalScenarioDefinition", "ScenarioInitialisationBoundaryAdapter",
+            "ScenarioCommandApiBoundaryAdapter", "NetworkConfigurationPackage",
+        }:
+            def history_fingerprint() -> str:
+                rows = []
+                for snapshot in scenario_snapshots:
+                    lifecycle = self._d.scenarios.command_lifecycle(
+                        snapshot.run.scenario_run_id
+                    )
+                    rows.append({
+                        "snapshot": snapshot.model_dump(mode="json"),
+                        "command_lifecycle": {
+                            "results": [
+                                item.model_dump(mode="json")
+                                for item in lifecycle["results"]
+                            ],
+                            "request_sha256": list(lifecycle["request_sha256"]),
+                            "replay_comparisons": list(
+                                lifecycle["replay_comparisons"]
+                            ),
+                        },
+                    })
+                return sha256_bytes(canonical_json_bytes(rows))
+
+            before_history = history_fingerprint()
+            definition = self._d.scenarios.formal_definition
+            probe_snapshot = max(
+                scenario_snapshots,
+                key=lambda item: item.run.initial_scenario_time,
+            )
+            loaded_probe_configuration = self._d.configurations.load(
+                f"v{probe_snapshot.run.configuration_version}"
+            )
+            configured_section_ids = sorted(
+                item.entity_id
+                for item in loaded_probe_configuration.data.sections
+            )
+            alternate_rejections: list[dict[str, Any]] = []
+            for section_id in configured_section_ids:
+                if section_id == definition.fault_section_id:
+                    continue
+                request = InitialiseRunRequest(
+                    command_id=UUID(
+                        hex=sha256_bytes(canonical_json_bytes({
+                            "attempt": str(context.attempt.validation_attempt_id),
+                            "probe": "alternate-formal-fault",
+                            "section_id": section_id,
+                        }))[:32]
+                    ),
+                    actor="Validation Assurance Probe",
+                    mode=ScenarioMode.FORMAL,
+                    configuration_version=probe_snapshot.run.configuration_version,
+                    fault_section_id=section_id,
+                    scenario_time=probe_snapshot.run.scenario_time,
+                )
+                accepted = False
+                detail = None
+                try:
+                    self._d.scenarios.initialise_next_run(request)
+                    accepted = True
+                except ScenarioBoundaryError as error:
+                    detail = str(error)
+                after_history = history_fingerprint()
+                diagnostic = (
+                    detail
+                    == "formal mode remains fixed to the controlled SEC-A2 fault input"
+                )
+                alternate_rejections.append({
+                    "fault_section_id": section_id,
+                    "accepted": accepted,
+                    "boundary_id": (
+                        "FORMAL_FIXED_FAULT_VALIDATION"
+                        if diagnostic else "UNRELATED_OR_UNKNOWN_BOUNDARY"
+                    ),
+                    "reason_code": (
+                        "FORMAL_FIXED_FAULT" if diagnostic else "OTHER_REJECTION"
+                    ),
+                    "detail": detail,
+                    "diagnostic_rejection": diagnostic,
+                    "before_history_sha256": before_history,
+                    "after_history_sha256": after_history,
+                    "run_and_history_unchanged": before_history == after_history,
+                })
+
+            command_probe_base = {
+                "command_id": UUID(
+                    hex=sha256_bytes(canonical_json_bytes({
+                        "attempt": str(context.attempt.validation_attempt_id),
+                        "probe": "in-place-run-mutation",
+                    }))[:32]
+                ),
+                "scenario_run_id": probe_snapshot.run.scenario_run_id,
+                "actor": "Validation Assurance Probe",
+                "expected_revision": probe_snapshot.run.state_revision,
+                "command_type": ScenarioCommandType.RESET_RUN,
+                "scenario_time": probe_snapshot.run.scenario_time,
+            }
+
+            def diagnostic_schema_rejection(field: str, value: Any) -> dict[str, Any]:
+                before = history_fingerprint()
+                errors: list[dict[str, Any]] = []
+                accepted = False
+                try:
+                    ScenarioCommandRequest.model_validate(
+                        command_probe_base | {field: value}, strict=True
+                    )
+                    accepted = True
+                except ValidationError as error:
+                    errors = [
+                        {
+                            "location": [str(item) for item in row["loc"]],
+                            "error_type": row["type"],
+                        }
+                        for row in error.errors()
+                    ]
+                after = history_fingerprint()
+                diagnostic = any(
+                    item["location"] == [field]
+                    and item["error_type"] == "extra_forbidden"
+                    for item in errors
+                )
+                return {
+                    "attempted_field": field,
+                    "attempted_value": value,
+                    "accepted": accepted,
+                    "boundary_id": "ScenarioCommandRequest.extra_forbid",
+                    "error_type": "extra_forbidden" if diagnostic else None,
+                    "errors": errors,
+                    "diagnostic_rejection": diagnostic,
+                    "before_history_sha256": before,
+                    "after_history_sha256": after,
+                    "run_and_history_unchanged": before == after,
+                }
+
+            corrected = self._d.configurations.load("v1.1")
+            sep_records = {
+                "FormalScenarioDefinition": {
+                    "fault_section_id": definition.fault_section_id,
+                    "isolation_device_sequence": list(
+                        definition.isolation_device_sequence
+                    ),
+                    "definition_sha256": sha256_bytes(
+                        canonical_json_bytes(definition.model_dump(mode="json"))
+                    ),
+                },
+                "ScenarioInitialisationBoundaryAdapter": {
+                    "configured_section_ids": configured_section_ids,
+                    "alternate_formal_fault_rejections": alternate_rejections,
+                },
+                "ScenarioCommandApiBoundaryAdapter": {
+                    "mode_mutation_rejection": diagnostic_schema_rejection(
+                        "mode", "EXPLORATION"
+                    ),
+                    "fault_selection_mutation_rejection": diagnostic_schema_rejection(
+                        "fault_section_id", "SEC-A1"
+                    ),
+                },
+                "NetworkConfigurationPackage": {
+                    "manifest": corrected.manifest.model_dump(mode="json"),
+                    "catalog_entry": corrected.catalog_entry.model_dump(mode="json"),
+                    "data": corrected.data.model_dump(mode="json"),
+                },
+            }
+        summaries_by_execution = {
+            item.execution.validation_execution_id: item for item in summaries
+        }
+        identity_rows = []
+        for item in summaries:
+            execution = item.execution
+            catalogue_resolved = True
+            configuration_resolved = True
+            try:
+                self._d.catalogue.resolve(
+                    test_id=execution.test_id,
+                    catalogue_version=str(execution.catalogue_version),
+                    catalogue_sha256=execution.catalogue_sha256,
+                    test_definition_version=str(execution.test_definition_version),
+                    test_definition_sha256=execution.test_definition_sha256,
+                )
+            except Exception:
+                catalogue_resolved = False
+            try:
+                loaded_configuration = self._d.configurations.load(
+                    f"v{execution.configuration_version}"
+                )
+                configuration_resolved = (
+                    loaded_configuration.catalog_entry.configuration_id
+                    == execution.configuration_id
+                )
+            except Exception:
+                configuration_resolved = False
+            identity_rows.append({
+                "execution_id": str(execution.validation_execution_id),
+                "attempt_id": str(execution.validation_attempt_id),
+                "result_id": (
+                    str(execution.executed_result_id)
+                    if execution.executed_result_id is not None
+                    else None
+                ),
+                "test_id": execution.test_id,
+                "test_definition_version": str(execution.test_definition_version),
+                "test_definition_sha256": execution.test_definition_sha256,
+                "evidence_class": execution.evidence_class.value,
+                "catalogue_version": str(execution.catalogue_version),
+                "catalogue_sha256": execution.catalogue_sha256,
+                "configuration_id": execution.configuration_id,
+                "configuration_version": str(execution.configuration_version),
+                "build_id": execution.application_build_id,
+                "run_id": (
+                    str(execution.scenario_run_id)
+                    if execution.scenario_run_id is not None
+                    else None
+                ),
+                "context_kind": execution.context_kind.value,
+                "catalogue_resolved": catalogue_resolved,
+                "configuration_resolved": configuration_resolved,
+            })
+        complete_result_rows = []
+        for result in executed_results:
+            summary = summaries_by_execution.get(result.validation_execution_id)
+            findings = self._d.determination.list_findings(
+                result.determination_context_id
+            )
+            complete_result_rows.append({
+                "result": result.model_dump(mode="json"),
+                "execution": (
+                    summary.execution.model_dump(mode="json")
+                    if summary is not None
+                    else None
+                ),
+                "findings": [item.model_dump(mode="json") for item in findings],
+                "finding_membership_exact": {
+                    item.criterion_finding_id for item in findings
+                }
+                == set(result.criterion_finding_ids),
+                "evidence_membership_exact": (
+                    summary is not None
+                    and set(result.evidence_snapshot_ids)
+                    == {
+                        item.evidence_snapshot_id
+                        for item in summary.evidence_snapshots
+                    }
+                ),
+                "stored_verdicts_equal": (
+                    summary is not None
+                    and summary.execution.verdict is result.verdict
+                ),
+            })
+        reset_pairs = []
+        for snapshot in scenario_snapshots:
+            if not any(
+                event.event_type.value == "SCENARIO_RESET"
+                for event in snapshot.events
+            ):
+                continue
+            lifecycle = self._d.scenarios.command_lifecycle(
+                snapshot.run.scenario_run_id
+            )
+            for result in lifecycle["results"]:
+                if result.reason_code == "RUN_RESET":
+                    reset_pairs.append({
+                        "prior_run": snapshot.run.model_dump(mode="json"),
+                        "new_run": result.snapshot.run.model_dump(mode="json"),
+                        "prior_event_count": len(snapshot.events),
+                        "reset_event_ids": [
+                            str(item) for item in result.new_event_ids
+                        ],
+                    })
+        repeat_rows = []
+        for item in summaries:
+            repeat_of = item.execution.links.repeat_of_execution_id
+            if repeat_of is None:
+                continue
+            original = summaries_by_execution.get(repeat_of)
+            repeat_rows.append({
+                "original": (
+                    original.execution.model_dump(mode="json")
+                    if original is not None
+                    else None
+                ),
+                "repeat": item.execution.model_dump(mode="json"),
+            })
         raw: dict[str, Any] = {
             "ValidationExecutionAdapter": {
                 "executions": [item.execution.model_dump(mode="json") for item in summaries],
-                "identity": [
-                    {
-                        "execution_id": str(item.execution.validation_execution_id),
-                        "test_id": item.execution.test_id,
-                        "evidence_class": item.execution.evidence_class.value,
-                        "catalogue_sha256": item.execution.catalogue_sha256,
-                        "configuration_id": item.execution.configuration_id,
-                        "build_id": item.execution.application_build_id,
-                    }
-                    for item in summaries
-                ],
-                "repeat_chain": [
-                    {
-                        "execution_id": str(item.execution.validation_execution_id),
-                        "repeat_of_execution_id": (
-                            str(item.execution.links.repeat_of_execution_id)
-                            if item.execution.links.repeat_of_execution_id else None
-                        ),
-                    }
-                    for item in summaries
-                    if item.execution.links.repeat_of_execution_id is not None
-                ],
+                "identity": identity_rows,
+                "repeat_chain": repeat_rows,
             },
             "ExecutedValidationResultAdapter": {
                 "results": [item.model_dump(mode="json") for item in executed_results],
-                "complete_record": [
-                    item.model_dump(mode="json") for item in executed_results
-                ],
+                "complete_record": complete_result_rows,
             },
             "PersistenceAssuranceResult": {
                 "immutability_probes": list(
+                    self._d.validation.immutability_probe_results()
+                ),
+                "installed_controls": list(
                     self._d.validation.immutability_controls()
-                )
+                ),
             },
             "ScenarioResetAdapter": {
-                "before_after": [
-                    snapshot.run.model_dump(mode="json")
-                    for snapshot in scenario_snapshots
-                    if any(
-                        event.event_type.value == "SCENARIO_RESET"
-                        for event in snapshot.events
-                    )
-                ]
+                "before_after": reset_pairs,
             },
             "FormalProgressAdapter": {
                 "before_after": {
-                    "formal_only": formal_progress,
-                    "with_exploratory_records": formal_progress,
+                    "formal_only": formal_only_progress,
+                    "with_exploratory_records": mixed_campaign_progress,
                     "exploratory_execution_count": len(exploratory_summaries),
+                    "exploratory_composite_count": len(composites),
                 }
             },
             "ScenarioRunAdapter": {
                 "formal_run": [
-                    snapshot.run.model_dump(mode="json")
+                    run_projection(snapshot)
                     for snapshot in scenario_snapshots
                     if snapshot.run.evidence_class.value == "FORMAL"
                 ],
                 "exploration_run": [
-                    snapshot.run.model_dump(mode="json")
+                    run_projection(snapshot)
                     for snapshot in scenario_snapshots
                     if snapshot.run.evidence_class.value == "EXPLORATORY"
                 ],
@@ -958,12 +1501,23 @@ class RegisteredSourceAuthority:
                         snapshot.run.fault_section_id
                         for snapshot in scenario_snapshots
                     ],
+                    "scenario_command_types": [
+                        item.value for item in ScenarioCommandType
+                    ],
+                    "run_context_frozen_model": bool(
+                        RunContext.model_config.get("frozen")
+                    ),
+                    "run_and_history_unchanged": (
+                        before_history == history_fingerprint()
+                        if sep_records else True
+                    ),
                 },
             },
             "OperationalEventAdapter": {
                 "events": event_records,
             },
         }
+        raw.update(sep_records)
         if not summaries:
             raw.pop("ValidationExecutionAdapter")
         if not executed_results:
@@ -979,13 +1533,93 @@ class RegisteredSourceAuthority:
             raw.pop("OperationalEventAdapter")
         validation_payload = dict(validation.canonical_payload)
         validation_payload["records"] = evidence_records
-        validation_payload["final_membership"] = {
-            str(item.execution.validation_execution_id): [
-                str(evidence.evidence_snapshot_id)
-                for evidence in item.evidence_snapshots
-            ]
-            for item in summaries
+        formal_run_ids = {
+            str(item.execution.scenario_run_id)
+            for item in formal_summaries
+            if item.execution.scenario_run_id is not None
         }
+        exploratory_run_ids = {
+            str(item.execution.scenario_run_id)
+            for item in exploratory_summaries
+            if item.execution.scenario_run_id is not None
+        }
+        formal_execution_ids = {
+            str(item.execution.validation_execution_id)
+            for item in formal_summaries
+        }
+        exploratory_execution_ids = {
+            str(item.execution.validation_execution_id)
+            for item in exploratory_summaries
+        }
+        formal_evidence_ids = {
+            str(evidence.evidence_snapshot_id)
+            for item in formal_summaries
+            for evidence in item.evidence_snapshots
+        }
+        exploratory_evidence_ids = {
+            str(evidence.evidence_snapshot_id)
+            for item in exploratory_summaries
+            for evidence in item.evidence_snapshots
+        }
+        validation_payload["cross_class_identity_collisions"] = sorted(
+            (formal_run_ids & exploratory_run_ids)
+            | (formal_execution_ids & exploratory_execution_ids)
+            | (formal_evidence_ids & exploratory_evidence_ids)
+        )
+        validation_payload["cross_class_identity_scope"] = {
+            "formal_run_count": len(formal_run_ids),
+            "exploratory_run_count": len(exploratory_run_ids),
+            "formal_execution_count": len(formal_execution_ids),
+            "exploratory_execution_count": len(exploratory_execution_ids),
+            "formal_evidence_count": len(formal_evidence_ids),
+            "exploratory_evidence_count": len(exploratory_evidence_ids),
+        }
+        cross_class_links = []
+        for item in summaries:
+            repeat_of = item.execution.links.repeat_of_execution_id
+            if repeat_of is None:
+                continue
+            source = summaries_by_execution.get(repeat_of)
+            if (
+                source is not None
+                and source.execution.evidence_class
+                is not item.execution.evidence_class
+            ):
+                cross_class_links.append({
+                    "execution_id": str(item.execution.validation_execution_id),
+                    "repeat_of_execution_id": str(repeat_of),
+                })
+        for composite in composites:
+            member_ids = {
+                str(item.validation_execution_id)
+                for item in composite.constituent_links
+                if item.validation_execution_id is not None
+            }
+            if member_ids & formal_execution_ids:
+                cross_class_links.append({
+                    "composite_result_id": str(composite.composite_result_id),
+                    "formal_member_ids": sorted(member_ids & formal_execution_ids),
+                })
+        validation_payload["cross_class_links"] = cross_class_links
+        validation_payload["cross_class_link_scope"] = {
+            "formal_execution_count": len(formal_execution_ids),
+            "exploratory_execution_count": len(exploratory_execution_ids),
+            "exploratory_composite_count": len(composites),
+        }
+        validation_payload["final_membership"] = [
+            {
+                "execution_id": str(item.execution.validation_execution_id),
+                "status": item.execution.status.value,
+                "declared_evidence_snapshot_ids": [
+                    str(value) for value in item.execution.evidence_snapshot_ids
+                ],
+                "stored_evidence_snapshot_ids": [
+                    str(evidence.evidence_snapshot_id)
+                    for evidence in item.evidence_snapshots
+                ],
+            }
+            for item in summaries
+        ]
         validation = validation.model_copy(update={
             "canonical_payload": validation_payload,
             "canonical_payload_sha256": sha256_bytes(
@@ -1049,8 +1683,15 @@ class RegisteredSourceAuthority:
             if len(linked) != 1:
                 continue
             left, right = linked[0]
+            temporal_baseline = self._d.validation.get_repeat_source_baseline(
+                right.execution.validation_execution_id
+            )
             members = (
-                self._repeat_member(left, context, fixture_id),
+                self._repeat_member(
+                    left, context, fixture_id,
+                    temporal_baseline=temporal_baseline,
+                    repeat_execution_id=right.execution.validation_execution_id,
+                ),
                 self._repeat_member(right, context, fixture_id),
             )
             if not self._repeat_pair_is_exact(
@@ -1097,7 +1738,7 @@ class RegisteredSourceAuthority:
                     for role, pair in pairs.items()
                 },
                 "before_after_hashes": {
-                    role: [member["preservation"] for member in pair]
+                    role: pair[0]["temporal_preservation"]
                     for role, pair in pairs.items()
                 },
                 "comparison_profile": {
@@ -1153,7 +1794,15 @@ class RegisteredSourceAuthority:
             by_role,
         )
 
-    def _repeat_member(self, summary, context, fixture_id: str | None) -> dict[str, Any]:
+    def _repeat_member(
+        self,
+        summary,
+        context,
+        fixture_id: str | None,
+        *,
+        temporal_baseline: dict[str, Any] | None = None,
+        repeat_execution_id: UUID | None = None,
+    ) -> dict[str, Any]:
         execution = summary.execution
         observed = execution.observed_result or {}
         context_id = observed.get("determination_context_id")
@@ -1208,18 +1857,58 @@ class RegisteredSourceAuthority:
             resolved_result_sha256 = self._d.validation.get_executed_result(
                 execution.executed_result_id
             ).result_sha256
-        correction = self._d.investigation.get_correction()
+        correction = (
+            self._d.investigation.get_correction()
+            if execution.test_id == "VT-TOP-DEF-001" else None
+        )
         stored_correction_sha256 = (
             sha256_bytes(canonical_json_bytes(correction.model_dump(mode="json")))
             if correction is not None else None
         )
-        resolved_correction = self._d.investigation.get_correction()
+        resolved_correction = (
+            self._d.investigation.get_correction()
+            if execution.test_id == "VT-TOP-DEF-001" else None
+        )
         resolved_correction_sha256 = (
             sha256_bytes(canonical_json_bytes(
                 resolved_correction.model_dump(mode="json")
             ))
             if resolved_correction is not None else None
         )
+        temporal_preservation = None
+        if temporal_baseline is not None and repeat_execution_id is not None:
+            temporal_preservation = {
+                "source_execution_id": str(execution.validation_execution_id),
+                "repeat_execution_id": str(repeat_execution_id),
+                "baseline_sha256": temporal_baseline["baseline_sha256"],
+                "before": {
+                    "execution_sha256": temporal_baseline["source_execution_sha256"],
+                    "evidence_membership": temporal_baseline["source_evidence_membership"],
+                    "evidence_sha256": temporal_baseline["source_evidence_sha256"],
+                    "result_id": temporal_baseline["source_result_id"],
+                    "result_sha256": temporal_baseline["source_result_sha256"],
+                    "correction_sha256": temporal_baseline["correction_sha256"],
+                },
+                "after": {
+                    "execution_sha256": resolved_execution_sha256,
+                    "evidence_membership": [
+                        {
+                            "evidence_snapshot_id": str(item.evidence_snapshot_id),
+                            "canonical_payload_sha256": item.canonical_payload_sha256,
+                        }
+                        for item in self._d.validation.list_evidence(
+                            execution.validation_execution_id
+                        )
+                    ],
+                    "evidence_sha256": resolved_evidence_sha256,
+                    "result_id": (
+                        str(execution.executed_result_id)
+                        if execution.executed_result_id is not None else None
+                    ),
+                    "result_sha256": resolved_result_sha256,
+                    "correction_sha256": resolved_correction_sha256,
+                },
+            }
         return {
             "execution_id": str(execution.validation_execution_id),
             "repeat_of_execution_id": (
@@ -1261,6 +1950,7 @@ class RegisteredSourceAuthority:
                 "stored_correction_sha256": stored_correction_sha256,
                 "resolved_correction_sha256": resolved_correction_sha256,
             },
+            "temporal_preservation": temporal_preservation,
         }
 
     @staticmethod
@@ -1286,6 +1976,13 @@ class RegisteredSourceAuthority:
             and left_input["fixture_id"] == fixture_id
             and left_input["build_id"] == application_build_id
             and all(item["identity_resolved"] is True for item in members)
+            and left.get("temporal_preservation") is not None
+            and left["temporal_preservation"]["source_execution_id"]
+            == left["execution_id"]
+            and left["temporal_preservation"]["repeat_execution_id"]
+            == right["execution_id"]
+            and left["temporal_preservation"]["before"]
+            == left["temporal_preservation"]["after"]
             and all(
                 item["preservation"]["stored_execution_sha256"]
                 == item["preservation"]["resolved_execution_sha256"]
@@ -1603,9 +2300,12 @@ class RegisteredSourceAuthority:
         binding_surfaces = binding_payload.get("surfaces", [])
         binding_ids = [item.get("surface_id") for item in binding_surfaces]
         resolved_field_bindings: dict[str, list[dict[str, Any]]] = {}
+        actual_field_ids: dict[str, list[str]] = {}
         for surface in binding_surfaces:
             resolved_field_bindings[surface["surface_id"]] = []
+            actual_field_ids[surface["surface_id"]] = []
             for binding in surface.get("bindings", []):
+                actual_field_ids[surface["surface_id"]].append(binding.get("field_id"))
                 module_path = self._d.repository_root / binding["module"]
                 present = (
                     module_path.is_file()
@@ -1617,6 +2317,13 @@ class RegisteredSourceAuthority:
         implementation_bindings_ok = (
             binding_ids == exact_surface_ids
             and len(binding_ids) == len(set(binding_ids)) == 8
+            and set(_REQUIRED_SURFACE_FIELD_IDS) == set(exact_surface_ids)
+            and all(
+                len(actual_field_ids.get(surface_id, []))
+                == len(set(actual_field_ids.get(surface_id, [])))
+                and set(actual_field_ids.get(surface_id, [])) == required
+                for surface_id, required in _REQUIRED_SURFACE_FIELD_IDS.items()
+            )
             and all(
                 bindings and all(item["resolved_in_implementation"] for item in bindings)
                 for bindings in resolved_field_bindings.values()
@@ -1702,6 +2409,11 @@ class RegisteredSourceAuthority:
                         "fixed_notice": implemented_surface_payload.get("fixed_notice"),
                         "surface_profiles": surface_profiles,
                         "expected_profiles": exact_profiles,
+                        "required_field_ids": {
+                            key: sorted(value)
+                            for key, value in _REQUIRED_SURFACE_FIELD_IDS.items()
+                        },
+                        "actual_field_ids": actual_field_ids,
                         "resolved_implementation_bindings": resolved_field_bindings,
                     }
                 ),
@@ -1941,6 +2653,14 @@ class RegisteredSourceAuthority:
     def _assessment_payload(assessment, snapshot) -> dict[str, Any]:
         candidate = assessment.candidate
         calculation = assessment.calculation
+        telemetry_by_entity = {
+            item.entity_id: item for item in snapshot.telemetry
+        }
+        alternate_breaker = (
+            telemetry_by_entity.get(candidate.alternate_source_breaker_id)
+            if candidate is not None
+            else None
+        )
         invalidated = assessment.assessment_id in {
             item.assessment_id for item in snapshot.restoration_invalidations
         }
@@ -1956,6 +2676,11 @@ class RegisteredSourceAuthority:
             ),
             "alternate_feeder_id": (
                 candidate.alternate_feeder_id if candidate else None
+            ),
+            "alternate_breaker_state": (
+                alternate_breaker.value.value
+                if alternate_breaker is not None
+                else None
             ),
             "proposed_section_ids": (
                 list(candidate.proposed_section_ids) if candidate else []
@@ -1977,6 +2702,15 @@ class RegisteredSourceAuthority:
                 item.criterion.value: item.status.value
                 for item in assessment.permissives
             },
+            "permissive_reason_codes": {
+                item.criterion.value: list(item.reason_codes)
+                for item in assessment.permissives
+            },
+            "alternate_breaker_closed": (
+                alternate_breaker.value is SwitchState.CLOSED
+                if alternate_breaker is not None
+                else None
+            ),
             "reasons": list(assessment.reason_codes),
         }
 
@@ -2069,26 +2803,93 @@ class RegisteredSourceAuthority:
             "verdict": failure.verdict.value,
         }
 
-    @staticmethod
-    def _investigation_scada_projection(failure_summary) -> Any:
+    def _investigation_scada_projection(
+        self, failure_summary, investigation_steps
+    ) -> Any:
         if failure_summary is None or not failure_summary.evidence_snapshots:
             return None
-        payload = failure_summary.evidence_snapshots[0].canonical_payload
+        evidence = failure_summary.evidence_snapshots[0]
+        payload = evidence.canonical_payload
         telemetry = payload.get("scenario_snapshot", {}).get("telemetry", [])
         breaker = next(
             (item for item in telemetry if item.get("entity_id") == "BRK-A"),
             None,
         )
-        return {"breaker_telemetry": breaker}
+        if breaker is None:
+            return None
+        point = TelemetryPoint.model_validate_json(json.dumps(breaker))
+        validity = self._d.telemetry.classify(point, evidence.scenario_time)
+        return {
+            "breaker_telemetry": breaker | {
+                "freshness": validity.freshness.value,
+                "overall_valid": validity.overall_valid,
+            },
+            "workflow_scada_step": investigation_steps.get("INV-02"),
+            "workflow_causal_step": investigation_steps.get("INV-07"),
+        }
 
     @staticmethod
-    def _investigation_topology_projection(failure_summary) -> Any:
+    def _investigation_topology_projection(failure_summary, defect) -> Any:
+        if failure_summary is None or not failure_summary.evidence_snapshots:
+            return None
         observed = (
             failure_summary.execution.observed_result
             if failure_summary is not None else None
         )
+        expected = failure_summary.execution.expected_comparison_values or {}
+        unexpected = sorted(
+            set(expected.get("de_energised_section_ids", ()))
+            - set((observed or {}).get("de_energised_section_ids", ()))
+        )
+        topology = failure_summary.evidence_snapshots[0].canonical_payload.get(
+            "scenario_snapshot", {}
+        ).get("topology", {})
+        sections = {
+            item.get("section_id"): item
+            for item in topology.get("sections", [])
+        }
+        difference_edge = (
+            defect.identified_difference.path.split(".")[1]
+            if defect is not None
+            else None
+        )
+        implicated_paths = []
+        for section_id in unexpected:
+            for path in sections.get(section_id, {}).get("source_paths", []):
+                if difference_edge in path.get("edge_ids", []):
+                    device_index = next(
+                        (
+                            index
+                            for index, node_id in enumerate(path.get("node_ids", []))
+                            if difference_edge is not None
+                            and difference_edge.removeprefix("EDGE-").removesuffix("-1")
+                            == node_id
+                        ),
+                        None,
+                    )
+                    implicated_paths.append({
+                        "target_section_id": section_id,
+                        "source_feeder_id": path.get("source_feeder_id"),
+                        "difference_device_id": (
+                            path["node_ids"][device_index]
+                            if device_index is not None
+                            else None
+                        ),
+                        "difference_upstream_node_id": (
+                            path["node_ids"][device_index - 1]
+                            if device_index is not None and device_index > 0
+                            else None
+                        ),
+                    })
         return {
-            "source_paths": (observed or {}).get("section_source_feeder_ids", [])
+            "source_paths": (observed or {}).get("section_source_feeder_ids", []),
+            "identified_difference": (
+                defect.identified_difference.model_dump(mode="json")
+                if defect is not None
+                else None
+            ),
+            "unexpected_energised_section_ids": unexpected,
+            "implicated_paths": implicated_paths,
         }
 
     @staticmethod
@@ -2097,6 +2898,13 @@ class RegisteredSourceAuthority:
             failure_summary.execution.observed_result
             if failure_summary is not None else None
         )
+        evidence = (
+            failure_summary.evidence_snapshots[0].canonical_payload
+            if failure_summary is not None and failure_summary.evidence_snapshots
+            else {}
+        )
+        outage = evidence.get("scenario_snapshot", {}).get("outage", {})
+        zones = outage.get("affected_customer_zones", [])
         return {
             "de_energised_section_ids": (observed or {}).get(
                 "de_energised_section_ids"
@@ -2104,30 +2912,115 @@ class RegisteredSourceAuthority:
             "affected_customer_count": (observed or {}).get(
                 "affected_customer_count"
             ),
+            "affected_customer_zones": zones,
+            "zone_sum": sum(item.get("customer_count", 0) for item in zones),
         }
 
     @staticmethod
-    def _investigation_chain_projection(defect, correction, links) -> Any:
+    def _investigation_chain_projection(
+        summaries, defect, correction, links, immutability_controls
+    ) -> Any:
+        execution_ids = {
+            item.execution.validation_execution_id for item in summaries
+        }
+        links_resolve = bool(defect and correction and links)
+        prior_execution_id = (
+            defect.original_failed_execution_id if defect is not None else None
+        )
+        for item in links:
+            links_resolve = links_resolve and (
+                item.original_execution_id == prior_execution_id
+                and item.new_execution_id in execution_ids
+                and item.defect_record_id == defect.defect_record_id
+                and item.correction_record_id == correction.correction_record_id
+                and item.defect_id == defect.defect_id
+                and item.correction_id == correction.correction_id
+            )
+            prior_execution_id = item.new_execution_id
         return {
             "defect_id": defect.defect_id if defect else None,
             "correction_id": correction.correction_id if correction else None,
             "repeat_link_ids": [str(item.repeat_link_id) for item in links],
+            "repeat_relationship_types": [
+                item.relationship_type.value for item in links
+            ],
+            "links_resolve_bidirectionally": links_resolve,
+            "immutability_controls": list(immutability_controls),
         }
 
-    @staticmethod
     def _investigation_provenance_projection(
-        summaries, defect, correction, links
+        self, summaries, defect, correction, links
     ) -> Any:
+        relevant_ids = {
+            *(item.new_execution_id for item in links),
+            *(
+                (defect.original_failed_execution_id,)
+                if defect is not None
+                else ()
+            ),
+        }
+        relevant = tuple(
+            item for item in summaries
+            if item.execution.validation_execution_id in relevant_ids
+        )
+        link_execution_ids = {
+            item.new_execution_id for item in links
+        }
+        relevant_execution_ids = {
+            item.execution.validation_execution_id for item in relevant
+        }
+        catalogue_resolved = True
+        configuration_resolved = True
+        for summary in relevant:
+            execution = summary.execution
+            try:
+                self._d.catalogue.resolve(
+                    test_id=execution.test_id,
+                    catalogue_version=str(execution.catalogue_version),
+                    catalogue_sha256=execution.catalogue_sha256,
+                    test_definition_version=str(execution.test_definition_version),
+                    test_definition_sha256=execution.test_definition_sha256,
+                )
+            except Exception:
+                catalogue_resolved = False
+            try:
+                loaded = self._d.configurations.load(
+                    f"v{execution.configuration_version}"
+                )
+                configuration_resolved = configuration_resolved and (
+                    loaded.catalog_entry.configuration_id
+                    == execution.configuration_id
+                )
+            except Exception:
+                configuration_resolved = False
         return {
             "execution_build_ids": sorted(
-                {item.execution.application_build_id for item in summaries}
+                {item.execution.application_build_id for item in relevant}
             ),
             "configuration_versions": sorted(
-                {str(item.execution.configuration_version) for item in summaries}
+                {str(item.execution.configuration_version) for item in relevant}
             ),
             "defect_present": defect is not None,
             "correction_present": correction is not None,
             "repeat_link_count": len(links),
+            "repeat_relationship_types": [
+                item.relationship_type.value for item in links
+            ],
+            "execution_catalogue_sha256": sorted(
+                {item.execution.catalogue_sha256 for item in relevant}
+            ),
+            "relevant_execution_count": len(relevant),
+            "exact_linked_execution_set": (
+                relevant_execution_ids
+                == link_execution_ids
+                | (
+                    {defect.original_failed_execution_id}
+                    if defect is not None
+                    else set()
+                )
+            ),
+            "catalogue_identities_resolved": catalogue_resolved,
+            "configuration_identities_resolved": configuration_resolved,
         }
 
     @staticmethod

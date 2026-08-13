@@ -12,7 +12,7 @@ export function RunSetup({ bootstrap, busy, onStart, onStartInvestigation }: { b
     </section>
     <section className="run-setup-grid">
       <article className="panel setup-card">
-        <span className="eyebrow">Approved formal run</span><h2>Start VT-FML-N0-N5-001</h2>
+        <span className="eyebrow">Approved formal run</span><h2>Start {bootstrap.formal_test_id}</h2>
         <p>The formal path is fixed to corrected Network Configuration v1.1 and the controlled SEC-A2 scenario.</p>
         <label>Actor / reviewer<input value={actor} onChange={(event) => setActor(event.target.value)} maxLength={120} /></label>
         <button type="button" className="primary-action" disabled={busy || actor.trim().length === 0} onClick={() => onStart(actor.trim())}>{busy ? 'Creating controlled run…' : 'Start formal v1.1 run'}</button>
@@ -31,7 +31,7 @@ export function RunSetup({ bootstrap, busy, onStart, onStartInvestigation }: { b
       </article>
       <article className="panel setup-preview">
         <span className="eyebrow">Backend-controlled identity</span><h2>Run-start context</h2>
-        <dl><div><dt>Formal mode</dt><dd>{bootstrap.default_mode} / {bootstrap.default_evidence_class}</dd></div><div><dt>Exploration mode</dt><dd>EXPLORATION / EXPLORATORY</dd></div><div><dt>Configuration</dt><dd>{bootstrap.default_configuration_id}</dd></div><div><dt>Formal fault section</dt><dd>SEC-A2 · controlled input</dd></div><div><dt>Scenario epoch</dt><dd>{bootstrap.default_scenario_time}</dd></div><div><dt>Application build</dt><dd title={bootstrap.application_build_id}>{shortId(bootstrap.application_build_id)}…</dd></div><div><dt>Catalogue</dt><dd>{bootstrap.definition_count} accepted definitions; no execution status assumed</dd></div></dl>
+        <dl><div><dt>Formal mode</dt><dd>{bootstrap.default_mode} / {bootstrap.default_evidence_class}</dd></div><div><dt>Exploration mode</dt><dd>EXPLORATION / EXPLORATORY</dd></div><div><dt>Configuration</dt><dd>{bootstrap.default_configuration_id}</dd></div><div><dt>Formal fault section</dt><dd>SEC-A2 · controlled input</dd></div><div><dt>Scenario epoch</dt><dd>{bootstrap.default_scenario_time}</dd></div><div><dt>Application build</dt><dd title={bootstrap.application_build_id}>{shortId(bootstrap.application_build_id)}…</dd></div><div><dt>Catalogue</dt><dd>v{bootstrap.formal_definition.catalogue_version} · {bootstrap.formal_definition.catalogue_sha256} · {bootstrap.definition_count} accepted definitions; no execution status assumed</dd></div></dl>
       </article>
       <article className="panel lifecycle-card"><span className="eyebrow">Engineering lifecycle</span><h2>How this workspace is used</h2><ol><li>Load controlled configuration and observed telemetry separately.</li><li>Review backend-derived topology and outage consequences.</li><li>Use only backend-authorised simulated actions.</li><li>Capture immutable evidence at controlled checkpoints.</li><li>Compare expected and observed only through the accepted validation model.</li></ol></article>
     </section>

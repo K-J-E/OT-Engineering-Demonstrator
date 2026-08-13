@@ -1,6 +1,6 @@
-"""Build the DC-006/DC-007 Validation Catalogue v1.2 candidate package.
+"""Build the DC-006/DC-007/DC-008 Validation Catalogue v1.2 candidate package.
 
-The accepted Validation Plan v1.4 Section 21 is the controlled source for the
+The accepted Validation Plan v1.5 Section 21 is the controlled source for the
 exact method and criterion definitions.  This utility promotes the active v1.1
 catalogue without changing its 24 test IDs, 124 requirements, 286 RTM
 relationships, or engineering answer keys.  It uses only the Python standard
@@ -28,9 +28,9 @@ VALIDATION_PLAN = ROOT / "01-engineering-source-documents/OT Project Validation 
 
 ACCEPTED_V1_1_CATALOGUE_SHA256 = "28bfe69131c40857c08f175abba42be3eb36514924b6de416b4e72bbefe35865"
 ACCEPTED_V1_1_MANIFEST_SHA256 = "45cb015f58af1d453be0255cdbbb857c08901877c416e830f26bb2fe6ecf60a3"
-ACCEPTED_VALIDATION_PLAN_SHA256 = "0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f"
+ACCEPTED_VALIDATION_PLAN_SHA256 = "33d8f46dca170045a352e022cc1d9312a6f821d93c1113c4926d40a7a0286c9b"
 ACCEPTED_CATALOGUE_AUTHORITY = (
-    "Accepted Validation Plan v1.4 Section 21 / DC-006 + DC-007"
+    "Accepted Validation Plan v1.5 Section 21 / DC-006 + DC-007 + DC-008"
 )
 SUPERSEDED_UNACCEPTED_V1_2_CANDIDATES = (
     {
@@ -46,6 +46,13 @@ SUPERSEDED_UNACCEPTED_V1_2_CANDIDATES = (
         "manifest_sha256": "4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42",
         "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
         "reason": "Superseded before acceptance because the active catalogue authority metadata still identified Validation Plan v1.3 after DC-007/Validation Plan v1.4 adoption.",
+    },
+    {
+        "catalogue_version": "1.2",
+        "catalogue_sha256": "f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4",
+        "manifest_sha256": "ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9",
+        "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+        "reason": "Superseded before acceptance by the DC-008 SEP source-provenance correction and Validation Plan v1.5 authority.",
     },
 )
 FIXED_NOTICE = "Simulated operation only — no real equipment control"
@@ -86,6 +93,7 @@ CRITERION_PATTERN = re.compile(
     r"Context/checkpoint: (?P<checkpoint>.*?) "
     r"Expected value/proposition: (?P<expected>.*?) "
     r"Source type/selector: (?P<source>.*?) "
+    r"(?:Source-provenance rule: .*? )?"
     r"Operator: (?P<operator>[A-Z_]+) "
     r"Normalisation: (?P<normalisation>.*?) "
     r"Required evidence: (?P<required_evidence>.*?); method evidence roles: "
@@ -284,6 +292,25 @@ def apply_dc007_version_increments(test: dict[str, Any]) -> None:
     method["method_sha256"] = definition_hash(method, "method_sha256")
 
 
+def apply_dc008_version_increments(test: dict[str, Any]) -> None:
+    """Apply only the controlled DC-008 identity increments to separation."""
+
+    if test["test_id"] != "VT-EXP-SEPARATION-001":
+        return
+    method = test["determination_method"]
+    if method is None:
+        raise ValueError("VT-EXP-SEPARATION-001 must own its direct determination method")
+    test["version"] = next_version(test["version"])
+    method["version"] = next_version(method["version"])
+    for criterion in method["criteria"]:
+        if criterion["criterion_id"] in {"SEP-01", "SEP-02", "SEP-03"}:
+            criterion["version"] = next_version(criterion["version"])
+            criterion["criterion_sha256"] = definition_hash(
+                criterion, "criterion_sha256"
+            )
+    method["method_sha256"] = definition_hash(method, "method_sha256")
+
+
 def audit(catalogue: dict[str, Any]) -> None:
     methods: list[dict[str, Any]] = []
     rtm: set[tuple[str, str]] = set()
@@ -354,6 +381,7 @@ def main() -> None:
         if test["test_id"] in direct:
             test["determination_method"] = make_method(test, direct[test["test_id"]], None)
             apply_dc007_version_increments(test)
+            apply_dc008_version_increments(test)
         else:
             test["determination_method"] = None
             for case in test["constituent_cases"]:

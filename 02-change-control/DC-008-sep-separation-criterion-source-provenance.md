@@ -1,6 +1,6 @@
 # DC-008 — SEP Separation-Criterion Source Provenance Clarification
 
-Status: **Design and Validation Plan v1.5 authoritative-document application accepted; machine-catalogue/application proceeding under the Showcase V1 Release Convergence Sprint**
+Status: **Design and Validation Plan v1.5 accepted; machine-catalogue/application release-verified pending Showcase RC review**
 
 Independent technical acceptance: exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`
 
@@ -207,6 +207,8 @@ A later application must prove at minimum:
 - DC-008 technical design is independently accepted at exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`; `DC008-DR-01` is closed.
 - Validation Plan v1.5 authoritative-document application is independently accepted at PR #16 technical tip `194fc3bfa0876e3e51e9c4831236c22665f9af3f` and is the accepted current baseline.
 - DC-008 machine-catalogue/application work is authorised under the Showcase V1 Release Convergence Sprint.
-- PR #12 remains draft/unmerged at this acceptance point and will be reconciled without rewriting its reviewed history.
-- QA-053/054/055 work resumes within the release-bounded convergence gate; preserved WIP remains authoritative input to that pass.
-- I9 remains stopped until converged PR #12 incorporation, then proceeds as Showcase Packaging under the same sprint authority.
+- PR #12 was reconciled with accepted main without rewriting reviewed history.
+- The machine application reproduces catalogue SHA-256 `3553ac28856cbe64056fda516ccdc05242960194e956444c01bd11eb7fbd3d1f` and manifest SHA-256 `e1bba6567da17a1074536859a17ff553f3b969ae1c27eefd1265e20bafdbe07f`, with exact authority `Accepted Validation Plan v1.5 Section 21 / DC-006 + DC-007 + DC-008`.
+- SEP-01/02/03 and unchanged SEP-05 have source-derived matching, mismatching and missing-evidence verification; no overall verdict or expected-value feedback is introduced.
+- QA-053/054/055 are release-verified under the bounded convergence gate. This does not claim execution of the complete 24-test campaign; missing evidence remains `NOT_EVALUATED`/`INCOMPLETE`.
+- I9 begins only after converged PR #12 incorporation and proceeds as Showcase Packaging under the same sprint authority.

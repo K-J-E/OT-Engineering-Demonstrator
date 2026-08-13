@@ -17,8 +17,8 @@
     },
     {
       "catalogue_version": "1.2",
-      "catalogue_sha256": "f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4",
-      "manifest_sha256": "ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9",
+      "catalogue_sha256": "3553ac28856cbe64056fda516ccdc05242960194e956444c01bd11eb7fbd3d1f",
+      "manifest_sha256": "e1bba6567da17a1074536859a17ff553f3b969ae1c27eefd1265e20bafdbe07f",
       "catalogue_path": "catalogue.json",
       "status": "ACTIVE_PENDING_INDEPENDENT_REVIEW"
     }
@@ -37,6 +37,13 @@
       "manifest_sha256": "4e7bd40a7e44d97d6cd995011f18d1257ed58f8cc1be57329c04123aa04fed42",
       "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
       "reason": "Superseded before acceptance because the active catalogue authority metadata still identified Validation Plan v1.3 after DC-007/Validation Plan v1.4 adoption."
+    },
+    {
+      "catalogue_version": "1.2",
+      "catalogue_sha256": "f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4",
+      "manifest_sha256": "ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9",
+      "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+      "reason": "Superseded before acceptance by the DC-008 SEP source-provenance correction and Validation Plan v1.5 authority."
     }
   ]
 }

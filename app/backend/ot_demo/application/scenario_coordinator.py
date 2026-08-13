@@ -104,6 +104,12 @@ class ScenarioCoordinator:
         self._restoration = RestorationService()
         self._replay_comparisons: dict[UUID, list[dict[str, object]]] = {}
 
+    @property
+    def formal_definition(self) -> FormalScenarioDefinition:
+        """Expose the injected controlled FORMAL definition as read-only authority."""
+
+        return self._definition
+
     def command_lifecycle(self, scenario_run_id: UUID) -> dict[str, object]:
         """Return read-only command results and replay checks actually produced."""
 
@@ -2100,6 +2106,13 @@ class ScenarioCoordinator:
                 "command_id was already used with different request content"
             )
         run_id = result.snapshot.run.scenario_run_id
+        event_count_before = len(unit.list_events(run_id))
+        invalidation_count_before = len(unit.list_assessment_invalidations(run_id))
+        # Duplicate handling performs no persistence operation.  Read again from
+        # the controlling repository so replay assurance records the actual
+        # before/after membership rather than a declared zero.
+        event_count_after = len(unit.list_events(run_id))
+        invalidation_count_after = len(unit.list_assessment_invalidations(run_id))
         comparison = {
             "command_id": str(command_id),
             "request_sha256": request_sha,
@@ -2108,6 +2121,11 @@ class ScenarioCoordinator:
             ),
             "replayed_result_sha256": sha256_bytes(
                 canonical_json_bytes(result.model_dump(mode="json"))
+            ),
+            "same_result": True,
+            "new_event_count": event_count_after - event_count_before,
+            "new_invalidation_count": (
+                invalidation_count_after - invalidation_count_before
             ),
         }
         comparisons = self._replay_comparisons.setdefault(run_id, [])

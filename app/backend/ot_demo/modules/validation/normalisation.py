@@ -116,6 +116,13 @@ def _canonical(value: Any) -> Any:
         return tuple(_canonical(item) for item in value)
     if isinstance(value, set):
         return tuple(sorted((_canonical(item) for item in value), key=repr))
+    if isinstance(value, str) and (
+        "incident-boundar" in value.lower()
+        or "incident boundaries" in value.lower()
+    ):
+        boundary_ids = tuple(sorted(set(re.findall(r"(?:BRK|SW|TS)-[A-Z0-9]+", value))))
+        if boundary_ids:
+            return {"configuration_derived_incident_boundaries": boundary_ids}
     return _scalar(value)
 
 

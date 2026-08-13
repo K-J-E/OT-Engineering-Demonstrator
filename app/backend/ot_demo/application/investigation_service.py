@@ -167,6 +167,15 @@ class InvestigationService:
             conceptual_boundary_notice=self.NOTICE,
         )
 
+    def determination_source_steps(
+        self, failure_execution_id: UUID
+    ) -> tuple[InvestigationStep, ...]:
+        """Return the workflow-owned, read-only investigation step projection."""
+
+        failure = self._failure(failure_execution_id)
+        steps, _comparison = self._investigation_projection(failure)
+        return steps
+
     def record_defect(
         self,
         failure_execution_id: UUID,

@@ -1,7 +1,7 @@
 {
   "catalogue_id": "VALIDATION-CATALOGUE-V1.2",
   "catalogue_version": "1.2",
-  "authority": "Accepted Validation Plan v1.4 Section 21 / DC-006 + DC-007",
+  "authority": "Accepted Validation Plan v1.5 Section 21 / DC-006 + DC-007 + DC-008",
   "definition_count": 24,
   "definitions": [
     {
@@ -8249,7 +8249,7 @@
     {
       "test_id": "VT-EXP-SEPARATION-001",
       "title": "Formal/Exploration separation",
-      "version": "1.1",
+      "version": "1.2",
       "status": "ACCEPTED",
       "evidence_class": "EXPLORATORY",
       "requirement_ids": [
@@ -8308,8 +8308,8 @@
       "reset_repeat_rule": "Reset creates a new scenario run and validation execution without deleting or overwriting prior records. Repeats remain separate immutable executions with explicit linkage.",
       "determination_method": {
         "method_id": "DM-EXP-SEPARATION-001",
-        "version": "1.0",
-        "method_sha256": "197e4c1d4a79ffe1e48c1c8dae2b392ee2569bd793dc9d5fb92b6127c6188103",
+        "version": "1.1",
+        "method_sha256": "9504e4c102364205d255ed7ab631626e6299281ac1a3673a9104519bd78df6a0",
         "test_id": "VT-EXP-SEPARATION-001",
         "case_id": null,
         "evidence_class": "EXPLORATORY",
@@ -8344,14 +8344,14 @@
         "criteria": [
           {
             "criterion_id": "SEP-01",
-            "version": "1.0",
-            "criterion_sha256": "78c862a7f2255aa0c3c4b14f0b5152fbbed929794279071c903e32f3dadc4231",
+            "version": "1.1",
+            "criterion_sha256": "fd51778a8aaa4e921b9e23512b434e44d40183dc92fa5dc399d6c93747ddf949",
             "kind": "MACHINE_COMPARISON",
             "test_id": "VT-EXP-SEPARATION-001",
             "case_id": null,
             "context_checkpoint": "CONTROLLED_RESULT",
             "expected_value": "FORMAL run is fixed to SEC-A2, uses FORMAL evidence class and cannot select another fault.",
-            "source_selector": "ScenarioRunAdapter.formal_run",
+            "source_selector": "ScenarioRunAdapter.formal_run + FormalScenarioDefinition.fault_section_id + ScenarioInitialisationBoundaryAdapter.{configured_section_ids,alternate_formal_fault_rejections}",
             "operator": "CANONICAL_RECORD_EQUAL",
             "normalisation": "exact canonical representation",
             "required_evidence": "bound source record and immutable criterion finding",
@@ -8372,14 +8372,14 @@
           },
           {
             "criterion_id": "SEP-02",
-            "version": "1.0",
-            "criterion_sha256": "13a01b02a6dbb8c8749f27fe7cd823807041c567f7232f0c0a6519ea4b5e9edd",
+            "version": "1.1",
+            "criterion_sha256": "f955fc859a5de4ad3b2923502c363278f59f7fb156442ed71c765581b015e040",
             "kind": "MACHINE_COMPARISON",
             "test_id": "VT-EXP-SEPARATION-001",
             "case_id": null,
             "context_checkpoint": "CONTROLLED_RESULT",
             "expected_value": "EXPLORATION run uses corrected Network Configuration v1.1, a transient selected section and EXPLORATORY evidence class.",
-            "source_selector": "ScenarioRunAdapter.exploration_run",
+            "source_selector": "ScenarioRunAdapter.exploration_run + NetworkConfigurationPackage.{manifest,catalog_entry,data}",
             "operator": "CANONICAL_RECORD_EQUAL",
             "normalisation": "exact canonical representation",
             "required_evidence": "bound source record and immutable criterion finding",
@@ -8402,14 +8402,14 @@
           },
           {
             "criterion_id": "SEP-03",
-            "version": "1.0",
-            "criterion_sha256": "1e29eca7bca3393183a7b32760ab846f6646520e66fc9c56e3010232481caacc",
+            "version": "1.1",
+            "criterion_sha256": "2f5fdf89563fc89461540d37366940221670e9f8dc2dbd6cb13acf4004271065",
             "kind": "MACHINE_COMPARISON",
             "test_id": "VT-EXP-SEPARATION-001",
             "case_id": null,
             "context_checkpoint": "CONTROLLED_RESULT",
             "expected_value": "Run mode and selected fault are immutable after initialisation; in-place mode conversion is rejected.",
-            "source_selector": "ScenarioRunAdapter.mode_conversion_probe",
+            "source_selector": "ScenarioRunAdapter.mode_conversion_probe + ScenarioCommandApiBoundaryAdapter.{mode_mutation_rejection,fault_selection_mutation_rejection}",
             "operator": "CANONICAL_RECORD_EQUAL",
             "normalisation": "exact canonical representation",
             "required_evidence": "bound source record and immutable criterion finding",

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import json
 from pathlib import Path
 from uuid import UUID
 
@@ -23,6 +24,7 @@ from ..modules.validation.models import (
 )
 from ..modules.telemetry.service import instant_to_epoch_ms
 from .sqlite_migrations import apply_migrations
+from .hashing import canonical_json_bytes, sha256_bytes
 
 
 class ValidationRecordNotFound(LookupError):
@@ -60,6 +62,123 @@ class ValidationRepository:
                 "ORDER BY name"
             ).fetchall()
         return tuple(row["name"] for row in rows)
+
+    def immutability_probe_results(self) -> tuple[dict[str, object], ...]:
+        """Exercise final-record guards inside rolled-back savepoints."""
+
+        with self._connect() as connection:
+            execution = connection.execute(
+                "SELECT validation_execution_id, executed_result_id, payload_json "
+                "FROM validation_executions WHERE status='FINALISED' "
+                "AND executed_result_id IS NOT NULL ORDER BY rowid LIMIT 1"
+            ).fetchone()
+            if execution is None:
+                return ()
+            evidence = connection.execute(
+                "SELECT evidence_snapshot_id, payload_json "
+                "FROM validation_evidence_snapshots "
+                "WHERE validation_execution_id=? ORDER BY rowid LIMIT 1",
+                (execution["validation_execution_id"],),
+            ).fetchone()
+            if evidence is None:
+                return ()
+            result = connection.execute(
+                "SELECT executed_result_id, payload_json "
+                "FROM dc006_executed_validation_results "
+                "WHERE executed_result_id=?",
+                (execution["executed_result_id"],),
+            ).fetchone()
+            if result is None:
+                return ()
+            probes = (
+                (
+                    "FINAL_EXECUTION_UPDATE",
+                    "UPDATE validation_executions SET payload_json=payload_json "
+                    "WHERE validation_execution_id=?",
+                    (execution["validation_execution_id"],),
+                ),
+                (
+                    "FINAL_EXECUTION_DELETE",
+                    "DELETE FROM validation_executions WHERE validation_execution_id=?",
+                    (execution["validation_execution_id"],),
+                ),
+                (
+                    "FINAL_EVIDENCE_UPDATE",
+                    "UPDATE validation_evidence_snapshots SET payload_json=payload_json "
+                    "WHERE evidence_snapshot_id=?",
+                    (evidence["evidence_snapshot_id"],),
+                ),
+                (
+                    "FINAL_EVIDENCE_DELETE",
+                    "DELETE FROM validation_evidence_snapshots WHERE evidence_snapshot_id=?",
+                    (evidence["evidence_snapshot_id"],),
+                ),
+                (
+                    "FINAL_EVIDENCE_LATE_INSERT",
+                    "INSERT INTO validation_evidence_snapshots "
+                    "SELECT '00000000-0000-0000-0000-000000000000', "
+                    "validation_execution_id, checkpoint_id || '-LATE', "
+                    "scenario_run_id, scenario_time_ms, state_revision, "
+                    "canonical_payload_sha256, payload_json "
+                    "FROM validation_evidence_snapshots WHERE evidence_snapshot_id=?",
+                    (evidence["evidence_snapshot_id"],),
+                ),
+                (
+                    "FINAL_RESULT_UPDATE",
+                    "UPDATE dc006_executed_validation_results SET payload_json=payload_json "
+                    "WHERE executed_result_id=?",
+                    (result["executed_result_id"],),
+                ),
+                (
+                    "FINAL_RESULT_DELETE",
+                    "DELETE FROM dc006_executed_validation_results "
+                    "WHERE executed_result_id=?",
+                    (result["executed_result_id"],),
+                ),
+            )
+            before = (
+                execution["payload_json"],
+                evidence["payload_json"],
+                result["payload_json"],
+                connection.execute(
+                    "SELECT COUNT(*) FROM validation_evidence_snapshots"
+                ).fetchone()[0],
+            )
+            outcomes = []
+            for index, (name, statement, parameters) in enumerate(probes):
+                savepoint = f"immutability_probe_{index}"
+                connection.execute(f"SAVEPOINT {savepoint}")
+                rejected = False
+                try:
+                    connection.execute(statement, parameters)
+                except sqlite3.IntegrityError:
+                    rejected = True
+                finally:
+                    connection.execute(f"ROLLBACK TO {savepoint}")
+                    connection.execute(f"RELEASE {savepoint}")
+                outcomes.append({"probe": name, "rejected": rejected})
+            after = (
+                connection.execute(
+                    "SELECT payload_json FROM validation_executions "
+                    "WHERE validation_execution_id=?",
+                    (execution["validation_execution_id"],),
+                ).fetchone()[0],
+                connection.execute(
+                    "SELECT payload_json FROM validation_evidence_snapshots "
+                    "WHERE evidence_snapshot_id=?",
+                    (evidence["evidence_snapshot_id"],),
+                ).fetchone()[0],
+                connection.execute(
+                    "SELECT payload_json FROM dc006_executed_validation_results "
+                    "WHERE executed_result_id=?",
+                    (result["executed_result_id"],),
+                ).fetchone()[0],
+                connection.execute(
+                    "SELECT COUNT(*) FROM validation_evidence_snapshots"
+                ).fetchone()[0],
+            )
+        unchanged = before == after
+        return tuple(item | {"state_unchanged": unchanged} for item in outcomes)
 
     def insert_execution(self, execution: ValidationExecution) -> None:
         with self._connect() as connection:
@@ -102,6 +221,88 @@ class ValidationRepository:
                     str(execution.executed_result_id) if execution.executed_result_id else None,
                 ),
             )
+
+    def capture_repeat_source_baseline(
+        self,
+        *,
+        repeat_execution_id: UUID,
+        source_execution_id: UUID,
+        captured_at,
+    ) -> dict:
+        """Freeze the source facts before the linked repeat execution exists."""
+
+        source = self.get_execution(source_execution_id)
+        evidence = self.list_evidence(source_execution_id)
+        result = (
+            self.get_executed_result(source.executed_result_id)
+            if source.executed_result_id is not None else None
+        )
+        correction_row = None
+        if source.test_id == "VT-TOP-DEF-001":
+            with self._connect() as connection:
+                correction_row = connection.execute(
+                    "SELECT payload_json FROM investigation_correction_records "
+                    "WHERE correction_id='COR-001'"
+                ).fetchone()
+        payload = {
+            "repeat_execution_id": str(repeat_execution_id),
+            "source_execution_id": str(source_execution_id),
+            "source_execution_sha256": sha256_bytes(canonical_json_bytes(
+                source.model_dump(mode="json")
+            )),
+            "source_evidence_membership": [
+                {
+                    "evidence_snapshot_id": str(item.evidence_snapshot_id),
+                    "canonical_payload_sha256": item.canonical_payload_sha256,
+                }
+                for item in evidence
+            ],
+            "source_evidence_sha256": sha256_bytes(canonical_json_bytes([
+                item.model_dump(mode="json") for item in evidence
+            ])),
+            "source_result_id": (
+                str(result.executed_result_id) if result is not None else None
+            ),
+            "source_result_sha256": (
+                result.result_sha256 if result is not None else None
+            ),
+            "correction_sha256": (
+                sha256_bytes(canonical_json_bytes(json.loads(correction_row[0])))
+                if correction_row is not None else None
+            ),
+        }
+        baseline_sha256 = sha256_bytes(canonical_json_bytes(payload))
+        try:
+            with self._connect() as connection:
+                connection.execute(
+                    "INSERT INTO dc006_repeat_source_baselines "
+                    "(repeat_execution_id,source_execution_id,baseline_sha256,captured_at_ms,payload_json) "
+                    "VALUES (?,?,?,?,?)",
+                    (
+                        str(repeat_execution_id), str(source_execution_id),
+                        baseline_sha256, instant_to_epoch_ms(captured_at),
+                        json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                    ),
+                )
+        except sqlite3.IntegrityError as error:
+            raise ValidationRecordConflict(
+                "repeat source baseline identity conflicts with immutable history"
+            ) from error
+        return payload | {"baseline_sha256": baseline_sha256}
+
+    def get_repeat_source_baseline(self, repeat_execution_id: UUID) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT baseline_sha256,payload_json FROM dc006_repeat_source_baselines "
+                "WHERE repeat_execution_id=?",
+                (str(repeat_execution_id),),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["payload_json"])
+        if sha256_bytes(canonical_json_bytes(payload)) != row["baseline_sha256"]:
+            raise ValidationRecordConflict("repeat source baseline hash mismatch")
+        return payload | {"baseline_sha256": row["baseline_sha256"]}
 
     def insert_target_and_attempt(
         self,

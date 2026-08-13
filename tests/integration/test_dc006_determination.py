@@ -49,7 +49,11 @@ from ot_demo.modules.validation.source_authority import (
     RegisteredSourceAuthority,
     SourceAuthorityDependencies,
 )
-from ot_demo.modules.validation.source_adapters import derive_combined_observation
+from ot_demo.modules.validation.source_adapters import (
+    SourceAdapterError,
+    derive_combined_observation,
+    derive_observation,
+)
 from ot_demo.modules.validation.structural_registry import resolved_structural_registry
 
 
@@ -130,6 +134,13 @@ def harness(
     determinations = DeterminationRepository(validation_path, MIGRATIONS)
     investigation_records = InvestigationRepository(validation_path, MIGRATIONS)
     packages = EvidencePackageRepository(validation_path, MIGRATIONS)
+    investigation = InvestigationService(
+        investigation_records,
+        loader,
+        scenarios,
+        validation,
+        application_build_manifest=BUILD,
+    )
     authority = RegisteredSourceAuthority(SourceAuthorityDependencies(
         repository_root=repository_root,
         build=BUILD,
@@ -138,6 +149,7 @@ def harness(
         validation=validation_records,
         scenarios=scenarios,
         investigation=investigation_records,
+        investigation_workflow=investigation,
         packages=packages,
         determination=determinations,
         telemetry=telemetry or TelemetryValidityService(),
@@ -151,13 +163,6 @@ def harness(
         catalogue,
         application_build_manifest=BUILD,
         source_authority=authority,
-    )
-    investigation = InvestigationService(
-        investigation_records,
-        loader,
-        scenarios,
-        validation,
-        application_build_manifest=BUILD,
     )
     return Harness(
         scenarios, catalogue, validation, determination, determinations,
@@ -194,12 +199,18 @@ def run_configuration_determination(h: Harness, *, at: datetime):
     return context, findings, result
 
 
-def initialise(h: Harness, *, command_id: int, at: datetime = T0):
+def initialise(
+    h: Harness,
+    *,
+    command_id: int,
+    at: datetime = T0,
+    configuration_version: str = "1.1",
+):
     return h.scenarios.initialise(InitialiseRunRequest(
         command_id=UUID(int=command_id),
         actor="Graduate Engineer",
         mode=ScenarioMode.FORMAL,
-        configuration_version="1.1",
+        configuration_version=configuration_version,
         scenario_time=at,
     ))
 
@@ -354,6 +365,29 @@ def corrected_post_trip_context(
     )
 
 
+def defective_post_trip_context(h: Harness, *, command_id: int):
+    initial = initialise(
+        h, command_id=command_id, configuration_version="1.0"
+    )
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = h.validation.start_execution("VT-TOP-DEF-001", run_id)
+    execute_available(
+        h,
+        run_id,
+        ScenarioCommandType.INITIATE_FAULT,
+        command_id=command_id + 1,
+    )
+    h.validation.capture_checkpoint(
+        execution.validation_execution_id, "POST_TRIP"
+    )
+    return h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=11),
+    )
+
+
 def exploration_determination_context(
     h: Harness,
     *,
@@ -362,7 +396,7 @@ def exploration_determination_context(
     section_id: str,
     command_base: int,
 ):
-    initial = h.scenarios.initialise(InitialiseRunRequest(
+    initial = h.scenarios.initialise_next_run(InitialiseRunRequest(
         command_id=UUID(int=command_base),
         actor="Graduate Engineer",
         mode=ScenarioMode.EXPLORATION,
@@ -506,6 +540,116 @@ def test_scenario_producer_reads_actual_topology_outage_and_detects_post_trip_mi
     post_trip_findings = evaluate(post_trip, post_trip_context)
     assert finding(post_trip_findings, "TOP-N0-02").status is CriterionFindingStatus.NOT_SATISFIED
     assert finding(post_trip_findings, "TOP-N0-06").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
+def test_qa053_def02_through_def06_translate_current_run_facts_without_verdict_logic(
+    tmp_path: Path,
+) -> None:
+    corrected = harness(tmp_path / "corrected")
+    corrected_context = corrected_post_trip_context(corrected, command_id=10_000)
+    corrected_findings = evaluate(
+        corrected, corrected_context, at=T0 + timedelta(seconds=11)
+    )
+    assert {
+        finding(corrected_findings, criterion_id).status
+        for criterion_id in ("DEF-02", "DEF-03", "DEF-04", "DEF-05", "DEF-06")
+    } == {CriterionFindingStatus.SATISFIED}
+
+    defective = harness(tmp_path / "defective")
+    defective_context = defective_post_trip_context(defective, command_id=11_000)
+    defective_findings = evaluate(
+        defective, defective_context, at=T0 + timedelta(seconds=11)
+    )
+    assert finding(defective_findings, "DEF-02").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(defective_findings, "DEF-03").status is CriterionFindingStatus.NOT_SATISFIED
+    assert finding(defective_findings, "DEF-04").status is CriterionFindingStatus.NOT_SATISFIED
+    assert "defective Network Configuration v1.0" in finding(
+        defective_findings, "DEF-02"
+    ).observed_value
+    assert "SW-A23 endpoint SEC-B3" in finding(
+        defective_findings, "DEF-04"
+    ).observed_value
+    assert "FDR-B" in finding(defective_findings, "DEF-04").observed_value
+
+
+@pytest.mark.dc006
+def test_qa053_def02_through_def06_preserve_negative_and_missing_source_facts(
+    tmp_path: Path,
+) -> None:
+    h = harness(tmp_path / "missing")
+    initial = initialise(h, command_id=12_000)
+    run_id = initial.snapshot.run.scenario_run_id
+    execution = h.validation.start_execution("VT-TOP-DEF-001", run_id)
+    context = h.determination.prepare_context(
+        validation_attempt_id=execution.validation_attempt_id,
+        scenario_run_id=run_id,
+        validation_execution_id=execution.validation_execution_id,
+        frozen_at=T0 + timedelta(seconds=1),
+    )
+    findings = evaluate(h, context, at=T0 + timedelta(seconds=1))
+    assert {
+        finding(findings, criterion_id).status
+        for criterion_id in ("DEF-02", "DEF-03", "DEF-04", "DEF-05")
+    } == {CriterionFindingStatus.NOT_EVALUATED}
+
+    authority_selector = "CurrentScenarioExecutionAdapter.authority_path"
+    changed_authority = {
+        "configuration_loader": "JsonConfigurationLoader",
+        "topology_service": "TopologyService",
+        "source_attribution_service": "TopologyService",
+        "outage_service": "OutageService",
+        "customer_mapping_authority": "CustomerZoneMapping",
+        "algorithm_branch_audit": {
+            "service_source_sha256": {
+                "TopologyService": "1" * 64,
+                "OutageService": "2" * 64,
+            },
+            "configuration_version_predicates": ["configuration.version == '1.1'"],
+            "expected_result_predicates": [],
+        },
+    }
+    changed_observation = derive_observation(
+        "CurrentScenarioExecutionAdapter",
+        authority_selector,
+        {"authority_path": changed_authority},
+        changed_authority,
+    )
+    assert isinstance(changed_observation, dict)
+    assert "configuration.version == '1.1'" in str(changed_observation)
+    with pytest.raises(SourceAdapterError, match="selector member is absent"):
+        derive_observation(
+            "CurrentScenarioExecutionAdapter",
+            authority_selector,
+            {"authority_path": {}},
+            {},
+        )
+
+    links_selector = (
+        "CurrentValidationExecutionAdapter."
+        "{immutable_result_identity,defect_id,correction_id,repeat_of_execution_id}"
+    )
+    false_links = {
+        "immutable_result_identity": None,
+        "defect_id": None,
+        "correction_id": None,
+        "repeat_of_execution_id": None,
+        "single_run_record_verified": False,
+    }
+    false_observation = derive_observation(
+        "CurrentValidationExecutionAdapter",
+        links_selector,
+        false_links,
+        false_links,
+    )
+    assert false_observation["single_run_record_verified"] is False
+    with pytest.raises(SourceAdapterError, match="selector member is absent"):
+        derive_observation(
+            "CurrentValidationExecutionAdapter",
+            links_selector,
+            {"single_run_record_verified": True},
+            {},
+        )
 
 
 @pytest.mark.dc006
@@ -671,6 +815,15 @@ def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_me
     context = prepare_record_context(valid, "VT-DET-REPEAT-001", at=T0 + timedelta(hours=3))
     findings = evaluate(valid, context, at=T0 + timedelta(hours=3))
     assert {item.status for item in findings} == {CriterionFindingStatus.SATISFIED}
+    for repeated_result in (formal_two, negative_two, corrected_two):
+        baseline = valid.validation_records.get_repeat_source_baseline(
+            repeated_result.validation_execution_id
+        )
+        assert baseline is not None
+        assert baseline["repeat_execution_id"] == str(
+            repeated_result.validation_execution_id
+        )
+        assert baseline["source_result_sha256"] is not None
 
     third = harness(tmp_path / "valid/formal-three", validation_database=shared)
     third_context = full_formal_context(third, command_id=34_000)
@@ -698,6 +851,72 @@ def test_repeat_producer_uses_exact_three_linked_pairs_and_rejects_incomplete_me
     assert {item.status for item in incomplete_findings} == {
         CriterionFindingStatus.NOT_EVALUATED
     }
+
+
+@pytest.mark.dc006
+def test_det05_uses_pre_repeat_fingerprint_and_detects_changed_post_repeat_source(
+    tmp_path: Path, monkeypatch,
+) -> None:
+    database = tmp_path / "validation.sqlite3"
+    first = harness(tmp_path / "first", validation_database=database)
+    original_context = full_formal_context(first, command_id=35_000)
+    original = finalise_determined(
+        first, original_context, at=T0 + timedelta(seconds=56)
+    )
+    repeated = harness(tmp_path / "repeat", validation_database=database)
+    repeat_context = full_formal_context(
+        repeated, command_id=36_000,
+        repeat_of_execution_id=original.validation_execution_id,
+    )
+    repeat = finalise_determined(
+        repeated, repeat_context, at=T0 + timedelta(seconds=57)
+    )
+    baseline = repeated.validation_records.get_repeat_source_baseline(
+        repeat.validation_execution_id
+    )
+    assert baseline is not None
+    assert baseline["source_execution_id"] == str(original.validation_execution_id)
+    original_summary = repeated.validation_records.summary(
+        original.validation_execution_id
+    )
+    authority = repeated.determination._source_authority
+    preserved = authority._repeat_member(
+        original_summary, None, None,
+        temporal_baseline=baseline,
+        repeat_execution_id=repeat.validation_execution_id,
+    )
+    assert preserved["temporal_preservation"]["before"] == preserved[
+        "temporal_preservation"
+    ]["after"]
+
+    real_get_result = repeated.validation_records.get_executed_result
+    def changed_result(result_id):
+        result = real_get_result(result_id)
+        if result_id == original.executed_result_id:
+            return result.model_copy(update={"result_sha256": "0" * 64})
+        return result
+    monkeypatch.setattr(
+        repeated.validation_records, "get_executed_result", changed_result
+    )
+    changed = authority._repeat_member(
+        original_summary, None, None,
+        temporal_baseline=baseline,
+        repeat_execution_id=repeat.validation_execution_id,
+    )
+    assert changed["temporal_preservation"]["before"] != changed[
+        "temporal_preservation"
+    ]["after"]
+    assert authority._repeat_pair_is_exact(
+        (changed, authority._repeat_member(
+            repeated.validation_records.summary(repeat.validation_execution_id),
+            None, None,
+        )),
+        configuration_id="network-configuration-v1.1",
+        configuration_version="1.1",
+        fixture_id=None,
+        application_build_id=BUILD.application_build_id,
+        correction_required=False,
+    ) is False
 
 
 @pytest.mark.dc006
@@ -734,10 +953,32 @@ def test_repeat_pair_identity_or_preservation_mismatch_remains_incomplete(
             "stored_correction_sha256": "6" * 64,
             "resolved_correction_sha256": "6" * 64,
         },
+        "temporal_preservation": {
+            "source_execution_id": "10000000-0000-0000-0000-000000000001",
+            "repeat_execution_id": "10000000-0000-0000-0000-000000000002",
+            "baseline_sha256": "7" * 64,
+            "before": {
+                "execution_sha256": "3" * 64,
+                "evidence_membership": [],
+                "evidence_sha256": "4" * 64,
+                "result_id": "10000000-0000-0000-0000-000000000003",
+                "result_sha256": "5" * 64,
+                "correction_sha256": "6" * 64,
+            },
+            "after": {
+                "execution_sha256": "3" * 64,
+                "evidence_membership": [],
+                "evidence_sha256": "4" * 64,
+                "result_id": "10000000-0000-0000-0000-000000000003",
+                "result_sha256": "5" * 64,
+                "correction_sha256": "6" * 64,
+            },
+        },
     }
     repeat = json.loads(json.dumps(member))
     repeat["execution_id"] = "10000000-0000-0000-0000-000000000002"
     repeat["repeat_of_execution_id"] = member["execution_id"]
+    repeat["temporal_preservation"] = None
     exact = authority._repeat_pair_is_exact(
         (member, repeat),
         configuration_id="network-configuration-v1.1",
@@ -926,6 +1167,33 @@ def test_nfr_surface_registry_rejects_concentrated_notices_and_wrong_exact_membe
 
 
 @pytest.mark.dc006
+@pytest.mark.parametrize("mutation", ["missing", "duplicate", "substituted", "extra_cannot_replace"])
+def test_nfr_required_surface_field_membership_is_independent_and_exact(
+    tmp_path: Path, mutation: str,
+) -> None:
+    root = nfr_repository(tmp_path / mutation, complete=True)
+    path = root / "app/frontend/src/surface-field-bindings.v1.json"
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    bindings = payload["surfaces"][0]["bindings"]
+    removed = bindings.pop(0)
+    if mutation == "duplicate":
+        bindings.append(dict(bindings[0]))
+    elif mutation == "substituted":
+        bindings.append(dict(removed) | {"field_id": "uncontrolled_substitute"})
+    elif mutation == "extra_cannot_replace":
+        bindings.append({
+            "field_id": "uncontrolled_extra",
+            "module": "app/frontend/src/features/run-setup/RunSetup.tsx",
+            "token": "bootstrap.default_mode",
+        })
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    h = harness(tmp_path / f"{mutation}-db", repository_root=root)
+    context = prepare_record_context(h, "VT-NFR-REVIEW-001")
+    findings = evaluate(h, context)
+    assert finding(findings, "NFR-M06").status is CriterionFindingStatus.NOT_SATISFIED
+
+
+@pytest.mark.dc006
 @pytest.mark.parametrize("mutation", ["missing", "extra", "wrong_owner"])
 def test_nfr_structural_registry_detects_missing_extra_and_wrong_owner(
     tmp_path: Path, mutation: str,
@@ -1033,6 +1301,217 @@ def test_all_35_methods_and_214_criteria_have_exactly_one_producer_role_selector
 
     assert len(contexts) == 35
     assert criterion_total == 214
+
+
+def separation_record_context(h: Harness):
+    formal = h.scenarios.initialise(InitialiseRunRequest(
+        command_id=UUID(int=80_000),
+        actor="Graduate Engineer",
+        mode=ScenarioMode.FORMAL,
+        configuration_version="1.1",
+        scenario_time=T0,
+    ))
+    h.validation.start_execution(
+        "VT-FML-N0-N5-001", formal.snapshot.run.scenario_run_id
+    )
+    exploratory = h.scenarios.initialise_next_run(InitialiseRunRequest(
+        command_id=UUID(int=80_001),
+        actor="Graduate Engineer",
+        mode=ScenarioMode.EXPLORATION,
+        configuration_version="1.1",
+        fault_section_id="SEC-A1",
+        scenario_time=T0,
+    ))
+    h.validation.start_execution(
+        "VT-EXP-ALL-001",
+        exploratory.snapshot.run.scenario_run_id,
+        case_id="EXP-ALL-A1",
+    )
+    _, attempt = h.validation.create_target_selection(
+        "VT-EXP-SEPARATION-001", created_at=T0 + timedelta(seconds=1)
+    )
+    return h.determination.prepare_context(
+        validation_attempt_id=attempt.validation_attempt_id,
+        frozen_at=T0 + timedelta(seconds=2),
+    )
+
+
+@pytest.mark.dc006
+def test_dc008_sep_sources_use_actual_boundaries_and_leave_missing_campaign_incomplete(
+    tmp_path: Path,
+) -> None:
+    h = harness(tmp_path)
+    context = separation_record_context(h)
+    findings = evaluate(h, context, at=T0 + timedelta(seconds=2))
+    assert finding(findings, "SEP-01").status is CriterionFindingStatus.SATISFIED
+    assert finding(findings, "SEP-02").status is CriterionFindingStatus.SATISFIED
+    assert finding(findings, "SEP-03").status is CriterionFindingStatus.SATISFIED
+    assert finding(findings, "SEP-05").status is CriterionFindingStatus.NOT_EVALUATED
+    with pytest.raises(DeterminationBoundaryError, match="incomplete"):
+        h.determination.finalise_result(
+            context.determination_context_id,
+            finalised_at=T0 + timedelta(seconds=3),
+        )
+
+
+def _sep01_selected() -> tuple[str, dict[str, object]]:
+    selector = (
+        "ScenarioRunAdapter.formal_run + FormalScenarioDefinition.fault_section_id + "
+        "ScenarioInitialisationBoundaryAdapter.{configured_section_ids,alternate_formal_fault_rejections}"
+    )
+    sections = [f"SEC-{feeder}{index}" for feeder in ("A", "B") for index in range(1, 5)]
+    return selector, {
+        "ScenarioRunAdapter.formal_run": [{
+            "mode": "FORMAL", "evidence_class": "FORMAL",
+            "fault_section_id": "SEC-A2",
+        }],
+        "FormalScenarioDefinition.fault_section_id": "SEC-A2",
+        "ScenarioInitialisationBoundaryAdapter.{configured_section_ids,alternate_formal_fault_rejections}": {
+            "configured_section_ids": sections,
+            "alternate_formal_fault_rejections": [{
+                "fault_section_id": section,
+                "accepted": False,
+                "boundary_id": "FORMAL_FIXED_FAULT_VALIDATION",
+                "reason_code": "FORMAL_FIXED_FAULT",
+                "diagnostic_rejection": True,
+                "run_and_history_unchanged": True,
+            } for section in sections if section != "SEC-A2"],
+        },
+    }
+
+
+@pytest.mark.dc006
+def test_sep01_translation_has_positive_negative_and_missing_evidence() -> None:
+    selector, selected = _sep01_selected()
+    assert derive_combined_observation(selector, selected, ()) == (
+        "FORMAL run is fixed to SEC-A2, uses FORMAL evidence class and cannot select another fault."
+    )
+    negative = json.loads(json.dumps(selected))
+    negative[
+        "ScenarioInitialisationBoundaryAdapter.{configured_section_ids,alternate_formal_fault_rejections}"
+    ]["alternate_formal_fault_rejections"][0]["diagnostic_rejection"] = False
+    assert isinstance(derive_combined_observation(selector, negative, ()), dict)
+    missing = json.loads(json.dumps(selected))
+    missing[
+        "ScenarioInitialisationBoundaryAdapter.{configured_section_ids,alternate_formal_fault_rejections}"
+    ]["alternate_formal_fault_rejections"].pop()
+    with pytest.raises(SourceAdapterError, match="absent"):
+        derive_combined_observation(selector, missing, ())
+
+
+def _sep02_selected() -> tuple[str, dict[str, object]]:
+    selector = (
+        "ScenarioRunAdapter.exploration_run + "
+        "NetworkConfigurationPackage.{manifest,catalog_entry,data}"
+    )
+    return selector, {
+        "ScenarioRunAdapter.exploration_run": [{
+            "mode": "EXPLORATION", "evidence_class": "EXPLORATORY",
+            "configuration_id": "network-configuration-v1.1",
+            "configuration_version": "1.1", "fault_section_id": "SEC-B2",
+        }],
+        "NetworkConfigurationPackage.{manifest,catalog_entry,data}": {
+            "manifest": {
+                "configuration_id": "network-configuration-v1.1",
+                "version": "1.1", "status": "CORRECTED_BASELINE",
+            },
+            "catalog_entry": {
+                "configuration_id": "network-configuration-v1.1",
+                "version": "1.1", "status": "CORRECTED_BASELINE",
+            },
+            "data": {"sections": [{"entity_id": "SEC-B2"}]},
+        },
+    }
+
+
+@pytest.mark.dc006
+def test_sep02_translation_has_positive_negative_and_missing_evidence() -> None:
+    selector, selected = _sep02_selected()
+    assert derive_combined_observation(selector, selected, ()) == (
+        "EXPLORATION run uses corrected Network Configuration v1.1, a transient "
+        "selected section and EXPLORATORY evidence class."
+    )
+    negative = json.loads(json.dumps(selected))
+    package = negative["NetworkConfigurationPackage.{manifest,catalog_entry,data}"]
+    package["manifest"]["status"] = "DEFECTIVE_TEST_INPUT"
+    package["catalog_entry"]["status"] = "DEFECTIVE_TEST_INPUT"
+    assert "defective" in derive_combined_observation(selector, negative, ())
+    missing = json.loads(json.dumps(selected))
+    missing["NetworkConfigurationPackage.{manifest,catalog_entry,data}"]["data"] = None
+    with pytest.raises(SourceAdapterError, match="absent"):
+        derive_combined_observation(selector, missing, ())
+
+
+def _sep03_selected() -> tuple[str, dict[str, object]]:
+    selector = (
+        "ScenarioRunAdapter.mode_conversion_probe + "
+        "ScenarioCommandApiBoundaryAdapter.{mode_mutation_rejection,fault_selection_mutation_rejection}"
+    )
+    rejection = {
+        "accepted": False, "diagnostic_rejection": True,
+        "error_type": "extra_forbidden", "run_and_history_unchanged": True,
+    }
+    return selector, {
+        "ScenarioRunAdapter.mode_conversion_probe": {
+            "run_context_frozen_model": True,
+            "run_and_history_unchanged": True,
+        },
+        "ScenarioCommandApiBoundaryAdapter.{mode_mutation_rejection,fault_selection_mutation_rejection}": {
+            "mode_mutation_rejection": dict(rejection),
+            "fault_selection_mutation_rejection": dict(rejection),
+        },
+    }
+
+
+@pytest.mark.dc006
+def test_sep03_translation_has_positive_negative_and_missing_evidence() -> None:
+    selector, selected = _sep03_selected()
+    assert derive_combined_observation(selector, selected, ()) == (
+        "Run mode and selected fault are immutable after initialisation; in-place mode conversion is rejected."
+    )
+    negative = json.loads(json.dumps(selected))
+    negative[
+        "ScenarioCommandApiBoundaryAdapter.{mode_mutation_rejection,fault_selection_mutation_rejection}"
+    ]["mode_mutation_rejection"]["diagnostic_rejection"] = False
+    assert isinstance(derive_combined_observation(selector, negative, ()), dict)
+    missing = json.loads(json.dumps(selected))
+    missing[
+        "ScenarioCommandApiBoundaryAdapter.{mode_mutation_rejection,fault_selection_mutation_rejection}"
+    ].pop("fault_selection_mutation_rejection")
+    with pytest.raises(SourceAdapterError, match="absent"):
+        derive_combined_observation(selector, missing, ())
+
+
+@pytest.mark.dc006
+def test_sep05_translation_has_positive_negative_and_missing_evidence() -> None:
+    selector = "FormalProgressAdapter.before_after"
+    totals = {
+        "definitions_without_execution_count": 20,
+        "execution_count": 1,
+        "finalised_execution_count": 0,
+        "pass_count": 0,
+        "fail_count": 0,
+        "blocked_test_count": 0,
+    }
+    selected = {
+        "formal_only": dict(totals),
+        "with_exploratory_records": dict(totals),
+        "exploratory_execution_count": 1,
+        "exploratory_composite_count": 1,
+    }
+    assert derive_observation("FormalProgressAdapter", selector, {}, selected) == (
+        "Actual campaign exploratory executions/evidence and DC-004 composites do not change "
+        "FORMAL definition-without-execution, execution, finalised, PASS, FAIL or BLOCKED-TEST totals."
+    )
+    negative = json.loads(json.dumps(selected))
+    negative["with_exploratory_records"]["pass_count"] = 1
+    assert isinstance(
+        derive_observation("FormalProgressAdapter", selector, {}, negative), dict
+    )
+    missing = json.loads(json.dumps(selected))
+    missing["exploratory_composite_count"] = 0
+    with pytest.raises(SourceAdapterError, match="absent"):
+        derive_observation("FormalProgressAdapter", selector, {}, missing)
 
 
 @pytest.mark.dc006

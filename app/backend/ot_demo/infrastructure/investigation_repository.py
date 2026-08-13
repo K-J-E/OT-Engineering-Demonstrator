@@ -33,6 +33,18 @@ class InvestigationRepository:
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
+    def immutability_controls(self) -> tuple[str, ...]:
+        """Return the installed defect/correction/repeat trigger registry."""
+
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND tbl_name IN ('investigation_defect_records', "
+                "'investigation_correction_records', "
+                "'investigation_repeat_links') ORDER BY name"
+            ).fetchall()
+        return tuple(row["name"] for row in rows)
+
     def insert_defect(self, record: DefectRecord) -> None:
         try:
             with self._connect() as connection:

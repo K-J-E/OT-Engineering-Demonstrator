@@ -289,6 +289,12 @@ class DeterminationService:
                         repeat_of_execution_id=repeat_of_execution_id
                     ),
                 )
+                if repeat_of_execution_id is not None:
+                    self._validation_repository.capture_repeat_source_baseline(
+                        repeat_execution_id=validation_execution_id,
+                        source_execution_id=repeat_of_execution_id,
+                        captured_at=frozen_at,
+                    )
                 self._validation_repository.bind_attempt_procedure_execution(
                     active_attempt, execution
                 )

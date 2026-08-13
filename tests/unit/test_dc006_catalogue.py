@@ -23,7 +23,7 @@ CRITERION_REQUIREMENT_FINGERPRINT = (
     "cd08f985a1ff2826da5e66f9b26b6723bd179bb9d59b4180b0bac93eacedbf9b"
 )
 ACCEPTED_CATALOGUE_AUTHORITY = (
-    "Accepted Validation Plan v1.4 Section 21 / DC-006 + DC-007"
+    "Accepted Validation Plan v1.5 Section 21 / DC-006 + DC-007 + DC-008"
 )
 
 
@@ -44,8 +44,8 @@ def test_v11_is_byte_identical_history_and_v12_is_active() -> None:
     ]
     assert revisions["revisions"][-1] == {
         "catalogue_version": "1.2",
-        "catalogue_sha256": "f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4",
-        "manifest_sha256": "ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9",
+        "catalogue_sha256": "3553ac28856cbe64056fda516ccdc05242960194e956444c01bd11eb7fbd3d1f",
+        "manifest_sha256": "e1bba6567da17a1074536859a17ff553f3b969ae1c27eefd1265e20bafdbe07f",
         "catalogue_path": "catalogue.json",
         "status": "ACTIVE_PENDING_INDEPENDENT_REVIEW",
     }
@@ -64,13 +64,82 @@ def test_v11_is_byte_identical_history_and_v12_is_active() -> None:
             "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
             "reason": "Superseded before acceptance because the active catalogue authority metadata still identified Validation Plan v1.3 after DC-007/Validation Plan v1.4 adoption.",
         },
+        {
+            "catalogue_version": "1.2",
+            "catalogue_sha256": "f224a8826f4c02dd0c4bb5c22f3ab7351cd4eb17106b78541aeaf3b1c1d9cbe4",
+            "manifest_sha256": "ef30f4e17a67dadefce5141edb3335544804bf512e4d76e85f351bc4fa0ee4c9",
+            "status": "SUPERSEDED_UNACCEPTED_CANDIDATE",
+            "reason": "Superseded before acceptance by the DC-008 SEP source-provenance correction and Validation Plan v1.5 authority.",
+        },
     ]
 
 
 @pytest.mark.dc006
-def test_active_catalogue_names_exact_accepted_v14_dc007_authority() -> None:
+def test_active_catalogue_names_exact_accepted_v15_dc008_authority() -> None:
     payload = json.loads(CATALOGUE.read_text(encoding="utf-8"))
     assert payload["authority"] == ACCEPTED_CATALOGUE_AUTHORITY
+
+
+@pytest.mark.dc006
+def test_dc008_sep_selector_identities_are_exact() -> None:
+    loader = ValidationCatalogueLoader(CATALOGUE)
+    loaded = loader.get("VT-EXP-SEPARATION-001")
+    raw = json.loads(CATALOGUE.read_text(encoding="utf-8"))
+    raw_definition = next(
+        item for item in raw["definitions"]
+        if item["test_id"] == "VT-EXP-SEPARATION-001"
+    )
+    assert hashlib.sha256(
+        json.dumps(
+            raw_definition,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest() == "4474172ab0023b56b8d54dd7e91635fd991ee6e152732b28cc0ba7279a27d27e"
+    method = loaded.definition.determination_method
+    assert method is not None
+    assert str(loaded.definition.version) == "1.2"
+    assert loaded.definition_sha256 == (
+        "89b78a6d64edddce414a0c0da1d7cf2083393c69dca74250d42398986b97a953"
+    )
+    assert str(method.version) == "1.1"
+    assert method.method_sha256 == (
+        "9504e4c102364205d255ed7ab631626e6299281ac1a3673a9104519bd78df6a0"
+    )
+    criteria = {item.criterion_id: item for item in method.criteria}
+    assert {
+        criterion_id: (
+            str(criteria[criterion_id].version),
+            criteria[criterion_id].criterion_sha256,
+            criteria[criterion_id].source_selector,
+        )
+        for criterion_id in ("SEP-01", "SEP-02", "SEP-03")
+    } == {
+        "SEP-01": (
+            "1.1",
+            "fd51778a8aaa4e921b9e23512b434e44d40183dc92fa5dc399d6c93747ddf949",
+            "ScenarioRunAdapter.formal_run + FormalScenarioDefinition.fault_section_id + ScenarioInitialisationBoundaryAdapter.{configured_section_ids,alternate_formal_fault_rejections}",
+        ),
+        "SEP-02": (
+            "1.1",
+            "f955fc859a5de4ad3b2923502c363278f59f7fb156442ed71c765581b015e040",
+            "ScenarioRunAdapter.exploration_run + NetworkConfigurationPackage.{manifest,catalog_entry,data}",
+        ),
+        "SEP-03": (
+            "1.1",
+            "2f5fdf89563fc89461540d37366940221670e9f8dc2dbd6cb13acf4004271065",
+            "ScenarioRunAdapter.mode_conversion_probe + ScenarioCommandApiBoundaryAdapter.{mode_mutation_rejection,fault_selection_mutation_rejection}",
+        ),
+    }
+    assert {
+        criterion_id: criteria[criterion_id].criterion_sha256
+        for criterion_id in ("SEP-04", "SEP-05", "SEP-06")
+    } == {
+        "SEP-04": "8b7ddead160e19f5d523907c9da62cd16d630c9c5cd44c700e0671a00a45192b",
+        "SEP-05": "234353bde9e6f629add4ee5242de1312279c82e957417015a6e36ded5a7d1f73",
+        "SEP-06": "c1127906314e09d5c25e088eca2f7220f115b4da10cf58de3baed5235bba2068",
+    }
 
 
 @pytest.mark.dc006

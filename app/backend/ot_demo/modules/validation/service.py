@@ -214,6 +214,12 @@ class ValidationService:
             validation_attempt_id=attempt.validation_attempt_id,
             target_selection_id=target.target_selection_id,
         )
+        if links.repeat_of_execution_id is not None:
+            self._repository.capture_repeat_source_baseline(
+                repeat_execution_id=execution_id,
+                source_execution_id=links.repeat_of_execution_id,
+                captured_at=run.scenario_time,
+            )
         self._repository.bind_attempt_execution(active_attempt, execution)
         return execution
 

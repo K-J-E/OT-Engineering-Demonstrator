@@ -31,7 +31,7 @@ export function InvestigationWorkspace({ api, failureExecutionId, actor, initial
     <section className="panel investigation-lead">
       <span className="eyebrow">Consequence-to-source review</span><h2>DEF-001 controlled investigation</h2>
       <p>{workspace.conceptual_boundary_notice}</p>
-      <dl className="summary-grid"><div><dt>Original execution</dt><dd>{shortId(workspace.original_failure.execution.validation_execution_id)}…</dd></div><div><dt>Configuration</dt><dd>v{workspace.original_failure.execution.configuration_version}</dd></div><div><dt>Observed consequence</dt><dd>{String(workspace.original_failure.execution.observed_result?.affected_customer_count)} affected</dd></div><div><dt>Validation verdict</dt><dd className="status-fail">{workspace.original_failure.execution.verdict}</dd></div></dl>
+      <dl className="summary-grid"><div><dt>Original execution</dt><dd>{shortId(workspace.original_failure.execution.validation_execution_id)}…</dd></div><div><dt>Configuration</dt><dd>v{workspace.original_failure.execution.configuration_version}</dd></div><div><dt>Source catalogue</dt><dd>v{workspace.original_failure.execution.catalogue_version} · {workspace.original_failure.execution.catalogue_sha256}</dd></div><div><dt>Observed consequence</dt><dd>{String(workspace.original_failure.execution.observed_result?.affected_customer_count)} affected</dd></div><div><dt>Validation verdict</dt><dd className="status-fail">{workspace.original_failure.execution.verdict}</dd></div></dl>
     </section>
 
     <section className="investigation-steps" aria-label="Investigation evidence sequence">
