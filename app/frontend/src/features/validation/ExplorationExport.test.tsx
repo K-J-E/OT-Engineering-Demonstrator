@@ -47,11 +47,20 @@ function exploratoryProjection() {
 describe('I8 Exploration and export presentation', () => {
   it('offers only configured v1.1 section selections as transient Exploration input', () => {
     const onStart = vi.fn()
-    render(<RunSetup bootstrap={bootstrap()} busy={false} onStart={onStart} onStartInvestigation={vi.fn()} />)
+    render(<RunSetup bootstrap={bootstrap()} busy={false} onStart={onStart} onStartInvestigation={vi.fn()} onStartSafetyWalkthrough={vi.fn()} />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Exploration fault section' }), { target: { value: 'SEC-B2' } })
     fireEvent.click(screen.getByRole('button', { name: 'Start exploratory v1.1 run' }))
     expect(onStart).toHaveBeenCalledWith('Graduate Engineer', 'EXPLORATION', 'SEC-B2')
     expect(screen.getByText(/cannot satisfy formal validation automatically/i)).toBeVisible()
+  })
+
+  it('offers the accepted stale-evidence safety walkthrough without changing engineering rules', () => {
+    const onStartSafetyWalkthrough = vi.fn()
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} onStart={vi.fn()} onStartInvestigation={vi.fn()} onStartSafetyWalkthrough={onStartSafetyWalkthrough} />)
+    const setup = within(rendered.container)
+    fireEvent.click(setup.getByRole('button', { name: 'Start stale-evidence walkthrough' }))
+    expect(onStartSafetyWalkthrough).toHaveBeenCalledWith('Graduate Engineer')
+    expect(setup.getByText(/same backend telemetry and isolation authorities/i)).toBeVisible()
   })
 
   it('keeps selected section and EXPLORATORY identity visible without calling it a formal N-state', () => {

@@ -34,6 +34,7 @@ export interface WorkspaceApi {
   execute(runId: string, actor: string, action: WorkspaceAction): Promise<CommandResult>
   validationAction(action: ValidationWorkspaceAction, runId: string): Promise<void>
   startInvestigation(actor: string): Promise<InvestigationWorkspace>
+  startStaleTelemetryWalkthrough(bootstrap: WorkspaceBootstrap, actor: string): Promise<CommandResult>
   investigation(failureExecutionId: string): Promise<InvestigationWorkspace>
   recordDefect(failureExecutionId: string, reviewer: string, reviewedStepIds: string[]): Promise<InvestigationWorkspace>
   recordCorrection(failureExecutionId: string, reviewer: string): Promise<InvestigationWorkspace>
@@ -104,6 +105,48 @@ export const workspaceApi: WorkspaceApi = {
   },
 
   startInvestigation: (actor) => request<InvestigationWorkspace>('/api/v1/investigations/start', { method: 'POST', body: JSON.stringify({ actor }) }),
+  startStaleTelemetryWalkthrough: async (bootstrap, actor) => {
+    const initial = await request<CommandResult>('/api/v1/runs/start', {
+      method: 'POST',
+      body: JSON.stringify({
+        command_id: crypto.randomUUID(),
+        actor,
+        expected_revision: 0,
+        mode: 'FORMAL',
+        configuration_version: bootstrap.default_configuration_version,
+        fault_section_id: null,
+        scenario_time: bootstrap.default_scenario_time,
+      }),
+    })
+    const runId = initial.snapshot.run.scenario_run_id
+    const epoch = new Date(bootstrap.default_scenario_time).getTime()
+    const fault = await request<CommandResult>(`/api/v1/runs/${runId}/commands`, {
+      method: 'POST',
+      body: JSON.stringify({
+        command_id: crypto.randomUUID(),
+        scenario_run_id: runId,
+        actor,
+        expected_revision: 0,
+        command_type: 'INITIATE_FAULT',
+        scenario_time: new Date(epoch + 10_000).toISOString(),
+      }),
+    })
+    const current = await request<WorkspaceProjection>(`/api/v1/workspace/runs/${runId}`)
+    const alarm = current.alarms.find((item) => item.active)
+    if (alarm === undefined) throw new Error('The controlled fault did not create its feeder-trip alarm.')
+    return request<CommandResult>(`/api/v1/runs/${runId}/commands`, {
+      method: 'POST',
+      body: JSON.stringify({
+        command_id: crypto.randomUUID(),
+        scenario_run_id: runId,
+        actor,
+        expected_revision: fault.snapshot.run.state_revision,
+        command_type: 'ACKNOWLEDGE_ALARM',
+        scenario_time: new Date(epoch + 71_000).toISOString(),
+        alarm_id: alarm.alarm_id,
+      }),
+    })
+  },
   investigation: (failureExecutionId) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}`),
   recordDefect: (failureExecutionId, reviewer, reviewedStepIds) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/defect`, { method: 'POST', body: JSON.stringify({ reviewer, reviewed_step_ids: reviewedStepIds }) }),
   recordCorrection: (failureExecutionId, reviewer) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/correction`, { method: 'POST', body: JSON.stringify({ reviewer }) }),

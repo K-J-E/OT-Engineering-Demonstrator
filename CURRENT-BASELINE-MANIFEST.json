@@ -1,7 +1,7 @@
 {
-  "baseline_date": "2026-08-12",
-  "baseline_name": "Accepted I8/DC-004/DC-005 baseline plus DC-006 machine application pending independent review",
-  "baseline_status": "DC-006 DESIGN AND AUTHORITATIVE DOCUMENTS ACCEPTED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION COMPLETE ON DEDICATED BRANCH PENDING INDEPENDENT REVIEW — I9 STOPPED",
+  "baseline_date": "2026-08-13",
+  "baseline_name": "Showcase V1 Release Candidate baseline through DC-008 and I9 packaging",
+  "baseline_status": "DC-001 THROUGH DC-008 APPLIED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION INCORPORATED; I9 SHOWCASE PACKAGING PENDING FINAL RC REVIEW",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -15,16 +15,18 @@
     "DC-003 — Generic Active-Fault Isolation Boundary Derivation",
     "DC-004 — Multi-Run Exploratory Validation Determination",
     "DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination",
-    "DC-006 — Controlled Validation Test Determination Methods"
+    "DC-006 — Controlled Validation Test Determination Methods",
+    "DC-007 — VT-TOP-DEF Current-Run Criterion Provenance Clarification",
+    "DC-008 — SEP Separation-Criterion Source Provenance Clarification"
   ],
   "accepted_design_change": {
-    "id": "DC-006",
-    "title": "Controlled Validation Test Determination Methods",
-    "status": "ACCEPTED — design and authoritative-document application accepted; DR-01–DR-07 and AA-01–AA-04 closed",
-    "branch": "agent/dc-006-validation-determination-design",
-    "base_commit": "70781cad986f3700f8e2d94fd20aa8b01482f50b",
-    "reviewed_technical_tip": "c19451134c36d13d54f2185a3eaa0f20fcce95f0",
-    "implementation_boundary": "Machine Validation Catalogue v1.2 and application are implemented on agent/dc-006-validation-determination-application pending independent review; not yet an accepted implementation baseline; I9 remains stopped"
+    "id": "DC-008",
+    "title": "SEP Separation-Criterion Source Provenance Clarification",
+    "status": "ACCEPTED — design and Validation Plan v1.5 authoritative application accepted; machine application release-verified",
+    "branch": "agent/i9-showcase-release",
+    "base_commit": "e4a934c97c84bcbcf7be9d2b0539aa9c24c52191",
+    "reviewed_technical_tip": "b999889103de438e04194b361d57dc3ab7d50a97",
+    "implementation_boundary": "DC-008 catalogue/source application and QA-053–QA-055 release treatment are incorporated at main e4a934c97c84bcbcf7be9d2b0539aa9c24c52191; I9 packaging is isolated for final Showcase RC review"
   },
   "documents": [
     {
@@ -217,27 +219,25 @@
     },
     {
       "path": "01-engineering-source-documents/OT Project Validation Plan.docx",
-      "sha256": "626514e30f85e83990816be142e7a90b7d108e3e1f8cdf5c56e83ca31598f8f0",
-      "bytes": 891961,
-      "paragraphs": 274,
+      "sha256": "33d8f46dca170045a352e022cc1d9312a6f821d93c1113c4926d40a7a0286c9b",
+      "bytes": 893739,
+      "paragraphs": 283,
       "tables": 106,
       "inline_shapes": 0,
-      "version": "1.3",
-      "status": "Accepted authoritative validation-design baseline through DC-006",
+      "version": "1.5",
+      "status": "Accepted authoritative validation-design baseline through DC-008",
       "completed_through_section": "21.7",
       "validation_catalogue_tests": 24,
       "verified_requirements_mapped": 124,
       "validation_plan_decisions": 18,
       "criterion_definition_count": 214,
       "criterion_definition_count_note": "Reviewed identity of the accepted DC-006 document application; not a permanent project invariant",
-      "accepted_design_change": "DC-006",
+      "accepted_design_change": "DC-008",
       "supersedes_authoritative_identity": {
-        "version": "1.2",
-        "sha256": "8cde791aae359a7a3d8f335bbb385aba24ef9e75a4fb9f019e14799f4c3db14b",
-        "bytes": 847666,
-        "paragraphs": 171,
-        "tables": 31,
-        "completed_through_section": "20.7"
+        "version": "1.4",
+        "sha256": "0cf0d383786a057b402d0a0f97597ecaafb2b86074a2ef93f238b688b21e4f5f",
+        "bytes": 892549,
+        "completed_through_section": "21.7"
       },
       "independently_reviewed_proposal_identity": {
         "version": "1.2",
@@ -342,10 +342,10 @@
     }
   ],
   "implementation_baseline": {
-    "accepted_through_increment": "I8 plus accepted DC-004/DC-005 machine/application boundary; DC-006 machine application pending independent review",
-    "accepted_reviewed_implementation_tip": "eced7c06c27b959cdb29d3aaa9351ca11cb5e258",
-    "next_increment": "Independent review of the dedicated DC-006 machine/catalogue application branch; I9 remains stopped",
-    "next_increment_authorised": false,
+    "accepted_through_increment": "I8 plus incorporated DC-004 through DC-008 machine/application boundary at main e4a934c97c84bcbcf7be9d2b0539aa9c24c52191",
+    "accepted_reviewed_implementation_tip": "e4a934c97c84bcbcf7be9d2b0539aa9c24c52191",
+    "next_increment": "I9 Showcase Packaging final RC review",
+    "next_increment_authorised": true,
     "dc004_application_status": "INDEPENDENTLY ACCEPTED WITH DC-005 APPLICATION AT EXACT REVIEWED PR #10 TIP eced7c06c27b959cdb29d3aaa9351ca11cb5e258; QA-041 THROUGH QA-049 CLOSED; INCORPORATED INTO REVIEWED MAIN",
     "dc004_application_pr": {
       "number": 10,
@@ -355,13 +355,13 @@
       "treatment": "Complete reviewed DC-004/DC-005 application history accepted and incorporated without rewriting; proposal, first-application, QA-correction and build identities preserved"
     },
     "dc006_authoritative_document_status": "ACCEPTED AT REVIEWED TECHNICAL TIP c19451134c36d13d54f2185a3eaa0f20fcce95f0; DR-01–DR-07 AND AA-01–AA-04 CLOSED",
-    "dc006_machine_catalogue_application_status": "IMPLEMENTED ON DEDICATED BRANCH PENDING INDEPENDENT REVIEW — NOT AN ACCEPTED BASELINE",
-    "i9_status": "STOPPED — no resumption authority"
+    "dc006_machine_catalogue_application_status": "INCORPORATED WITH DC-007/DC-008 RELEASE CONVERGENCE AT MAIN e4a934c97c84bcbcf7be9d2b0539aa9c24c52191; FULL CATALOGUE CAMPAIGN NOT CLAIMED",
+    "i9_status": "AUTHORISED SHOWCASE PACKAGING — FINAL RC REVIEW PENDING"
   },
   "validation_catalogue_baseline": {
     "active_version": "1.2",
-    "active_catalogue_sha256": "51c6079aeecdb04e11ad1fe9aa3b293e8517fbc7e961c2f1520864d7eada6de3",
-    "active_manifest_sha256": "a9b7b91e903d1277433a049b99ec9a0324e0b32cd59a3bd8f24899ef86f49754",
+    "active_catalogue_sha256": "3553ac28856cbe64056fda516ccdc05242960194e956444c01bd11eb7fbd3d1f",
+    "active_manifest_sha256": "e1bba6567da17a1074536859a17ff553f3b969ae1c27eefd1265e20bafdbe07f",
     "historical_versions": ["1.0", "1.1"],
     "historical_v1_0_catalogue_sha256": "e4b1fb616fb4f0605c19129f18746bfae48278ed35fbb971aac4f690fd32bcc1",
     "historical_v1_0_manifest_sha256": "8bc2f16e6dd475a56a5c5dc3ed52ca46caafc77c08bd858de3f2d748c4dfe714",
@@ -375,21 +375,21 @@
     "criterion_definition_count": 214,
     "direct_criterion_count": 147,
     "constituent_case_criterion_count": 67,
-    "application_review_status": "DC006_MACHINE_APPLICATION_PENDING_INDEPENDENT_REVIEW",
-    "dc006_promotion_status": "ACTIVE V1.2 ON DEDICATED REVIEW BRANCH; V1.0/V1.1 PRESERVED AS IMMUTABLE HISTORY; NOT YET ACCEPTED INTO MAIN"
+    "application_review_status": "SHOWCASE_RELEASE_CONVERGENCE_VERIFIED_FINAL_RC_REVIEW_PENDING",
+    "dc006_promotion_status": "ACTIVE V1.2 WITH DC-007/DC-008 PROVENANCE CLARIFICATIONS INCORPORATED; V1.0/V1.1 PRESERVED AS IMMUTABLE HISTORY"
   },
   "historical_manifest": "BASELINE-MANIFEST.json",
   "notes": [
     "BASELINE-MANIFEST.json preserves the original pre-DC-001/DC-002 integrity record.",
-    "Detailed engineering design documents remain working Drafts because later controlled implementation findings and final client-facing packaging may require revision; Validation Plan v1.3 is the accepted validation-design baseline through DC-006.",
+    "Detailed engineering design documents remain controlled working artefacts; Validation Plan v1.5 is the accepted validation-design baseline through DC-008.",
     "DC-003 is applied and cross-document verified across the Engineering Design Brief, Network Model, System Architecture, Workflow Design, Demonstrator Design and Validation Plan without changing the Requirements Specification or its 124 unique requirements.",
     "Network Model Sections 16–18 form the approved engineering answer key for the formal state sequence, DEF-001 and generic active-fault isolation boundary derivation.",
     "System Architecture v0.4 establishes the Step 6 logical components, information ownership, interfaces, scenario boundaries and accepted DC-005/DC-006 validation-assurance architecture without changing operational engineering behaviour.",
     "Workflow Design v0.4 establishes the Step 7 controlled operational and engineering workflows, the 60-second telemetry-age parameter, final event catalogue and accepted DC-005/DC-006 determination workflows while allocating all 124 formal requirements.",
     "Demonstrator Design v0.5 establishes the Step 8 practical local application and accepted DC-004/DC-005/DC-006 validation-assurance design without changing approved engineering behaviour.",
-    "Validation Plan v1.3 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, expected outcomes, accepted DC-003 Exploration verification, accepted DC-004 constituent/composite and historical-catalogue treatment, accepted DC-005 suspension determination, accepted DC-006 criteria-based determination treatment, evidence strategy and an exact 124-row requirements-to-verification matrix.",
+    "Validation Plan v1.5 is the accepted validation-design baseline with 24 catalogue tests, deterministic scenario-time and telemetry-boundary rules, accepted DC-003 through DC-008 assurance treatment, evidence strategy and an exact 124-row requirements-to-verification matrix.",
     "Accepted I1 instantiated separate immutable, schema-valid and hash-verified Network Configuration v1.0/v1.1 packages from the approved Network Model definitions; accepted I2-I8 consume them without modifying either package.",
-    "Implementation is authorised one controlled phase at a time. I1-I8 and the complete DC-004/DC-005 machine/application boundary remain accepted on reviewed main. The separately authorised DC-006 machine/catalogue application is complete on its dedicated branch and pending independent review; it is not yet an accepted implementation baseline. I9 remains stopped.",
+    "I1-I8 and the DC-004 through DC-008 machine/application history are incorporated into main at e4a934c97c84bcbcf7be9d2b0539aa9c24c52191. I9 packages the Showcase V1 Release Candidate without claiming that the full controlled catalogue campaign has executed.",
     "The superseded v0.2/v1.0 and independently reviewed proposed v0.3/v1.1 identities are retained explicitly beside the accepted authoritative document identities.",
     "The five independently reviewed DC-005 proposal identities are preserved separately from their accepted authoritative identities; the accepted versions supersede the prior DC-004-era identities without erasing either history.",
     "For each DC-006-amended authoritative document, the rejected first-application identity, independently reviewed technical-content identity at c19451134c36d13d54f2185a3eaa0f20fcce95f0 and metadata-only administratively accepted identity are preserved separately.",

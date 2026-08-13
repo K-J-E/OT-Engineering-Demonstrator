@@ -17,7 +17,17 @@ export function EngineeringBasis({ projection }: { projection: WorkspaceProjecti
       <section className="panel">
         <h3>Authority chain</h3>
         <p>Governing artefacts → requirements → network/system/workflow/demonstrator design → implementation modules → validation definitions and preserved evidence.</p>
-        <p>Authoritative artefact versions and SHA-256 identities remain controlled in the repository baseline manifest and evidence packages.</p>
+        <p>Authoritative artefact versions and SHA-256 identities remain controlled in <code>CURRENT-BASELINE-MANIFEST.json</code>, the immutable configuration manifests and generated evidence packages.</p>
+        <dl className="key-value-grid">
+          <div><dt>Requirements</dt><dd>v0.4 · 124 stable IDs</dd></div>
+          <div><dt>Network Model</dt><dd>v0.4 · explicit v1.0 defect and v1.1 correction</dd></div>
+          <div><dt>Validation Plan</dt><dd>v1.5 · 24 tests / 286 RTM relationships</dd></div>
+          <div><dt>Machine catalogue</dt><dd>v1.2 · 35 methods / 214 criteria</dd></div>
+        </dl>
+      </section>
+      <section className="panel basis-columns">
+        <article><h3>What this demonstrates</h3><ul><li>Configuration-driven topology, outage and source attribution.</li><li>Telemetry quality/freshness gates and conservative restoration decisions.</li><li>Immutable defect, correction, validation and export provenance.</li><li>Separate FORMAL and EXPLORATORY evidence classes.</li></ul></article>
+        <article><h3>Deliberate boundaries</h3><ul><li>Fictional network and deterministic local simulation.</li><li>No real SCADA, ADMS, OMS, GIS or field-equipment connection.</li><li>No production switching or autonomous control capability.</li><li>Not a commercial ADMS or protection-study product.</li></ul></article>
       </section>
     </div>
   )

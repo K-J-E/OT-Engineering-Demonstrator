@@ -84,6 +84,25 @@ export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
     finally { setBusyActionId(null) }
   }
 
+  async function startSafetyWalkthrough(requestedActor: string) {
+    setError(null); setBusyActionId('START_STALE_WALKTHROUGH'); setActor(requestedActor)
+    try {
+      if (bootstrap === null) return
+      const result = await api.startStaleTelemetryWalkthrough(bootstrap, requestedActor)
+      await loadProjection(result.snapshot.run.scenario_run_id)
+      setView('operational')
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Safety walkthrough start failed.') }
+    finally { setBusyActionId(null) }
+  }
+
+  function returnToRunSetup() {
+    localStorage.removeItem(RUN_STORAGE_KEY)
+    setProjection(null)
+    setRunId(null)
+    setView('operational')
+    setError(null)
+  }
+
   async function investigationUpdated(investigation: InvestigationModel) {
     setInitialInvestigation(investigation)
     const currentRunId = investigation.regression?.execution.scenario_run_id
@@ -114,10 +133,10 @@ export function App({ api = workspaceApi }: { api?: WorkspaceApi }) {
   }
 
   if (bootstrap === null) return <main className="loading-page"><h1>OT Graduate Demonstrator</h1><p>{error ?? 'Loading backend-controlled workspace context…'}</p></main>
-  if (runId === null || projection === null) return <><Surface id="Start / Run Setup"><RunSetup bootstrap={bootstrap} busy={busyActionId !== null} onStart={startRun} onStartInvestigation={startInvestigation} /></Surface>{error !== null && <div className="global-error" role="alert">{error}</div>}</>
+  if (runId === null || projection === null) return <><Surface id="Start / Run Setup"><RunSetup bootstrap={bootstrap} busy={busyActionId !== null} onStart={startRun} onStartInvestigation={startInvestigation} onStartSafetyWalkthrough={startSafetyWalkthrough} /></Surface>{error !== null && <div className="global-error" role="alert">{error}</div>}</>
 
   return <div className="app-shell">
-    <header className="app-header"><div><span className="eyebrow">TasGrid East · fictional engineering demonstrator</span><h1>OT Graduate Demonstrator</h1></div><div className="safety-label"><span aria-hidden="true">◇</span><strong>LOCAL · SIMULATED · NO REAL CONTROL</strong></div></header>
+    <header className="app-header"><div><span className="eyebrow">TasGrid East · fictional engineering demonstrator</span><h1>OT Graduate Demonstrator</h1></div><div className="header-actions"><div className="safety-label"><span aria-hidden="true">◇</span><strong>LOCAL · SIMULATED · NO REAL CONTROL</strong></div><button type="button" className="header-button" onClick={returnToRunSetup}>Start another review</button></div></header>
     <ContextRibbon projection={projection} />
     <nav className="primary-nav" aria-label="Workspace views">{navigation.map((item) => <button type="button" key={item.id} className={view === item.id ? 'active' : ''} aria-current={view === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>{item.label}</button>)}</nav>
     {error !== null && <div className="global-error" role="alert">{error}</div>}

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { WorkspaceBootstrap } from '../../api/contracts'
 import { shortId } from '../../components/format'
 
-export function RunSetup({ bootstrap, busy, onStart, onStartInvestigation }: { bootstrap: WorkspaceBootstrap; busy: boolean; onStart: (actor: string, mode?: 'FORMAL' | 'EXPLORATION', faultSectionId?: string) => void; onStartInvestigation: (actor: string) => void }) {
+export function RunSetup({ bootstrap, busy, onStart, onStartInvestigation, onStartSafetyWalkthrough }: { bootstrap: WorkspaceBootstrap; busy: boolean; onStart: (actor: string, mode?: 'FORMAL' | 'EXPLORATION', faultSectionId?: string) => void; onStartInvestigation: (actor: string) => void; onStartSafetyWalkthrough: (actor: string) => void }) {
   const [actor, setActor] = useState(bootstrap.default_actor)
   const [explorationSection, setExplorationSection] = useState(bootstrap.exploration_section_ids[0] ?? '')
   return <main className="start-page">
@@ -28,6 +28,11 @@ export function RunSetup({ bootstrap, busy, onStart, onStartInvestigation }: { b
         <span className="eyebrow">Controlled defect workflow</span><h2>Begin DEF-001 investigation</h2>
         <p>Execute the preserved v1.0 post-trip test first, then investigate its real topology and outage consequence before recording any root-cause judgement.</p>
         <button type="button" className="secondary-action" disabled={busy || actor.trim().length === 0} onClick={() => onStartInvestigation(actor.trim())}>{busy ? 'Creating controlled run…' : 'Run v1.0 test and investigate'}</button>
+      </article>
+      <article className="panel setup-card safety-setup">
+        <span className="eyebrow">Safety-oriented negative case</span><h2>Review stale-telemetry blocking</h2>
+        <p>Run the accepted formal fault and acknowledge at T+71. The same backend telemetry and isolation authorities must classify required switch evidence as STALE / UNPROVEN and withhold unsafe isolation actions.</p>
+        <button type="button" className="secondary-action" disabled={busy || actor.trim().length === 0} onClick={() => onStartSafetyWalkthrough(actor.trim())}>{busy ? 'Creating controlled run…' : 'Start stale-evidence walkthrough'}</button>
       </article>
       <article className="panel setup-preview">
         <span className="eyebrow">Backend-controlled identity</span><h2>Run-start context</h2>
