@@ -1,8 +1,10 @@
 # DC-008 SEP Selector-to-Proposition Provenance Audit
 
-Status: **Derived analysis supporting proposed DC-008 — pending independent design review**
+Status: **Derived analysis supporting accepted DC-008 technical design — application pending separate authorisation**
 
-Independent design review: **Accepted in principle at `98f15c6a953bd5a69d2a51f674f3bfcfa0ea4139`; `DC008-DR-01` diagnostic-rejection clarification pending final design acceptance**
+Independent technical acceptance: exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`
+
+Design-review finding: `DC008-DR-01` closed
 
 Authority: **Derived reference only; does not override authoritative engineering documents, accepted change records or controlled machine packages**
 
@@ -170,6 +172,6 @@ Text inspection of System Architecture v0.4, Workflow Design v0.4 and Demonstrat
 
 ## 10. Gate and V2 note
 
-DC-008 is proposed and grants no application authority. PR #12 remains draft/unmerged; QA-053 remains stopped; QA-054/055 WIP remains preserved; I9 remains stopped.
+DC-008 technical design is independently accepted at exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`, and `DC008-DR-01` is closed. Authoritative-document and machine-catalogue/application work remain pending separate authorisation. PR #12 remains draft/unmerged; QA-053 remains stopped; QA-054/055 WIP remains preserved; I9 remains stopped.
 
 **V2 Automation Candidate** — the selector-to-proposition provenance audit and cascading criterion/method/test/catalogue identity calculation are repetitive, evidence-heavy assurance tasks. A future tool could trace each proposition clause to source fields and flag unsupported narrative claims before catalogue promotion, while leaving engineering judgement and change acceptance with the reviewer.

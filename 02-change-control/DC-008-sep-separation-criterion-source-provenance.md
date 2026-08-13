@@ -1,8 +1,10 @@
 # DC-008 — SEP Separation-Criterion Source Provenance Clarification
 
-Status: **Proposed — pending independent engineering design review; no authoritative-document, catalogue or implementation authority granted**
+Status: **Design accepted — authoritative-document and machine-catalogue/application pending separate authorisation**
 
-Independent design review: **Accepted in principle at `98f15c6a953bd5a69d2a51f674f3bfcfa0ea4139`; `DC008-DR-01` correction pending final design acceptance**
+Independent technical acceptance: exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`
+
+Design-review finding: `DC008-DR-01` closed
 
 Date raised: 2026-08-13
 
@@ -202,7 +204,7 @@ A later application must prove at minimum:
 
 ## 9. Lifecycle gate
 
-- DC-008 is proposed only.
+- DC-008 technical design is independently accepted at exact reviewed tip `b999889103de438e04194b361d57dc3ab7d50a97`; `DC008-DR-01` is closed.
 - No authoritative-document application is authorised.
 - No catalogue or application implementation is authorised.
 - PR #12 remains draft/unmerged and unchanged at its published head.
