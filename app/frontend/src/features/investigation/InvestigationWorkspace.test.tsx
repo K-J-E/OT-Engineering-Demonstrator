@@ -60,25 +60,24 @@ function sameBuildModel(includeRegression: boolean): InvestigationModel {
 describe('I7 investigation presentation', () => {
   it('reveals consequence-to-source evidence progressively before record action', () => {
     render(<InvestigationWorkspace api={{} as WorkspaceApi} failureExecutionId="30000000-0000-0000-0000-000000000001" actor="Reviewer" initial={model()} onUpdate={vi.fn()} />)
-    expect(screen.getByText('Evidence step 1')).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Confirm the discrepancy' })).toBeVisible()
     expect(screen.queryByText('SEC-B3 instead of SEC-A2')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Record DEF-001 after evidence review' })).toBeDisabled()
-    for (let index = 0; index < 5; index += 1) fireEvent.click(screen.getByRole('button', { name: 'Review next evidence step' }))
-    expect(screen.getByText('SEC-B3 instead of SEC-A2')).toBeVisible()
-    expect(screen.getByText('connectivity_edges.EDGE-SW-A23-1.endpoint_a_id')).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Review next evidence step' }))
-    expect(screen.getByRole('button', { name: 'Record DEF-001 after evidence review' })).toBeEnabled()
+    for (let index = 0; index < 3; index += 1) fireEvent.click(screen.getByRole('button', { name: 'Continue investigation' }))
+    expect(screen.getByRole('heading', { name: 'The fault is in one GIS connectivity endpoint' })).toBeVisible()
+    expect(screen.getByText('SW-A23 connected to SEC-B3')).toBeVisible()
+    expect(screen.getByText('connectivity_edges.EDGE-SW-A23-1.endpoint_a_id')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm and record the identified fault' })).toBeEnabled()
   })
 
   it('limits same-build wording to failure and direct repeat before regression', () => {
     const rendered = render(<InvestigationWorkspace api={{} as WorkspaceApi} failureExecutionId="30000000-0000-0000-0000-000000000001" actor="Reviewer" initial={sameBuildModel(false)} onUpdate={vi.fn()} />)
     const proof = within(rendered.container).getByTestId('same-build-proof')
-    expect(proof).toHaveTextContent('Same backend-controlled application build proven across v1.0 failure and v1.1 direct repeat.')
-    expect(proof).not.toHaveTextContent('corrected regression')
+    expect(proof).toHaveTextContent('The v1.0 failure and v1.1 focused repeat used the same application version; only the network configuration changed.')
+    expect(proof).not.toHaveTextContent('corrected full scenario')
   })
 
   it('includes corrected regression only after its preserved record exists', () => {
     const rendered = render(<InvestigationWorkspace api={{} as WorkspaceApi} failureExecutionId="30000000-0000-0000-0000-000000000001" actor="Reviewer" initial={sameBuildModel(true)} onUpdate={vi.fn()} />)
-    expect(within(rendered.container).getByTestId('same-build-proof')).toHaveTextContent('Same backend-controlled application build proven across v1.0 failure, v1.1 direct repeat and corrected regression.')
+    expect(within(rendered.container).getByTestId('same-build-proof')).toHaveTextContent('The v1.0 failure and v1.1 focused repeat used the same application version; only the network configuration changed.')
   })
 })

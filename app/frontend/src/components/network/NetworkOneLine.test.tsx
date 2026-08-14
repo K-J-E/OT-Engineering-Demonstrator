@@ -20,14 +20,19 @@ describe('fixed one-line', () => {
     const options = cytoscapeMock.mock.calls[0]![0] as {
       autoungrabify: boolean
       boxSelectionEnabled: boolean
+      userPanningEnabled: boolean
+      userZoomingEnabled: boolean
       layout: { name: string }
       elements: Array<{ grabbable?: boolean }>
     }
     expect(options.autoungrabify).toBe(true)
     expect(options.boxSelectionEnabled).toBe(false)
+    expect(options.userPanningEnabled).toBe(false)
+    expect(options.userZoomingEnabled).toBe(false)
     expect(options.layout.name).toBe('preset')
     expect(options.elements.every((element: { grabbable?: boolean }) => element.grabbable === false)).toBe(true)
+    expect(container.querySelector('[data-user-zoom="disabled"]')).toBeInTheDocument()
     expect(screen.getByText('Accessible network state table')).toBeVisible()
-    expect(screen.getByText(/presentation coordinates never change connectivity/i)).toBeVisible()
+    expect(screen.getByText(/does not capture page scrolling or change connectivity/i)).toBeVisible()
   })
 })

@@ -7,6 +7,7 @@ import type {
   WorkspaceAction,
   WorkspaceBootstrap,
   WorkspaceProjection,
+  ValidationExecutionSummary,
 } from './contracts'
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -33,6 +34,8 @@ export interface WorkspaceApi {
   projection(runId: string): Promise<WorkspaceProjection>
   execute(runId: string, actor: string, action: WorkspaceAction): Promise<CommandResult>
   validationAction(action: ValidationWorkspaceAction, runId: string): Promise<void>
+  completeValidationDetermination(summary: ValidationExecutionSummary): Promise<void>
+  latestActiveFormalRun(): Promise<string | null>
   startInvestigation(actor: string): Promise<InvestigationWorkspace>
   startStaleTelemetryWalkthrough(bootstrap: WorkspaceBootstrap, actor: string): Promise<CommandResult>
   investigation(failureExecutionId: string): Promise<InvestigationWorkspace>
@@ -102,6 +105,42 @@ export const workspaceApi: WorkspaceApi = {
         body: JSON.stringify({ checkpoint_id: action.checkpoint_id }),
       },
     )
+  },
+
+  completeValidationDetermination: async (summary) => {
+    const attemptId = summary.execution.validation_attempt_id
+    if (attemptId === null) {
+      throw new Error('The saved evidence record is missing its assurance identity.')
+    }
+    const baseTime = new Date(summary.evidence_snapshots.at(-1)?.scenario_time ?? summary.execution.started_scenario_time).getTime()
+    const context = await request<{ determination_context_id: string }>(
+      `/api/v1/validation/attempts/${attemptId}/determination-context`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          frozen_at: new Date(baseTime + 1).toISOString(),
+          scenario_run_id: summary.execution.scenario_run_id,
+          validation_execution_id: summary.execution.validation_execution_id,
+        }),
+      },
+    )
+    await request(`/api/v1/validation/determinations/${context.determination_context_id}/evaluate`, {
+      method: 'POST',
+      body: JSON.stringify({ evaluated_at: new Date(baseTime + 2).toISOString() }),
+    })
+    await request(`/api/v1/validation/determinations/${context.determination_context_id}/finalise`, {
+      method: 'POST',
+      body: JSON.stringify({ finalised_at: new Date(baseTime + 3).toISOString() }),
+    })
+  },
+
+  latestActiveFormalRun: async () => {
+    const executions = await request<ValidationExecutionSummary[]>('/api/v1/validation/executions?evidence_class=FORMAL')
+    for (const item of executions.filter((entry) => entry.execution.status === 'ACTIVE').reverse()) {
+      const projection = await request<WorkspaceProjection>(`/api/v1/workspace/runs/${item.execution.scenario_run_id}`)
+      if (projection.run.status !== 'CLOSED') return item.execution.scenario_run_id
+    }
+    return null
   },
 
   startInvestigation: (actor) => request<InvestigationWorkspace>('/api/v1/investigations/start', { method: 'POST', body: JSON.stringify({ actor }) }),

@@ -29,9 +29,19 @@ function bootstrap(): WorkspaceBootstrap {
 function exploratoryProjection() {
   const base = makeProjection()
   const template = base.validation.definitions[0]!
+  const campaignCases: Record<string, Array<{ case_id: string; test_id: string; case_title: string; version: string; selected_fault_section_id: string; initial_conditions: Record<string, unknown>; comparison_expected_values: Record<string, unknown>; checkpoint_obligations: Array<{ checkpoint_id: string; required_content: string[] }> }>> = {
+    'VT-EXP-ALL-001': [
+      { case_id: 'EXP-ALL-A1', test_id: 'VT-EXP-ALL-001', case_title: 'SEC-A1 selection and incident boundary derivation', version: '1.1', selected_fault_section_id: 'SEC-A1', initial_conditions: {}, comparison_expected_values: {}, checkpoint_obligations: [] },
+      { case_id: 'EXP-ALL-B2', test_id: 'VT-EXP-ALL-001', case_title: 'SEC-B2 selection and incident boundary derivation', version: '1.1', selected_fault_section_id: 'SEC-B2', initial_conditions: {}, comparison_expected_values: {}, checkpoint_obligations: [] },
+    ],
+    'VT-EXP-ROLE-001': [
+      { case_id: 'EXP-ROLE-A2', test_id: 'VT-EXP-ROLE-001', case_title: 'Feeder A affected and Feeder B alternate', version: '1.1', selected_fault_section_id: 'SEC-A2', initial_conditions: {}, comparison_expected_values: {}, checkpoint_obligations: [] },
+      { case_id: 'EXP-ROLE-B2', test_id: 'VT-EXP-ROLE-001', case_title: 'Feeder B affected and Feeder A alternate', version: '1.1', selected_fault_section_id: 'SEC-B2', initial_conditions: {}, comparison_expected_values: {}, checkpoint_obligations: [] },
+    ],
+  }
   const definitions = ['VT-EXP-ALL-001', 'VT-EXP-ROLE-001', 'VT-EXP-SEPARATION-001'].map((testId) => ({
     ...template,
-    definition: { ...template.definition, test_id: testId, title: testId, evidence_class: 'EXPLORATORY' as const, checkpoint_obligations: [{ checkpoint_id: 'CONTROLLED_RESULT', required_content: ['TOPOLOGY'] }] },
+    definition: { ...template.definition, test_id: testId, title: testId, evidence_class: 'EXPLORATORY' as const, checkpoint_obligations: [{ checkpoint_id: 'CONTROLLED_RESULT', required_content: ['TOPOLOGY'] }], constituent_cases: campaignCases[testId] ?? [] },
   }))
   return makeProjection({
     run: { ...base.run, mode: 'EXPLORATION', evidence_class: 'EXPLORATORY', fault_section_id: 'SEC-B2', workflow_stage: 'RESTORATION_ASSESSED' },
@@ -47,20 +57,30 @@ function exploratoryProjection() {
 describe('I8 Exploration and export presentation', () => {
   it('offers only configured v1.1 section selections as transient Exploration input', () => {
     const onStart = vi.fn()
-    render(<RunSetup bootstrap={bootstrap()} busy={false} onStart={onStart} onStartInvestigation={vi.fn()} onStartSafetyWalkthrough={vi.fn()} />)
+    render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStart={onStart} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={vi.fn()} />)
     fireEvent.change(screen.getByRole('combobox', { name: 'Exploration fault section' }), { target: { value: 'SEC-B2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Start exploratory v1.1 run' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Start exploration' }))
     expect(onStart).toHaveBeenCalledWith('Graduate Engineer', 'EXPLORATION', 'SEC-B2')
-    expect(screen.getByText(/cannot satisfy formal validation automatically/i)).toBeVisible()
+    expect(screen.getByText(/saved results remain separate from the approved formal walkthrough/i)).toBeVisible()
   })
 
   it('offers the accepted stale-evidence safety walkthrough without changing engineering rules', () => {
     const onStartSafetyWalkthrough = vi.fn()
-    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} onStart={vi.fn()} onStartInvestigation={vi.fn()} onStartSafetyWalkthrough={onStartSafetyWalkthrough} />)
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStart={vi.fn()} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={onStartSafetyWalkthrough} />)
     const setup = within(rendered.container)
     fireEvent.click(setup.getByRole('button', { name: 'Start stale-evidence walkthrough' }))
     expect(onStartSafetyWalkthrough).toHaveBeenCalledWith('Graduate Engineer')
-    expect(setup.getByText(/same backend telemetry and isolation authorities/i)).toBeVisible()
+    expect(setup.getByText(/stale readings cannot prove isolation/i)).toBeVisible()
+  })
+
+  it('keeps a preserved investigation within the combined formal validation story', () => {
+    const onResumeInvestigation = vi.fn()
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation onStart={vi.fn()} onResumeInvestigation={onResumeInvestigation} onStartSafetyWalkthrough={vi.fn()} />)
+    const setup = within(rendered.container)
+    expect(setup.getByRole('heading', { name: 'Prove the operating logic—and show it detecting a defect' })).toBeVisible()
+    expect(setup.queryByRole('heading', { name: 'Begin DEF-001 investigation' })).not.toBeInTheDocument()
+    fireEvent.click(setup.getByRole('button', { name: 'Resume preserved defect investigation' }))
+    expect(onResumeInvestigation).toHaveBeenCalledWith('Graduate Engineer')
   })
 
   it('keeps selected section and EXPLORATORY identity visible without calling it a formal N-state', () => {
@@ -73,12 +93,32 @@ describe('I8 Exploration and export presentation', () => {
     expect(screen.queryByText('Formal state')).not.toBeInTheDocument()
   })
 
-  it('presents exploratory definitions separately while retaining FORMAL-only progress', () => {
-    render(<ValidationView projection={exploratoryProjection()} busy={false} onAction={vi.fn()} />)
-    expect(screen.getByRole('heading', { name: 'Exploration evidence controls' })).toBeVisible()
-    expect(screen.getAllByText('EXPLORATORY').length).toBeGreaterThanOrEqual(4)
-    expect(screen.getByText(/21 FORMAL definitions; 0 FORMAL executions/i)).toBeVisible()
-    expect(screen.queryByRole('button', { name: 'Start formal execution' })).not.toBeInTheDocument()
+  it('keeps formal assurance simple while exposing the formal validation procedure separately', () => {
+    render(<ValidationView projection={makeProjection()} busy={false} onAction={vi.fn()} onContinue={vi.fn()} />)
+    expect(screen.getByRole('heading', { name: 'How each operating stage was checked' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Operating assurance and system validation are different' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'How the formal result is produced' })).toBeVisible()
+    expect(screen.getByLabelText('Formal validation procedure').querySelectorAll('article')).toHaveLength(4)
+    expect(screen.getByText('Lock the validation basis')).toBeVisible()
+    expect(screen.getByText('Evaluate controlled criteria')).toBeVisible()
+  })
+
+  it('presents an exploration report with assurance and its own technical traceability', () => {
+    const { container } = render(<ValidationView projection={exploratoryProjection()} busy={false} onAction={vi.fn()} onContinue={vi.fn()} />)
+    const view = within(container)
+    expect(view.getByRole('heading', { name: 'Validation of the operating logic for this case' })).toBeVisible()
+    expect(view.getByRole('heading', { name: 'How each operating stage was checked' })).toBeVisible()
+    expect(container.querySelector('.stage-validation-grid')?.querySelectorAll('article')).toHaveLength(6)
+    expect(view.getByText(/result remains separate and is never counted as formal evidence/i)).toBeVisible()
+    const report = within(container.querySelector('[aria-labelledby="exploration-evidence-title"]')!)
+    expect(report.getByText('Technical test traceability')).toBeVisible()
+    expect(view.getByRole('heading', { name: 'How the exploration evidence is controlled and extended' })).toBeVisible()
+    expect(view.getByRole('heading', { name: 'Multi-scenario validation campaigns' })).toBeVisible()
+    expect(view.getByRole('article', { name: 'Validation campaign: All represented fault locations' })).toBeVisible()
+    expect(view.getByRole('article', { name: 'Validation campaign: Feeder-role reversal and varied restoration outcomes' })).toBeVisible()
+    expect(view.queryByText('Formal progress remains separate')).not.toBeInTheDocument()
+    expect(view.queryByRole('heading', { name: 'Exploration validation outcome' })).not.toBeInTheDocument()
+    expect(view.queryByRole('button', { name: 'Start the validation record' })).not.toBeInTheDocument()
   })
 
   it('shows composite completeness and constituent provenance without inventing one run', () => {
@@ -92,13 +132,14 @@ describe('I8 Exploration and export presentation', () => {
       completeness: { status: 'INCOMPLETE', required_case_ids: ['EXP-ROLE-A2', 'EXP-ROLE-B2', 'EXP-ROLE-A1', 'EXP-ROLE-A4'], present_case_ids: ['EXP-ROLE-B2'], missing_case_ids: ['EXP-ROLE-A2', 'EXP-ROLE-A1', 'EXP-ROLE-A4'], duplicate_case_ids: [], mismatched_case_ids: [], reasons: ['Missing required cases.'] },
       status: 'DRAFT', determination: null, determination_reason: 'Missing required cases.', source_record_references: ['validation-execution:9100'], created_at: '2030-01-01T01:00:00.000Z', finalised_at: null,
     }]
-    const { container } = render(<ValidationView projection={projection} busy={false} onAction={vi.fn()} />)
+    const { container } = render(<ValidationView projection={projection} busy={false} onAction={vi.fn()} onContinue={vi.fn()} />)
     const view = within(container)
-    expect(view.getByRole('heading', { name: 'Composite validation results' })).toBeVisible()
-    expect(view.getByText(/Not one fictional run/i)).toBeVisible()
-    const composite = view.getByRole('heading', { name: /VT-EXP-ROLE-001.*NOT DETERMINED/i }).closest('article')!
-    expect(composite).toHaveTextContent(/EXP-ROLE-B2.*execution 91000000/i)
-    expect(composite).toHaveTextContent(/Missing: EXP-ROLE-A2, EXP-ROLE-A1, EXP-ROLE-A4/i)
+    const campaign = within(view.getByRole('article', { name: 'Validation campaign: Feeder-role reversal and varied restoration outcomes' }))
+    fireEvent.click(campaign.getByText('Campaign composition and records'))
+    expect(campaign.getByText('Incomplete constituent membership')).toBeVisible()
+    expect(campaign.getByText('Present cases:').closest('p')).toHaveTextContent(/EXP-ROLE-B2/i)
+    expect(campaign.getByText('Missing cases:').closest('p')).toHaveTextContent(/EXP-ROLE-A2, EXP-ROLE-A1, EXP-ROLE-A4/i)
+    expect(campaign.getByText(/Run 92000000/i)).toHaveTextContent(/source 91000000/i)
   })
 
   it('uses backend export eligibility and displays a new verified package record', async () => {
@@ -109,10 +150,11 @@ describe('I8 Exploration and export presentation', () => {
       evidencePackages: vi.fn().mockResolvedValue([{ package_id: 'PKG-123456abcdef', validation_execution_id: '10000000-0000-0000-0000-000000000001', test_id: 'VT-EXP-ROLE-001', test_definition_version: '1.0', test_definition_sha256: '2'.repeat(64), evidence_class: 'EXPLORATORY', scenario_run_id: projection.run.scenario_run_id, configuration_id: projection.run.configuration_id, configuration_version: '1.1', application_build_id: '1'.repeat(64), generation_application_build_id: '1'.repeat(64), evidence_snapshot_ids: ['30000000-0000-0000-0000-000000000001'], manifest_sha256: '4'.repeat(64), archive_sha256: '5'.repeat(64), archive_path: 'evidence/exports/PKG-123456abcdef-EXPLORATORY.zip', verification_status: 'VERIFIED', source_record_references: ['scenario-run:test'] }]),
       generateEvidencePackage: vi.fn(),
     } as unknown as WorkspaceApi
-    render(<EvidenceLibrary projection={projection} api={api} />)
-    expect(await screen.findByText('PKG-123456abcdef')).toBeVisible()
-    expect(screen.getByText('VERIFIED')).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Download verified ZIP' })).toHaveAttribute('href', '/api/v1/evidence-packages/PKG-123456abcdef/download')
+    render(<EvidenceLibrary projection={projection} api={api} onReturnToOperational={vi.fn()} />)
+    expect(await screen.findByText('Latest-run evidence package')).toBeVisible()
+    expect(screen.getByText('Verified')).toBeVisible()
+    expect(screen.getByText('PKG-123456abcdef')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Download evidence package (.zip)' })).toHaveAttribute('href', '/api/v1/evidence-packages/PKG-123456abcdef/download')
     await waitFor(() => expect(api.evidenceExportCandidates).toHaveBeenCalled())
   })
 })

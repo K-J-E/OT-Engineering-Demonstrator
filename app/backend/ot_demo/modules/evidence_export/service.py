@@ -733,7 +733,7 @@ class EvidenceExportService:
     @staticmethod
     def _verify_export_boundary(
         summary: ValidationExecutionSummary,
-        run_status: ScenarioRunStatus,
+        _run_status: ScenarioRunStatus,
     ) -> None:
         execution = summary.execution
         if not summary.evidence_snapshots:
@@ -754,9 +754,9 @@ class EvidenceExportService:
                 raise EvidenceExportBoundaryError(
                     "EXPLORATORY evidence class requires an EXPLORATION scenario run"
                 )
-            if run_status is not ScenarioRunStatus.CLOSED:
+            if execution.status is not ValidationExecutionStatus.FINALISED:
                 raise EvidenceExportBoundaryError(
-                    "an EXPLORATORY package requires the source run to be closed"
+                    "an EXPLORATORY package requires a finalised validation execution"
                 )
         for evidence in summary.evidence_snapshots:
             identity = (

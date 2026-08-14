@@ -50,8 +50,8 @@ export function NetworkOneLine({ nodes, edges, selectedEntityId, onSelect }: Net
       layout: { name: 'preset', fit: true, padding: 42 },
       autoungrabify: true,
       boxSelectionEnabled: false,
-      userPanningEnabled: true,
-      userZoomingEnabled: true,
+      userPanningEnabled: false,
+      userZoomingEnabled: false,
       style: [
         { selector: 'node', style: { width: 74, height: 48, shape: 'round-rectangle', 'background-color': '#f8fafc', 'border-color': '#64748b', 'border-width': 2, label: 'data(label)', color: '#10243e', 'font-size': 12, 'font-weight': 700, 'text-valign': 'center', 'text-halign': 'center' } },
         { selector: 'node.section', style: { width: 92, height: 56 } },
@@ -77,14 +77,14 @@ export function NetworkOneLine({ nodes, edges, selectedEntityId, onSelect }: Net
   return (
     <section className="panel network-panel" aria-labelledby="one-line-title">
       <div className="panel-heading">
-        <div><span className="eyebrow">Backend-derived projection</span><h2 id="one-line-title">Fixed network one-line</h2></div>
-        <p>Pan, zoom and inspect only. Presentation coordinates never change connectivity.</p>
+        <div><span className="eyebrow">Current network state</span><h2 id="one-line-title">Feeder single-line diagram</h2></div>
+        <p>Select an entity to inspect it below. The fixed diagram does not capture page scrolling or change connectivity.</p>
       </div>
-      <div ref={containerRef} className="network-canvas" data-topology-editable="false" aria-hidden="true" />
+      <div ref={containerRef} className="network-canvas" data-topology-editable="false" data-user-zoom="disabled" aria-hidden="true" />
       <details className="network-table-alternative">
         <summary>Accessible network state table</summary>
         <div className="table-scroll"><table>
-          <thead><tr><th>Entity</th><th>Configured class</th><th>Configured value</th><th>Observed</th><th>Derived state</th><th>Fault state</th></tr></thead>
+          <thead><tr><th>Network item</th><th>Equipment type</th><th>Normal network record</th><th>Latest telemetry</th><th>Calculated state</th><th>Fault state</th></tr></thead>
           <tbody>{nodes.map((node) => (
             <tr key={node.entity_id}>
               <th scope="row">{node.entity_id}</th>

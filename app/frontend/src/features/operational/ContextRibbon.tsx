@@ -1,5 +1,6 @@
 import type { WorkspaceProjection } from '../../api/contracts'
 import { humanise, shortId } from '../../components/format'
+import { checkpointLabel } from '../../components/scenario-language'
 
 export function ContextRibbon({ projection }: { projection: WorkspaceProjection }) {
   const { run, summary } = projection
@@ -15,11 +16,11 @@ export function ContextRibbon({ projection }: { projection: WorkspaceProjection 
       <div><span className="eyebrow">Active fault section</span><strong>{run.fault_section_id}</strong></div>
       <div><span className="eyebrow">Workflow stage</span><strong>{humanise(run.workflow_stage)}</strong></div>
       {run.mode === 'FORMAL'
-        ? <div><span className="eyebrow">Formal state</span><strong data-testid="formal-state">{run.network_state_label}</strong></div>
-        : <div><span className="eyebrow">Derived stage</span><strong data-testid="exploration-stage">{humanise(run.workflow_stage)}</strong></div>}
+        ? <div><span className="eyebrow">Scenario checkpoint</span><strong data-testid="formal-state">{checkpointLabel(run.network_state_label)}</strong></div>
+        : <div><span className="eyebrow">Current stage</span><strong data-testid="exploration-stage">{humanise(run.workflow_stage)}</strong></div>}
       <div><span className="eyebrow">State revision</span><strong>{run.state_revision}</strong></div>
       <div><span className="eyebrow">Assessment</span><strong>{humanise(summary.current_assessment_status)}</strong></div>
-      <div><span className="eyebrow">Backend build</span><code>{run.application_build_id}</code></div>
+      <div><span className="eyebrow">Application version ID</span><code>{run.application_build_id}</code></div>
     </section>
   )
 }

@@ -347,6 +347,9 @@ export interface ValidationExecutionSummary {
     verdict: string | null
     verdict_reason: string | null
     links: Record<string, string | null>
+    validation_attempt_id: string | null
+    target_selection_id: string | null
+    executed_result_id: string | null
   }
   evidence_snapshots: EvidenceSnapshot[]
 }

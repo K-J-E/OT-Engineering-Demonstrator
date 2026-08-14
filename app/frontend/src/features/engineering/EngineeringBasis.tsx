@@ -15,8 +15,9 @@ export function EngineeringBasis({ projection }: { projection: WorkspaceProjecti
         </dl>
       </section>
       <section className="panel">
-        <h3>Authority chain</h3>
-        <p>Governing artefacts → requirements → network/system/workflow/demonstrator design → implementation modules → validation definitions and preserved evidence.</p>
+        <h3>From approved design to evidence</h3>
+        <p>Project decisions → requirements → network and workflow design → application functions → validation definitions and saved evidence.</p>
+        <p>Governing artefacts define the approved behavior; implementation modules realise that behavior in the local demonstrator.</p>
         <p>Authoritative artefact versions and SHA-256 identities remain controlled in <code>CURRENT-BASELINE-MANIFEST.json</code>, the immutable configuration manifests and generated evidence packages.</p>
         <dl className="key-value-grid">
           <div><dt>Requirements</dt><dd>v0.4 · 124 stable IDs</dd></div>

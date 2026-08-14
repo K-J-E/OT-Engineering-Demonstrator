@@ -641,25 +641,20 @@ def test_exploratory_export_is_new_self_contained_and_independently_hash_verifie
     execution = validation.start_execution(
         "VT-EXP-ROLE-001", source_run_id, case_id="EXP-ROLE-B2"
     )
-    _, assessed = run_to_assessment_on_existing(scenarios, source_run_id)
+    run_to_assessment_on_existing(scenarios, source_run_id)
     evidence = validation.capture_checkpoint(
         execution.validation_execution_id, "CONTROLLED_RESULT"
     )
-    reset = scenarios.execute(
-        source_run_id,
-        request(
-            number=90,
-            run_id=source_run_id,
-            revision=assessed.snapshot.run.state_revision,
-            command_type=ScenarioCommandType.RESET_RUN,
-            scenario_time=at(60),
-        ),
+    with pytest.raises(EvidenceExportBoundaryError, match="finalised validation execution"):
+        export.generate(execution.validation_execution_id)
+    validation.finalise_execution(
+        execution.validation_execution_id, "CONTROLLED_RESULT"
     )
-    assert reset.snapshot.run.scenario_run_id != source_run_id
-    assert scenarios.run_context(source_run_id).status is ScenarioRunStatus.CLOSED
+    assert scenarios.run_context(source_run_id).status is ScenarioRunStatus.ACTIVE
 
     first = export.generate(execution.validation_execution_id)
     second = export.generate(execution.validation_execution_id)
+    assert scenarios.run_context(source_run_id).status is ScenarioRunStatus.ACTIVE
     assert first.package_id != second.package_id
     assert first.archive_path != second.archive_path
     assert first.evidence_class is EvidenceClass.EXPLORATORY
