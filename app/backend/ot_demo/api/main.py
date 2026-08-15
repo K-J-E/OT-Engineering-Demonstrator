@@ -246,6 +246,8 @@ def create_app(
     evidence_export_service: EvidenceExportService | None = None,
     determination_service: DeterminationService | None = None,
     reset_local_showcase: Callable[[], None] | None = None,
+    *,
+    public_mode: bool = False,
 ) -> FastAPI:
     app = FastAPI(
         title="OT Systems Demonstrator",
@@ -253,7 +255,14 @@ def create_app(
         description=(
             "Fictional local operational technology demonstrator — scenario, validation, investigation, trials and evidence-export API"
         ),
+        docs_url=None if public_mode else "/docs",
+        redoc_url=None if public_mode else "/redoc",
+        openapi_url=None if public_mode else "/openapi.json",
     )
+
+    @app.get("/healthz", include_in_schema=False)
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
 
     def service() -> ScenarioCoordinator:
         if coordinator is None:

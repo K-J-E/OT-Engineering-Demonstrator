@@ -56,6 +56,38 @@ def create_build_manifest(
     return ApplicationBuildManifest(application_build_id=build_id, identity=identity)
 
 
+def create_deployment_build_manifest(
+    repository_root: Path,
+    *,
+    git_commit: str,
+    git_dirty: bool,
+    node_version: str = "24.19.0",
+    npm_version: str = "11.17.0",
+) -> ApplicationBuildManifest:
+    """Bind a packaged deployment without requiring Git or Node in the runtime image."""
+
+    root = repository_root.resolve(strict=True)
+    identity = BuildIdentityPayload(
+        git_commit=git_commit,
+        git_dirty=git_dirty,
+        python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        node_version=node_version,
+        npm_version=npm_version,
+        dependency_lock_sha256={
+            "requirements.lock": sha256_file(root / "requirements.lock"),
+            "app/frontend/package-lock.json": sha256_file(
+                root / "app/frontend/package-lock.json"
+            ),
+        },
+        backend_source_sha256=sha256_tree(
+            root / "app/backend/ot_demo", suffixes=(".py", ".sql")
+        ),
+        frontend_bundle_sha256=_required_tree_hash(root / "app/frontend/dist"),
+    )
+    build_id = sha256_bytes(canonical_json_bytes(identity.model_dump(mode="json")))
+    return ApplicationBuildManifest(application_build_id=build_id, identity=identity)
+
+
 def write_build_manifest(
     repository_root: Path,
     output_path: Path,
@@ -80,6 +112,13 @@ def _optional_tree_hash(path: Path) -> str | None:
     if not path.is_dir() or not any(item.is_file() for item in path.rglob("*")):
         return None
     return sha256_tree(path)
+
+
+def _required_tree_hash(path: Path) -> str:
+    digest = _optional_tree_hash(path)
+    if digest is None:
+        raise RuntimeError("The packaged frontend bundle is missing or empty.")
+    return digest
 
 
 def _command(cwd: Path, *command: str) -> str:

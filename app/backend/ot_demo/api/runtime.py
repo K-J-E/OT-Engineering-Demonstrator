@@ -37,6 +37,8 @@ def create_local_app(
     data_directory: Path | None = None,
     evidence_output_directory: Path | None = None,
     application_build_manifest: ApplicationBuildManifest | None = None,
+    reset_boundary: Path | None = None,
+    public_mode: bool = False,
 ):
     """Assemble one local process with no external OT or utility interfaces."""
 
@@ -139,14 +141,29 @@ def create_local_app(
     resolved_export_directory = export_directory.resolve()
     resolved_runtime_data = runtime_data.resolve()
     default_export_directory = (repository_root / "evidence/exports").resolve()
+    resolved_reset_boundary = reset_boundary.resolve() if reset_boundary else None
+
+    if resolved_reset_boundary is not None:
+        if resolved_reset_boundary == Path(resolved_reset_boundary.anchor):
+            raise RuntimeError("The hosted reset boundary cannot be a filesystem root.")
+        if not _within(resolved_runtime_data, resolved_reset_boundary):
+            raise RuntimeError("Runtime data is outside the hosted reset boundary.")
+        if not _within(resolved_export_directory, resolved_reset_boundary):
+            raise RuntimeError("Evidence output is outside the hosted reset boundary.")
 
     def reset_local_showcase() -> None:
         """Reset the whole generated local workspace without altering controlled inputs."""
 
-        if not (
-            resolved_export_directory == default_export_directory
-            or resolved_runtime_data in resolved_export_directory.parents
-        ):
+        if resolved_reset_boundary is not None:
+            safe_export = _within(
+                resolved_export_directory, resolved_reset_boundary
+            )
+        else:
+            safe_export = (
+                resolved_export_directory == default_export_directory
+                or resolved_runtime_data in resolved_export_directory.parents
+            )
+        if not safe_export:
             raise RuntimeError(
                 "Refusing to reset an evidence directory outside the local runtime boundary."
             )
@@ -164,7 +181,7 @@ def create_local_app(
             shutil.rmtree(export_directory)
         export_directory.mkdir(parents=True, exist_ok=True)
 
-    return create_app(
+    app = create_app(
         coordinator,
         validation_service,
         workspace_service,
@@ -172,4 +189,11 @@ def create_local_app(
         evidence_export_service,
         determination_service,
         reset_local_showcase,
+        public_mode=public_mode,
     )
+    app.state.reset_showcase = reset_local_showcase
+    return app
+
+
+def _within(path: Path, boundary: Path) -> bool:
+    return path == boundary or boundary in path.parents

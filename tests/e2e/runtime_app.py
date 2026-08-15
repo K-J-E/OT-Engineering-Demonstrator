@@ -4,6 +4,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 from ot_demo.api.runtime import create_local_app
+from ot_demo.api.hosted import install_fresh_browser_boundary
 from ot_demo.infrastructure.build_identity import (
     ApplicationBuildManifest,
     BuildIdentityPayload,
@@ -33,4 +34,7 @@ app = create_local_app(
     data_directory=TEST_DATA_DIRECTORY,
     evidence_output_directory=TEST_DATA_DIRECTORY / "evidence/exports",
     application_build_manifest=TEST_BUILD_MANIFEST,
+    reset_boundary=TEST_DATA_DIRECTORY,
+    public_mode=True,
 )
+install_fresh_browser_boundary(app)

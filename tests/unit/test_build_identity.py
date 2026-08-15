@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 from ot_demo.domain.value_objects import Sha256Digest
 from ot_demo.infrastructure import build_identity
 from ot_demo.infrastructure.hashing import (
@@ -107,3 +109,46 @@ def test_create_build_manifest_assembles_every_controlled_identity_input(
             != baseline_id
         )
         path.write_text(original, encoding="utf-8")
+
+
+def test_deployment_manifest_binds_supplied_commit_and_pinned_toolchain(
+    tmp_path: Path,
+) -> None:
+    backend = tmp_path / "app/backend/ot_demo"
+    frontend = tmp_path / "app/frontend"
+    bundle = frontend / "dist"
+    backend.mkdir(parents=True)
+    bundle.mkdir(parents=True)
+    (tmp_path / "requirements.lock").write_text("backend==1.0\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    (backend / "service.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (bundle / "index.html").write_text("<main>Built</main>\n", encoding="utf-8")
+
+    manifest = build_identity.create_deployment_build_manifest(
+        tmp_path,
+        git_commit="a" * 40,
+        git_dirty=False,
+    )
+
+    assert manifest.identity.git_commit == "a" * 40
+    assert manifest.identity.git_dirty is False
+    assert manifest.identity.node_version == "24.19.0"
+    assert manifest.identity.npm_version == "11.17.0"
+    assert manifest.identity.frontend_bundle_sha256 == sha256_tree(bundle)
+
+
+def test_deployment_manifest_requires_a_built_frontend(tmp_path: Path) -> None:
+    backend = tmp_path / "app/backend/ot_demo"
+    frontend = tmp_path / "app/frontend"
+    backend.mkdir(parents=True)
+    frontend.mkdir(parents=True)
+    (tmp_path / "requirements.lock").write_text("backend==1.0\n", encoding="utf-8")
+    (frontend / "package-lock.json").write_text("{}\n", encoding="utf-8")
+    (backend / "service.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="frontend bundle is missing"):
+        build_identity.create_deployment_build_manifest(
+            tmp_path,
+            git_commit="a" * 40,
+            git_dirty=False,
+        )

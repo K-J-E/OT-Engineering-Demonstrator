@@ -1,7 +1,7 @@
 {
   "baseline_date": "2026-08-13",
-  "baseline_name": "Accepted Showcase V1 baseline through DC-008 and I9 packaging",
-  "baseline_status": "SHOWCASE V1 ACCEPTED; DC-001 THROUGH DC-008 APPLIED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION INCORPORATED; I9 ACCEPTED",
+  "baseline_name": "Accepted Showcase V1 baseline through DC-009 public-release governance neutralisation and I9 packaging",
+  "baseline_status": "SHOWCASE V1 ACCEPTED; DC-001 THROUGH DC-009 APPLIED; VALIDATION CATALOGUE V1.2 AND MACHINE APPLICATION INCORPORATED; I9 ACCEPTED",
   "authority_order": [
     "Governing documents",
     "Detailed engineering source documents",
@@ -17,7 +17,8 @@
     "DC-005 — Controlled Validation Suspension and BLOCKED-TEST Determination",
     "DC-006 — Controlled Validation Test Determination Methods",
     "DC-007 — VT-TOP-DEF Current-Run Criterion Provenance Clarification",
-    "DC-008 — SEP Separation-Criterion Source Provenance Clarification"
+    "DC-008 — SEP Separation-Criterion Source Provenance Clarification",
+    "DC-009 — Public-Release Governance Neutralisation"
   ],
   "accepted_design_change": {
     "id": "DC-008",
