@@ -1,0 +1,47 @@
+import { expect, test } from '@playwright/test'
+
+test('reviewer landing explains the boundary and launches the unchanged demonstrator', async ({ page }) => {
+  await page.goto('/')
+  await expect(page).toHaveTitle(/Kenneth Ebenezer/)
+  await expect(page).toHaveTitle(/OT Engineering Demonstrator/)
+  await expect(page.getByRole('heading', { name: /A simplified, simulated OT systems project/i })).toBeVisible()
+  await expect(page.getByText('Engineering Demonstrator — Distribution Operations, Assurance and Defect Investigation')).toBeVisible()
+  await expect(page.getByText(/not a software product showcase/i)).toBeVisible()
+  await expect(page.getByText(/No real utility data or control/i)).toBeVisible()
+  await expect(page.getByText(/Develop an end-to-end understanding of how network information becomes operational decisions/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start defect walkthrough' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Review the common project artefact and its supporting records' })).toBeVisible()
+  await expect(page.getByText(/Application materials/i)).toHaveCount(0)
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow')
+
+  const actions = page.locator('.portfolio-hero-actions').getByRole('link')
+  await expect(actions.nth(0)).toHaveText('Explore the project approach')
+  await expect(actions.nth(1)).toContainText('Open the live demonstrator')
+  await actions.nth(1).click()
+
+  await expect(page).toHaveURL(/\/demo\/?$/)
+  await expect(page.getByRole('heading', { name: 'OT systems review workspace' })).toBeVisible()
+  await expect(page.getByText(/Fictional local operational technology demonstrator — conceptual and simplified SCADA, ADMS and OMS functions only/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start defect walkthrough' })).toBeVisible()
+  await page.getByRole('button', { name: 'Start trial' }).click()
+  await expect(page.getByRole('button', { name: 'Engineering basis' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Start another review' })).toBeVisible()
+  await page.reload()
+  await expect(page).toHaveURL(/\/demo\/?$/)
+  await expect(page.getByRole('heading', { name: 'OT Systems Demonstrator' })).toBeVisible()
+})
+
+test('reviewer landing remains readable without horizontal overflow on a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: /A simplified, simulated OT systems project/i })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What to evaluate' })).toBeVisible()
+  const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }))
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth)
+  await expect(page.getByRole('link', { name: /Open the live demonstrator/ }).last()).toBeVisible()
+
+  await page.goto('/demo')
+  await page.getByRole('button', { name: 'Start trial' }).click()
+  const demonstratorDimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }))
+  expect(demonstratorDimensions.scrollWidth).toBeLessThanOrEqual(demonstratorDimensions.clientWidth)
+})

@@ -1018,7 +1018,7 @@ class EvidenceExportService:
         body = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>{package_id}</title>
 <style>body{{font:16px system-ui,sans-serif;max-width:1050px;margin:40px auto;padding:0 24px;color:#13263e}}header{{border-left:8px solid #1f5f8b;padding:18px;background:#eef4f8}}.banner{{font-weight:800;color:#8a1831}}dl{{display:grid;grid-template-columns:240px 1fr;gap:8px}}dt{{font-weight:700}}dd{{margin:0;overflow-wrap:anywhere}}pre{{white-space:pre-wrap;background:#f5f8fb;padding:16px}}code{{overflow-wrap:anywhere}}a{{color:#1f5f8b}}</style></head>
-<body><header><p>OT Graduate Demonstrator · TasGrid East fictional utility</p><h1>Evidence package {package_id}</h1><p class="banner">{banner}</p><p>Simulated operation only — no real equipment control.</p></header>
+<body><header><p>OT Systems Demonstrator · TasGrid East fictional utility</p><h1>Evidence package {package_id}</h1><p class="banner">{banner}</p><p>Simulated operation only — no real equipment control.</p></header>
 <h2>Controlled provenance</h2><dl>
 <dt>Validation execution</dt><dd>{execution.validation_execution_id}</dd>
 <dt>Test</dt><dd>{html.escape(execution.test_id)} v{html.escape(str(execution.test_definition_version))}</dd>
@@ -1028,9 +1028,9 @@ class EvidenceExportService:
 <dt>Source application build</dt><dd>{execution.application_build_id}</dd>
 <dt>Test-definition hash</dt><dd>{execution.test_definition_sha256}</dd>
 <dt>Execution status</dt><dd>{execution.status.value}</dd><dt>Determination</dt><dd>{verdict}</dd></dl>
-<h2>Expected engineering result</h2><p>{html.escape(execution.expected_result_statement)}</p>
+<h2>Expected operational result</h2><p>{html.escape(execution.expected_result_statement)}</p>
 <h2>Preserved observed result</h2><pre>{html.escape(observed)}</pre>
-<h2>Captured engineering figure</h2><p><a href="figures/network-evidence.svg">Open network evidence figure</a>. The figure is subordinate to canonical JSON.</p>
+<h2>Captured network figure</h2><p><a href="figures/network-evidence.svg">Open network evidence figure</a>. The figure is subordinate to canonical JSON.</p>
 <h2>Record set</h2><p><a href="records/validation-execution.json">Validation execution</a> · <a href="records/test-definition.json">Test definition</a> · <a href="records/configuration.json">Configuration</a> · <a href="records/topology.json">Topology</a> · <a href="records/outage.json">Outage</a> · <a href="records/operational-events.json">Operational events</a></p>
 <p>{html.escape(chain_note)}</p><h2>Stable source references</h2><ul>{links}</ul>
 <p>Integrity is verified with <code>manifest.json</code>. The report and figure do not replace the source records.</p></body></html>"""
@@ -1044,9 +1044,9 @@ class EvidenceExportService:
             else "NOT FORMAL VALIDATION EVIDENCE"
         )
         return (
-            "OT Graduate Demonstrator evidence package\n"
+            "OT Systems Demonstrator evidence package\n"
             f"Classification: {evidence_class.value} — {notice}\n\n"
-            "This package contains fictional local engineering evidence only.\n"
+            "This package contains fictional local operational-systems evidence only.\n"
             "It represents simulated operation and has no real equipment-control authority.\n"
             "Open report.html in a browser. Verify every manifest.json file entry by\n"
             "computing SHA-256 over the exact packaged bytes. Canonical JSON records are\n"

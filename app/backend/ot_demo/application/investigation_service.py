@@ -321,6 +321,63 @@ class InvestigationService:
     def run_regression(
         self, failure_execution_id: UUID, actor: str
     ) -> InvestigationWorkspace:
+        chain = self.start_regression(failure_execution_id, actor)
+        regression = chain.regression
+        if regression is None:
+            raise InvestigationBoundaryError("the corrected regression record is absent")
+        if regression.execution.status is not ValidationExecutionStatus.ACTIVE:
+            raise InvestigationBoundaryError("the corrected regression is already complete")
+
+        run_id = regression.execution.scenario_run_id
+        for _ in range(12):
+            snapshot = self._scenarios.snapshot(run_id)
+            state = snapshot.run.network_state_label.value
+            if state == "N5":
+                return self.workspace(failure_execution_id)
+            available = {
+                item.command_type
+                for item in snapshot.allowed_actions
+                if item.available
+            }
+            if state == "N0":
+                command = ScenarioCommandType.INITIATE_FAULT
+            elif ScenarioCommandType.ACKNOWLEDGE_ALARM in available:
+                command = ScenarioCommandType.ACKNOWLEDGE_ALARM
+            elif state == "N1":
+                command = ScenarioCommandType.OPERATE_ISOLATION_DEVICE
+            elif state == "N2":
+                command = ScenarioCommandType.RESTORE_NORMAL_SOURCE
+            elif state == "N3":
+                command = ScenarioCommandType.ASSESS_RESTORATION
+            elif state == "N4":
+                command = ScenarioCommandType.EXECUTE_RESTORATION
+            else:
+                raise InvestigationBoundaryError(
+                    f"the corrected regression cannot continue from {state}"
+                )
+            self._execute_available(run_id, actor, command)
+            updated = self._scenarios.snapshot(run_id)
+            checkpoint_id = updated.run.network_state_label.value
+            current = self._validation.get_execution(
+                regression.execution.validation_execution_id
+            )
+            if (
+                checkpoint_id in {"N1", "N2", "N3", "N4", "N5"}
+                and not any(
+                    item.checkpoint_id == checkpoint_id
+                    for item in current.evidence_snapshots
+                )
+            ):
+                self._validation.capture_checkpoint(
+                    regression.execution.validation_execution_id, checkpoint_id
+                )
+        raise InvestigationBoundaryError(
+            "the corrected regression exceeded its controlled action sequence"
+        )
+
+    def start_regression(
+        self, failure_execution_id: UUID, actor: str
+    ) -> InvestigationWorkspace:
         failure = self._current_build_failure(failure_execution_id)
         defect = self._required_defect(failure_execution_id)
         correction = self._required_correction(defect)
@@ -329,8 +386,9 @@ class InvestigationService:
             raise InvestigationBoundaryError(
                 "the corrected full regression requires the preserved direct repeat PASS"
             )
-        if self._link(defect, RepeatRelationshipType.REGRESSION) is not None:
-            raise InvestigationBoundaryError("the corrected regression is already preserved")
+        regression_link = self._link(defect, RepeatRelationshipType.REGRESSION)
+        if regression_link is not None:
+            return self.workspace(failure_execution_id)
         direct = self._validation.get_execution(direct_link.new_execution_id)
         if direct.execution.verdict is not ValidationVerdict.PASS:
             raise InvestigationBoundaryError("the linked direct repeat is not PASS")
@@ -346,33 +404,17 @@ class InvestigationService:
             ),
         )
         self._validation.capture_checkpoint(execution.validation_execution_id, "N0")
-        run_id = initial.run.scenario_run_id
-        self._execute_available(run_id, actor, ScenarioCommandType.INITIATE_FAULT)
-        self._validation.capture_checkpoint(execution.validation_execution_id, "N1")
-        self._execute_available(run_id, actor, ScenarioCommandType.ACKNOWLEDGE_ALARM)
-        while self._scenarios.snapshot(run_id).run.network_state_label.value != "N2":
-            self._execute_available(
-                run_id, actor, ScenarioCommandType.OPERATE_ISOLATION_DEVICE
-            )
-        self._validation.capture_checkpoint(execution.validation_execution_id, "N2")
-        self._execute_available(run_id, actor, ScenarioCommandType.RESTORE_NORMAL_SOURCE)
-        self._validation.capture_checkpoint(execution.validation_execution_id, "N3")
-        self._execute_available(run_id, actor, ScenarioCommandType.ASSESS_RESTORATION)
-        self._validation.capture_checkpoint(execution.validation_execution_id, "N4")
-        self._execute_available(run_id, actor, ScenarioCommandType.EXECUTE_RESTORATION)
-        self._validation.capture_checkpoint(execution.validation_execution_id, "N5")
-        regression = self._validation.get_execution(execution.validation_execution_id)
         self._repository.insert_repeat_link(
             RepeatLink(
                 repeat_link_id=uuid4(),
                 relationship_type=RepeatRelationshipType.REGRESSION,
                 original_execution_id=direct.execution.validation_execution_id,
-                new_execution_id=regression.execution.validation_execution_id,
+                new_execution_id=execution.validation_execution_id,
                 defect_record_id=defect.defect_record_id,
                 correction_record_id=correction.correction_record_id,
                 defect_id=defect.defect_id,
                 correction_id=correction.correction_id,
-                application_build_id=regression.execution.application_build_id,
+                application_build_id=execution.application_build_id,
             )
         )
         return self.workspace(failure_execution_id)

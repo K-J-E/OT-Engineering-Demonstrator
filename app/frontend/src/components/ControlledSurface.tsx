@@ -18,11 +18,8 @@ export function ControlledSurface({
       className="controlled-surface"
       data-controlled-surface={surfaceId}
       data-identity-profile={identityProfile}
+      data-simulation-notice={fixedNotice}
     >
-      <div className="surface-assurance" role="note">
-        <strong>{fixedNotice}</strong>
-        <span>{surfaceId}</span>
-      </div>
       {children}
     </section>
   )

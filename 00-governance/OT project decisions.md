@@ -21,7 +21,7 @@ Design Philosophy
 - Software second.
 
 Target Audience
-- Oribus graduate recruiters and engineers.
+- Graduate recruiters and engineers working across power-utility operational technology, control systems and information systems.
 
 Software Goal
 - Support the engineering workflow, not showcase frontend development.

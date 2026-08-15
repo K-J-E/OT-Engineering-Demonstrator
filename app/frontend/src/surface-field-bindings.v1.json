@@ -6,7 +6,7 @@
       "surface_id": "Start / Run Setup",
       "bindings": [
         {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
-        {"field_id": "mode", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_mode"},
+        {"field_id": "mode", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "CONTROLLED / VALIDATION"},
         {"field_id": "test_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.formal_test_id"},
         {"field_id": "validation_catalogue_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.formal_definition.catalogue_sha256"},
         {"field_id": "network_configuration_identity", "module": "app/frontend/src/features/run-setup/RunSetup.tsx", "token": "bootstrap.default_configuration_id"},
@@ -101,12 +101,12 @@
       "surface_id": "Defect Investigation",
       "bindings": [
         {"field_id": "fixed_notice", "module": "app/frontend/src/components/ControlledSurface.tsx", "token": "FIXED_SIMULATION_NOTICE"},
-        {"field_id": "v1_failure_identity", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.original_failure.execution.validation_execution_id"},
-        {"field_id": "defect_identity", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.defect_record.defect_id"},
-        {"field_id": "correction_identity", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.correction_record.correction_id"},
-        {"field_id": "corrected_repeat_regression_identities", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "regression.execution.validation_execution_id"},
+        {"field_id": "v1_failure_identity", "module": "app/frontend/src/features/investigation/DefectWorkflow.tsx", "token": "investigation.original_failure.execution.validation_execution_id"},
+        {"field_id": "defect_identity", "module": "app/frontend/src/features/investigation/DefectWorkflow.tsx", "token": "workspace.defect_record?.defect_id"},
+        {"field_id": "correction_identity", "module": "app/frontend/src/features/investigation/DefectWorkflow.tsx", "token": "workspace.correction_record?.correction_id"},
+        {"field_id": "corrected_repeat_regression_identities", "module": "app/frontend/src/features/investigation/DefectWorkflow.tsx", "token": "regression.execution.validation_execution_id"},
         {"field_id": "same_build_evidence", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.same_build_proven"},
-        {"field_id": "source_catalogue_provenance", "module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx", "token": "workspace.original_failure.execution.catalogue_sha256"}
+        {"field_id": "source_catalogue_provenance", "module": "app/frontend/src/features/investigation/DefectWorkflow.tsx", "token": "investigation.original_failure.execution.catalogue_sha256"}
       ]
     },
     {

@@ -140,6 +140,8 @@ def test_workspace_bootstrap_and_n0_projection_preserve_authority_classes(
     assert bootstrap.formal_test_id == "VT-FML-N0-N5-001"
     assert bootstrap.default_configuration_version == "1.1"
     assert bootstrap.default_scenario_time == T0
+    assert "operational technology demonstrator" in bootstrap.conceptual_boundary_notice.lower()
+    assert "conceptual and simplified scada, adms and oms" in bootstrap.conceptual_boundary_notice.lower()
     assert "no real equipment control" in bootstrap.conceptual_boundary_notice.lower()
 
     assert len(projection.network_nodes) == 18

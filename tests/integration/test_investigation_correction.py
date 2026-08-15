@@ -141,6 +141,11 @@ def test_complete_consequence_to_source_correction_repeat_and_regression(tmp_pat
     assert chain.original_failure.execution == failure
     assert chain.original_failure.evidence_snapshots[0] == failure_evidence
 
+    chain = investigation.start_regression(failure.validation_execution_id, "Graduate Engineer")
+    assert chain.regression is not None
+    assert chain.regression.execution.status is ValidationExecutionStatus.ACTIVE
+    assert [item.checkpoint_id for item in chain.regression.evidence_snapshots] == ["N0"]
+
     chain = investigation.run_regression(failure.validation_execution_id, "Graduate Engineer")
     assert chain.regression is not None
     regression = chain.regression

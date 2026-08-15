@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ActionPanel } from './features/operational/ActionPanel'
 import { ContextRibbon } from './features/operational/ContextRibbon'
@@ -11,7 +11,7 @@ import { ControlledSurface } from './components/ControlledSurface'
 import controlledSurfaces from './controlled-surfaces.v1.json'
 
 describe('I6 engineering presentation components', () => {
-  it('renders the exact eight controlled surfaces with their frozen notice and identity profiles', () => {
+  it('retains the eight controlled surface identities without repeating a visible notice bar', () => {
     expect(controlledSurfaces.surfaces.map((surface) => surface.surface_id)).toEqual([
       'Start / Run Setup', 'Operational Workspace', 'Telemetry & Events',
       'Restoration Assessment', 'Formal Validation', 'Evidence Library',
@@ -26,13 +26,15 @@ describe('I6 engineering presentation components', () => {
       const region = rendered.container.querySelector('[data-controlled-surface]')
       expect(region).toHaveAttribute('data-controlled-surface', surface.surface_id)
       expect(region).toHaveAttribute('data-identity-profile', surface.required_identity_profile)
-      expect(screen.getByText(surface.fixed_notice)).toBeVisible()
+      expect(region).toHaveAttribute('data-simulation-notice', surface.fixed_notice)
+      expect(screen.queryByText(surface.fixed_notice)).not.toBeInTheDocument()
       rendered.unmount()
     }
   })
   it('keeps the approved context fields continuously explicit', () => {
     render(<ContextRibbon projection={makeProjection()} />)
-    expect(screen.getAllByText('FORMAL')).toHaveLength(2)
+    expect(screen.getByText('CONTROLLED')).toBeVisible()
+    expect(screen.getByText('VALIDATION')).toBeVisible()
     expect(screen.getByText('SEC-A2')).toBeVisible()
     expect(screen.getByTestId('formal-state')).toHaveTextContent('N4 · Alternate supply assessed')
     expect(screen.getByText('PERMITTED')).toBeVisible()
@@ -47,7 +49,7 @@ describe('I6 engineering presentation components', () => {
     expect(screen.getByRole('heading', { name: 'Latest telemetry' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Calculated operating state' })).toBeVisible()
     expect(screen.getAllByText('OPEN')).toHaveLength(2)
-    expect(screen.getByText(/become a saved validation record only when/i)).toBeVisible()
+    expect(screen.getByText(/evidence is preserved automatically at the controlled stage or result/i)).toBeVisible()
   })
 
   it('uses system availability, plain-language reasons and page-owned action routing', () => {
@@ -59,6 +61,23 @@ describe('I6 engineering presentation components', () => {
     expect(onExecute).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: /Reclose BRK-A to restore the healthy upstream section/ })).toBeDisabled()
     expect(screen.getByText(/after both boundary switches have trustworthy open indications/i)).toBeVisible()
+  })
+
+  it('turns the stale-evidence block into a clear guided continuation', () => {
+    const onNavigate = vi.fn()
+    render(<ActionPanel actions={makeProjection().allowed_actions} faultSectionId="SEC-A2" busyActionId={null} safetyEvidenceBlocked onExecute={vi.fn()} onNavigate={onNavigate} />)
+    expect(screen.getByRole('heading', { name: 'Isolation switching is intentionally unavailable' })).toBeVisible()
+    expect(screen.getByText(/grey operation cards show what has been withheld/i)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Review stale telemetry evidence' }))
+    expect(onNavigate).toHaveBeenCalledWith('telemetry')
+  })
+
+  it('prevents the safety walkthrough from bypassing its alarm review', () => {
+    const isolationAction = { ...makeProjection().allowed_actions[0]!, action_id: 'ISOLATE-SAFETY', command_type: 'OPERATE_ISOLATION_DEVICE' as const, target_entity_id: 'SW-A12', requested_state: 'OPEN' as const, available: true }
+    render(<ActionPanel actions={[isolationAction]} faultSectionId="SEC-A2" busyActionId={null} alarmReviewPending onExecute={vi.fn()} onNavigate={vi.fn()} />)
+    expect(screen.getByRole('button', { name: 'Open SW-A12 to isolate SEC-A2' })).toBeDisabled()
+    expect(screen.getByText('Review alarm first')).toBeVisible()
+    expect(screen.getByText(/before the boundary-switch evidence is evaluated/i)).toBeVisible()
   })
 
   it('shows quality and freshness independently for fresh, stale, uncertain, bad and future evidence', () => {
@@ -88,6 +107,33 @@ describe('I6 engineering presentation components', () => {
     render(<RestorationView projection={makeProjection({ restoration_assessments: [assessment], summary: { ...makeProjection().summary, current_assessment_status: outcome } })} busyActionId={null} validationBusy={false} onExecute={vi.fn()} onSaveEvidence={vi.fn()} onViewEvidence={vi.fn()} />)
     expect(screen.getByRole('heading', { name: outcome })).toBeVisible()
     expect(screen.getByText(new RegExp(phrase, 'i'))).toBeVisible()
+  })
+
+  it('guides a rejected trial to its result while keeping candidate identities under traceability', () => {
+    const onViewEvidence = vi.fn()
+    const base = makeProjection()
+    const assessment = { ...permittedAssessment, outcome: 'REJECTED' as const, reason_codes: ['CAPACITY_EXCEEDED'] }
+    const projection = makeProjection({
+      run: { ...base.run, mode: 'EXPLORATION', evidence_class: 'EXPLORATORY' },
+      restoration_assessments: [assessment],
+      summary: { ...base.summary, current_assessment_status: 'REJECTED' },
+      allowed_actions: base.allowed_actions.map((action) => action.command_type === 'EXECUTE_RESTORATION' ? { ...action, available: false } : action),
+    })
+    const rendered = render(<RestorationView projection={projection} busyActionId={null} validationBusy={false} reviewAvailableAtAssessment onExecute={vi.fn()} onSaveEvidence={vi.fn()} onViewEvidence={onViewEvidence} />)
+    const view = within(rendered.container)
+    const proposedRestoration = view.getByRole('region', { name: 'Sections, alternate feeder and switching path' })
+    expect(within(proposedRestoration).queryByText('Candidate ID')).not.toBeInTheDocument()
+    expect(within(proposedRestoration).queryByText('Proposed path edges')).not.toBeInTheDocument()
+    const traceability = view.getByText('Technical traceability').closest('details')!
+    expect(within(traceability).getByText('Candidate ID')).toBeInTheDocument()
+    expect(within(traceability).getByText('Switching-path record IDs')).toBeInTheDocument()
+    fireEvent.click(view.getByRole('button', { name: 'Review assurance and validation results' }))
+    expect(onViewEvidence).toHaveBeenCalledOnce()
+  })
+
+  it('explains that every alternate-supply outcome can be a correct derived decision', () => {
+    render(<RestorationView projection={makeProjection({ restoration_assessments: [] })} busyActionId={null} validationBusy={false} onExecute={vi.fn()} onSaveEvidence={vi.fn()} onViewEvidence={vi.fn()} />)
+    expect(screen.getByText(/No suitable candidate path, restoration permitted, restoration rejected and restoration blocked are all possible correct outcomes/i)).toBeVisible()
   })
 
   it('shows only the selected walkthrough instead of catalogue-wide validation jargon', () => {

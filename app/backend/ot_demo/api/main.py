@@ -1,5 +1,6 @@
 """Versioned local API foundation through the authorised I6 workspace."""
 
+from collections.abc import Callable
 from datetime import datetime
 from uuid import UUID
 
@@ -82,6 +83,10 @@ class _ApiRequest(BaseModel):
     """Permissive JSON transport model; converted to a strict domain contract."""
 
     model_config = ConfigDict(extra="forbid")
+
+
+class ResetLocalShowcasePayload(_ApiRequest):
+    confirmation: str = Field(pattern="^RESET LOCAL SHOWCASE$")
 
 
 class InitialiseRunPayload(_ApiRequest):
@@ -240,12 +245,13 @@ def create_app(
     investigation_service: InvestigationService | None = None,
     evidence_export_service: EvidenceExportService | None = None,
     determination_service: DeterminationService | None = None,
+    reset_local_showcase: Callable[[], None] | None = None,
 ) -> FastAPI:
     app = FastAPI(
-        title="OT Graduate Demonstrator",
+        title="OT Systems Demonstrator",
         version="0.9.0",
         description=(
-            "Fictional local engineering demonstrator — scenario, validation, investigation, exploration and evidence-export API"
+            "Fictional local operational technology demonstrator — scenario, validation, investigation, trials and evidence-export API"
         ),
     )
 
@@ -272,6 +278,18 @@ def create_app(
                 detail="Operational workspace service is not configured for this process.",
             )
         return workspace_service
+
+    @app.post("/api/v1/local-showcase/reset")
+    def reset_showcase(request: ResetLocalShowcasePayload) -> dict[str, str]:
+        """Clear only generated local-demo state; controlled source files remain intact."""
+
+        if reset_local_showcase is None:
+            raise HTTPException(
+                status_code=503,
+                detail="Local showcase reset is not configured for this process.",
+            )
+        reset_local_showcase()
+        return {"status": "RESET"}
 
     def investigation() -> InvestigationService:
         if investigation_service is None:
@@ -465,6 +483,20 @@ def create_app(
     ) -> InvestigationWorkspace:
         try:
             return investigation().run_direct_repeat(
+                failure_execution_id, request.actor
+            )
+        except InvestigationBoundaryError as error:
+            raise HTTPException(status_code=409, detail=str(error)) from error
+
+    @app.post(
+        "/api/v1/investigations/{failure_execution_id}/regression/start",
+        response_model=InvestigationWorkspace,
+    )
+    def start_regression(
+        failure_execution_id: UUID, request: RunLinkedValidationPayload
+    ) -> InvestigationWorkspace:
+        try:
+            return investigation().start_regression(
                 failure_execution_id, request.actor
             )
         except InvestigationBoundaryError as error:

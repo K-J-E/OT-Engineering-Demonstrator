@@ -27,7 +27,7 @@ export function EngineeringBasis({ projection }: { projection: WorkspaceProjecti
         </dl>
       </section>
       <section className="panel basis-columns">
-        <article><h3>What this demonstrates</h3><ul><li>Configuration-driven topology, outage and source attribution.</li><li>Telemetry quality/freshness gates and conservative restoration decisions.</li><li>Immutable defect, correction, validation and export provenance.</li><li>Separate FORMAL and EXPLORATORY evidence classes.</li></ul></article>
+        <article><h3>What this demonstrates</h3><ul><li>Configuration-driven topology, outage and source attribution.</li><li>Telemetry quality/freshness gates and conservative restoration decisions.</li><li>Immutable defect, correction, validation and export provenance.</li><li>Separate controlled-validation and trial evidence classes.</li></ul></article>
         <article><h3>Deliberate boundaries</h3><ul><li>Fictional network and deterministic local simulation.</li><li>No real SCADA, ADMS, OMS, GIS or field-equipment connection.</li><li>No production switching or autonomous control capability.</li><li>Not a commercial ADMS or protection-study product.</li></ul></article>
       </section>
     </div>

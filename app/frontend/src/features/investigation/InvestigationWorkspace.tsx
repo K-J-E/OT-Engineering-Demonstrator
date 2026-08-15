@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
 import type { InvestigationStep, InvestigationWorkspace as InvestigationModel } from '../../api/contracts'
 import type { WorkspaceApi } from '../../api/client'
 
@@ -21,20 +22,31 @@ function EvidencePhase({ phase, number }: { phase: InvestigationPhase; number: n
   </article>
 }
 
-export function InvestigationWorkspace({ api, failureExecutionId, actor, initial, onUpdate, onContinue }: { api: WorkspaceApi; failureExecutionId: string; actor: string; initial?: InvestigationModel | null; onUpdate: (workspace: InvestigationModel) => void; onContinue?: () => void }) {
+export function InvestigationWorkspace({ api, failureExecutionId, actor, initial, onUpdate, onApplyCorrection, onCorrectionApplied }: { api: WorkspaceApi; failureExecutionId: string; actor: string; initial?: InvestigationModel | null; onUpdate: (workspace: InvestigationModel) => Promise<void> | void; onApplyCorrection: (workspace: InvestigationModel) => Promise<InvestigationModel>; onCorrectionApplied?: () => void }) {
   const [workspace, setWorkspace] = useState<InvestigationModel | null>(initial ?? null)
   const [revealed, setRevealed] = useState(1)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const correctionStepRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (initial !== undefined && initial !== null) { setWorkspace(initial); return }
     api.investigation(failureExecutionId).then(setWorkspace).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'Unable to load investigation.'))
   }, [api, failureExecutionId, initial])
 
-  async function mutate(operation: () => Promise<InvestigationModel>) {
+  function bringIntoView(target: RefObject<HTMLElement | null>) {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => target.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })))
+  }
+
+  async function mutate(operation: () => Promise<InvestigationModel>, nextStep?: RefObject<HTMLElement | null>, afterUpdate?: () => void) {
     setBusy(true); setError(null)
-    try { const next = await operation(); setWorkspace(next); onUpdate(next) }
+    try {
+      const next = await operation()
+      setWorkspace(next)
+      await onUpdate(next)
+      if (nextStep !== undefined) bringIntoView(nextStep)
+      afterUpdate?.()
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Controlled investigation action failed.') }
     finally { setBusy(false) }
   }
@@ -43,13 +55,12 @@ export function InvestigationWorkspace({ api, failureExecutionId, actor, initial
   const action = (type: string) => workspace.actions.find((item) => item.action_type === type)!
   const evidencePhases = phases(workspace)
   const allReviewed = revealed >= evidencePhases.length
-  const repeat = workspace.direct_repeat?.execution
   const difference = workspace.configuration_comparison.differences[0]
 
   return <div className="investigation-layout polished-investigation">
     <section className="panel investigation-lead">
       <div className="panel-heading"><div><span className="eyebrow">Consequence-to-source investigation</span><h2>Why did a safe-looking run produce the wrong result?</h2></div><span className="status-badge failure">Validation failed</span></div>
-      <p>The operating sequence is not being rerun or rewritten here. This page follows the preserved 450-customer mismatch backwards through the evidence until the hidden GIS source error is identified.</p>
+      <p>The operating sequence is not being rerun or rewritten here. This page follows the preserved 450-customer mismatch backwards through the evidence until the seeded GIS source error is identified.</p>
       <div className="investigation-summary"><article><span>Accepted impact</span><strong>850 customers</strong></article><article><span>v1.0 calculated impact</span><strong>400 customers</strong></article><article><span>Difference to explain</span><strong>450 customers</strong></article></div>
     </section>
 
@@ -59,17 +70,15 @@ export function InvestigationWorkspace({ api, failureExecutionId, actor, initial
     {allReviewed && <section className="panel root-cause-determination" aria-labelledby="root-cause-title">
       <div className="panel-heading"><div><span className="eyebrow">Engineering determination</span><h2 id="root-cause-title">The fault is in one GIS connectivity endpoint</h2></div><span className="status-badge warning">Cause identified</span></div>
       <div className="connection-correction"><article><span>v1.0 · incorrect</span><strong>SW-A23 connected to SEC-B3</strong><p>This creates a false alternate source path and makes SEC-A3 and SEC-A4 appear energised after BRK-A trips.</p></article><div aria-hidden="true">→</div><article><span>v1.1 · corrected</span><strong>SW-A23 connected to SEC-A2</strong><p>The false path disappears and the calculated outage returns to the accepted 850 customers.</p></article></div>
-      <p className="callout warning"><strong>Everything can look internally consistent and still be wrong.</strong> The telemetry was trustworthy and the algorithms followed their inputs correctly. The hidden topology relationship in the authoritative GIS package made the coherent-looking answer incorrect.</p>
+      <p className="callout warning"><strong>What this defect shows:</strong> <strong>Everything can look internally consistent and still be wrong.</strong> The telemetry was trustworthy and the algorithms followed their inputs correctly. The seeded topology relationship in the authoritative GIS package made the coherent-looking answer incorrect.</p>
       <details className="technical-details"><summary>Exact controlled package difference and integrity records</summary><dl className="comparison-grid"><div><dt>Changed field</dt><dd>{difference?.path}</dd></div><div><dt>v1.0 value</dt><dd>{difference?.before}</dd></div><div><dt>v1.1 value</dt><dd>{difference?.after}</dd></div></dl><p>Assets, loads, customer mappings, switch states, schema and application algorithms are unchanged.</p></details>
     </section>}
 
-    <section className="panel correction-workflow" aria-labelledby="correction-title"><div className="panel-heading"><div><span className="eyebrow">Controlled disposition and correction</span><h2 id="correction-title">Preserve the finding, select the correction, then test it</h2></div></div>
+    <section className="panel correction-workflow" aria-labelledby="correction-title"><div className="panel-heading"><div><span className="eyebrow">Controlled disposition and correction</span><h2 id="correction-title">Preserve the finding, correct the topology, then repeat</h2></div></div>
       <div className="correction-steps">
-        <article className={workspace.defect_record === null ? 'current' : 'complete'}><span>1</span><div><h3>Record the engineering defect</h3><p>Bind the identified GIS cause to the preserved validation failure without replacing either record.</p>{workspace.defect_record === null ? <button type="button" className="primary-action defect-action" disabled={!allReviewed || busy || !action('RECORD_DEFECT').available} onClick={() => mutate(() => api.recordDefect(failureExecutionId, actor, workspace.steps.map((step) => step.step_id)))}>Confirm and record the identified fault</button> : <strong className="completed-action">Recorded as DEF-001</strong>}</div></article>
-        <article className={workspace.correction_record === null ? workspace.defect_record === null ? '' : 'current' : 'complete'}><span>2</span><div><h3>Select the corrected GIS record</h3><p>Use immutable configuration v1.1, where the endpoint is corrected. No live package editing occurs in this interface.</p>{workspace.correction_record === null ? <button type="button" className="primary-action defect-action" disabled={busy || !action('RECORD_CORRECTION').available} onClick={() => mutate(() => api.recordCorrection(failureExecutionId, actor))}>Select corrected GIS configuration v1.1</button> : <strong className="completed-action">Correction COR-001 recorded</strong>}</div></article>
-        <article className={repeat === undefined ? workspace.correction_record === null ? '' : 'current' : 'complete'}><span>3</span><div><h3>Repeat the failed post-trip check</h3><p>Run the same focused comparison with the same application build and corrected configuration.</p>{repeat === undefined ? <button type="button" className="primary-action defect-action" disabled={busy || !action('RUN_DIRECT_REPEAT').available} onClick={() => mutate(() => api.runDirectRepeat(failureExecutionId, actor))}>Run focused corrected check</button> : <strong className="completed-action">PASS · 850 affected customers</strong>}</div></article>
+        <article className={workspace.defect_record === null ? 'current' : 'complete'}><span>1</span><div><h3>Record the engineering defect</h3><p>Bind the identified GIS cause to the preserved validation failure without replacing either record.</p>{workspace.defect_record === null ? <button type="button" className="primary-action defect-action" disabled={!allReviewed || busy || !action('RECORD_DEFECT').available} onClick={() => mutate(() => api.recordDefect(failureExecutionId, actor, workspace.steps.map((step) => step.step_id)), correctionStepRef)}>Confirm and record the identified fault</button> : <strong className="completed-action">Recorded as DEF-001</strong>}</div></article>
+        <article ref={correctionStepRef} className={workspace.regression === null ? workspace.defect_record === null ? '' : 'current' : 'complete'}><span>2</span><div><h3>Correct the topology configuration error</h3><p>Record the approved endpoint correction, verify the focused post-trip result, then open the complete v1.1 run with the same SEC-A2 fault active as the original defect run. The application logic is unchanged.</p>{workspace.regression === null ? <button type="button" className="primary-action defect-action" disabled={busy || workspace.defect_record === null} onClick={() => mutate(() => onApplyCorrection(workspace), undefined, onCorrectionApplied)}>Correct the topology configuration error</button> : <strong className="completed-action">Correction {workspace.correction_record?.correction_id} applied · corrected run ready</strong>}</div></article>
       </div>
-      {repeat !== undefined && <div className="guided-continuation corrected-continuation"><div><strong>The focused correction check passed</strong><p>Continue to repeat the entire isolation-to-restoration sequence and prove both operational assurance and system validation.</p></div><button type="button" className="primary-action defect-action" onClick={onContinue}>Continue to corrected full run</button></div>}
       {workspace.same_build_proven && <p className="callout success" data-testid="same-build-proof">The v1.0 failure and v1.1 focused repeat used the same application version; only the network configuration changed.</p>}
       {error !== null && <p role="alert" className="global-error">{error}</p>}
     </section>

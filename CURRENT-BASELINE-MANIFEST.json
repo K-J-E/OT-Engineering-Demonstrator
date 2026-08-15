@@ -31,18 +31,18 @@
   "documents": [
     {
       "path": "00-governance/OT project vision.pdf",
-      "sha256": "f0b24f1eff0f7f8f4fae65722cf44a54f7738bc085adb9adf8c2a5319baaac8e",
-      "bytes": 106568
+      "sha256": "4941bb198735e6bd26ab7f9cbea80e48b3ade56ebef89a78283c68e070c4d950",
+      "bytes": 84613
     },
     {
       "path": "00-governance/OT demo project definition.pdf",
-      "sha256": "b4ac9c24f1cb3692241aabdc958a895d9b06566ea5b9853ce4717910e395e572",
-      "bytes": 134370
+      "sha256": "bb0bc8fe60bdf0b2d2d06934fac8952e20fcbcda3201d8cb4a4c7cf09565b80d",
+      "bytes": 100465
     },
     {
       "path": "00-governance/OT project decisions.md",
-      "sha256": "dc2a1e7c2c1e8bd1321c718070b6afbc2cd10dd077699f88daccba4ee0a3d21d",
-      "bytes": 730
+      "sha256": "6093daeeeb14a1200eb465a7c6c1d4dcfaf2784a82693e3e64009e43a4b3669a",
+      "bytes": 817
     },
     {
       "path": "01-engineering-source-documents/Engineering Investigation and Research.docx",

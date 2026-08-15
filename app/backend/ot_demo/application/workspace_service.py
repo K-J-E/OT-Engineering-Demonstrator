@@ -60,8 +60,8 @@ class WorkspaceService:
     FORMAL_TEST_ID = "VT-FML-N0-N5-001"
     FORMAL_EPOCH = "2030-01-01T00:00:00.000Z"
     CONCEPTUAL_NOTICE = (
-        "Fictional local engineering demonstrator — conceptual SCADA, ADMS and OMS "
-        "functions only. All switching is simulated; no real equipment control."
+        "Fictional local operational technology demonstrator — conceptual and simplified "
+        "SCADA, ADMS and OMS functions only. All switching is simulated; no real equipment control."
     )
 
     def __init__(
@@ -89,7 +89,7 @@ class WorkspaceService:
         formal = self._definition(definitions, self.FORMAL_TEST_ID)
         return WorkspaceBootstrap(
             application_build_id=self._application_build_manifest.application_build_id,
-            default_actor="Graduate Engineer",
+            default_actor="Simulated Reviewer",
             default_mode=ScenarioMode.FORMAL,
             default_evidence_class=formal.definition.evidence_class,
             default_configuration_id=loaded.catalog_entry.configuration_id,

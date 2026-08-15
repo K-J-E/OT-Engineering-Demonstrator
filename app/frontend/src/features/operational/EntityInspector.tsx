@@ -55,7 +55,7 @@ export function EntityInspector({ node }: { node: WorkspaceNode | null }) {
           </dl>
         </article>
       </div>
-      <p className="evidence-boundary-note"><strong>Current view:</strong> these values update as the scenario changes. They become a saved validation record only when the reviewer captures a checkpoint.</p>
+      <p className="evidence-boundary-note"><strong>Current view:</strong> these values update as the scenario changes. Evidence is preserved automatically at the controlled stage or result defined for this walkthrough.</p>
     </section>
   )
 }

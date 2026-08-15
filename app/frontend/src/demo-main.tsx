@@ -1,11 +1,10 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { PortfolioLanding } from './portfolio/PortfolioLanding'
-
-document.body.classList.add('portfolio-page')
+import { App } from './App'
+import './styles.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <PortfolioLanding />
+    <App />
   </StrictMode>,
 )

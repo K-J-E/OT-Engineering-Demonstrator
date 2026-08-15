@@ -5,23 +5,17 @@ async function view(page: Page, name: string) {
 }
 
 test('defect run passes live assurance, fails validation, traces the cause and passes after correction', async ({ page }) => {
-  const started = await page.request.post('/api/v1/investigations/start', { data: { actor: 'Graduate Engineer' } })
-  expect(started.ok()).toBe(true)
-  const investigation = await started.json()
-  const failureExecutionId = investigation.original_failure.execution.validation_execution_id as string
-  const failureRunId = investigation.original_failure.execution.scenario_run_id as string
-  await page.goto('/')
-  await page.evaluate(({ failureExecutionId, failureRunId }) => {
-    localStorage.setItem('ot-demo-investigation-failure-id', failureExecutionId)
-    localStorage.setItem('ot-demo-current-run-id', failureRunId)
-    localStorage.setItem('ot-demo-current-experience', 'investigation')
-  }, { failureExecutionId, failureRunId })
-  await page.reload()
+  await page.goto('/demo')
+  await page.getByRole('button', { name: 'Start defect walkthrough' }).click()
 
   const navigation = page.getByRole('navigation', { name: 'Workspace views' })
   await expect(navigation.getByRole('button')).toHaveCount(6)
   await expect(navigation.getByRole('button', { name: 'Investigation' })).toHaveClass(/defect-stage/)
   await expect(navigation.getByRole('button', { name: 'Corrected repeat' })).toHaveClass(/defect-stage/)
+  await expect(page.getByText('network-configuration-v1.0 · v1.0')).toBeVisible()
+  await expect(page.getByTestId('formal-state')).toContainText('N1 · Fault active')
+  await expect(page.getByRole('button', { name: /^Open SW-A12 to isolate SEC-A2$/ })).toBeDisabled()
+  await expect(page.getByText('Review alarm first')).toHaveCount(1)
 
   await view(page, 'Events')
   await page.getByRole('button', { name: 'Acknowledge this feeder-trip alarm' }).click()
@@ -31,8 +25,11 @@ test('defect run passes live assurance, fails validation, traces the cause and p
   await expect(page.getByRole('button', { name: /^Open SW-A23 to isolate SEC-A2$/ })).toHaveCount(0)
   await page.getByRole('button', { name: /^Reclose BRK-A to restore the healthy upstream section$/ }).click()
   await page.getByRole('button', { name: 'Check alternate supply for healthy de-energised sections' }).click()
+  await expect(page.getByText(/No suitable candidate path, restoration permitted, restoration rejected and restoration blocked are all possible correct outcomes/i)).toBeVisible()
   await page.getByRole('button', { name: 'Run alternate-supply check' }).click()
   await expect(page.getByRole('heading', { name: 'NO CANDIDATE', exact: true })).toBeVisible()
+  await expect(page.getByText('(This is the correct restoration outcome based on the currently configured topology.)')).toBeVisible()
+  await expect(page.getByText(/No candidate path was available, so no candidate-specific safety, switching or capacity checks were required/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'No alternate restoration action is available' })).toBeVisible()
   await page.getByRole('button', { name: 'Review assurance and validation results' }).click()
 
@@ -43,6 +40,7 @@ test('defect run passes live assurance, fails validation, traces the cause and p
   await expect(page.getByText('FAIL', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('850 customers affected')).toBeVisible()
   await expect(page.getByText('400 customers affected')).toBeVisible()
+  await expect(page.getByText(/assurance passes because the configured topology leads the operating logic to derive that no suitable alternate-supply candidate exists/i)).toBeVisible()
   await page.getByRole('button', { name: 'Investigate the validation failure' }).click()
 
   await expect(page.getByRole('heading', { name: 'Why did a safe-looking run produce the wrong result?' })).toBeVisible()
@@ -53,17 +51,33 @@ test('defect run passes live assurance, fails validation, traces the cause and p
 
   await page.getByRole('button', { name: 'Confirm and record the identified fault' }).click()
   await expect(page.getByText('Recorded as DEF-001')).toBeVisible()
-  await page.getByRole('button', { name: 'Select corrected GIS configuration v1.1' }).click()
-  await expect(page.getByText('Correction COR-001 recorded')).toBeVisible()
-  await page.getByRole('button', { name: 'Run focused corrected check' }).click()
-  await expect(page.getByText('PASS · 850 affected customers')).toBeVisible()
-  await expect(page.getByTestId('same-build-proof')).toContainText('only the network configuration changed')
-  await page.getByRole('button', { name: 'Continue to corrected full run' }).click()
-  await page.getByRole('button', { name: 'Run corrected isolation-to-restoration scenario' }).click()
+  const correctTopology = page.getByRole('button', { name: 'Correct the topology configuration error' })
+  await expect(correctTopology).toBeInViewport()
+  await correctTopology.click()
+
+  await expect(page.getByRole('heading', { name: 'Review the v1.1 topology before the full repeat' })).toBeVisible()
+  await expect(page.getByText('network-configuration-v1.1 · v1.1')).toBeVisible()
+  await expect(page.getByTestId('formal-state')).toContainText('N1 · Fault active')
+  await expect(page.getByTestId('affected-customers')).toHaveText('850')
+  await expect(page.getByRole('button', { name: 'Start simulated fault at SEC-A2' })).toBeDisabled()
+  await expect(page.getByText(/Repeats the complete six-stage sequence automatically, then opens the assurance and validation result/i)).toBeVisible()
+  await expect(page.getByText(/Or continue the sequence manually using the action cards below/i)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Return to walkthrough selection' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Run corrected full scenario' }).click()
 
   await expect(page.getByRole('heading', { name: 'Prove the correction through the complete operating sequence' })).toBeVisible()
-  await expect(page.getByText('PASS', { exact: true }).first()).toBeVisible()
+  const correctedResult = page.getByRole('region', { name: 'Prove the correction through the complete operating sequence' })
+  await expect(correctedResult.locator('article').filter({ hasText: 'Operational assurance' }).getByText('PASS', { exact: true })).toBeVisible()
+  await expect(correctedResult.locator('article').filter({ hasText: 'System validation' }).getByText('PASS', { exact: true })).toBeVisible()
+  await expect(correctedResult.getByRole('button', { name: 'View the final network state' })).toBeVisible()
   await expect(page.getByText('220 remained affected')).toBeVisible()
   await expect(page.getByText('RADIAL', { exact: true })).toBeVisible()
   await expect(page.getByTestId('formal-state')).toContainText('N5 · Eligible healthy sections restored')
+
+  await page.getByRole('button', { name: 'Restart from the seeded defect' }).click()
+  await expect(page.getByText(/clears all locally generated runs, validation records and downloadable packages/i)).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm restart and clear local records' }).click()
+  await expect(page.getByText('network-configuration-v1.0 · v1.0')).toBeVisible()
+  await expect(page.getByTestId('formal-state')).toContainText('N1 · Fault active')
+  await expect(navigation.getByRole('button')).toHaveCount(6)
 })

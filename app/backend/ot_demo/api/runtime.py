@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import sqlite3
 from pathlib import Path
 
 from ..application.scenario_coordinator import ScenarioCoordinator
@@ -18,6 +20,7 @@ from ..infrastructure.evidence_package_repository import EvidencePackageReposito
 from ..infrastructure.scenario_repository import ScenarioRepository
 from ..infrastructure.validation_repository import ValidationRepository
 from ..infrastructure.determination_repository import DeterminationRepository
+from ..infrastructure.sqlite_migrations import apply_migrations
 from ..modules.validation.catalogue import ValidationCatalogueResolver
 from ..modules.validation.service import ValidationService
 from ..modules.validation.determination import DeterminationService
@@ -117,8 +120,7 @@ def create_local_app(
         determination=determination_repository,
         application_build_manifest=build_manifest,
         output_directory=(
-            evidence_output_directory
-            or repository_root / "evidence/exports"
+            evidence_output_directory or repository_root / "evidence/exports"
         ),
     )
     workspace_service = WorkspaceService(
@@ -131,6 +133,37 @@ def create_local_app(
             repository_root / "config/presentation/network-one-line.v1.json"
         ),
     )
+    export_directory = (
+        evidence_output_directory or repository_root / "evidence/exports"
+    )
+    resolved_export_directory = export_directory.resolve()
+    resolved_runtime_data = runtime_data.resolve()
+    default_export_directory = (repository_root / "evidence/exports").resolve()
+
+    def reset_local_showcase() -> None:
+        """Reset the whole generated local workspace without altering controlled inputs."""
+
+        if not (
+            resolved_export_directory == default_export_directory
+            or resolved_runtime_data in resolved_export_directory.parents
+        ):
+            raise RuntimeError(
+                "Refusing to reset an evidence directory outside the local runtime boundary."
+            )
+
+        for database_path in (
+            runtime_data / "scenario.sqlite3",
+            runtime_data / "validation.sqlite3",
+        ):
+            database_path.unlink(missing_ok=True)
+            Path(f"{database_path}-wal").unlink(missing_ok=True)
+            Path(f"{database_path}-shm").unlink(missing_ok=True)
+            with sqlite3.connect(database_path) as connection:
+                apply_migrations(connection, migrations)
+        if export_directory.exists():
+            shutil.rmtree(export_directory)
+        export_directory.mkdir(parents=True, exist_ok=True)
+
     return create_app(
         coordinator,
         validation_service,
@@ -138,4 +171,5 @@ def create_local_app(
         investigation_service,
         evidence_export_service,
         determination_service,
+        reset_local_showcase,
     )

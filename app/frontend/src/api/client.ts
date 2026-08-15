@@ -42,7 +42,9 @@ export interface WorkspaceApi {
   recordDefect(failureExecutionId: string, reviewer: string, reviewedStepIds: string[]): Promise<InvestigationWorkspace>
   recordCorrection(failureExecutionId: string, reviewer: string): Promise<InvestigationWorkspace>
   runDirectRepeat(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
+  startRegression(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
   runRegression(failureExecutionId: string, actor: string): Promise<InvestigationWorkspace>
+  resetLocalShowcase(): Promise<void>
   evidenceExportCandidates(): Promise<EvidenceExportCandidate[]>
   evidencePackages(): Promise<EvidencePackage[]>
   generateEvidencePackage(validationExecutionId: string): Promise<EvidencePackage>
@@ -144,8 +146,8 @@ export const workspaceApi: WorkspaceApi = {
   },
 
   startInvestigation: (actor) => request<InvestigationWorkspace>('/api/v1/investigations/start', { method: 'POST', body: JSON.stringify({ actor }) }),
-  startStaleTelemetryWalkthrough: async (bootstrap, actor) => {
-    const initial = await request<CommandResult>('/api/v1/runs/start', {
+  startStaleTelemetryWalkthrough: (bootstrap, actor) =>
+    request<CommandResult>('/api/v1/runs/start', {
       method: 'POST',
       body: JSON.stringify({
         command_id: crypto.randomUUID(),
@@ -156,41 +158,14 @@ export const workspaceApi: WorkspaceApi = {
         fault_section_id: null,
         scenario_time: bootstrap.default_scenario_time,
       }),
-    })
-    const runId = initial.snapshot.run.scenario_run_id
-    const epoch = new Date(bootstrap.default_scenario_time).getTime()
-    const fault = await request<CommandResult>(`/api/v1/runs/${runId}/commands`, {
-      method: 'POST',
-      body: JSON.stringify({
-        command_id: crypto.randomUUID(),
-        scenario_run_id: runId,
-        actor,
-        expected_revision: 0,
-        command_type: 'INITIATE_FAULT',
-        scenario_time: new Date(epoch + 10_000).toISOString(),
-      }),
-    })
-    const current = await request<WorkspaceProjection>(`/api/v1/workspace/runs/${runId}`)
-    const alarm = current.alarms.find((item) => item.active)
-    if (alarm === undefined) throw new Error('The controlled fault did not create its feeder-trip alarm.')
-    return request<CommandResult>(`/api/v1/runs/${runId}/commands`, {
-      method: 'POST',
-      body: JSON.stringify({
-        command_id: crypto.randomUUID(),
-        scenario_run_id: runId,
-        actor,
-        expected_revision: fault.snapshot.run.state_revision,
-        command_type: 'ACKNOWLEDGE_ALARM',
-        scenario_time: new Date(epoch + 71_000).toISOString(),
-        alarm_id: alarm.alarm_id,
-      }),
-    })
-  },
+    }),
   investigation: (failureExecutionId) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}`),
   recordDefect: (failureExecutionId, reviewer, reviewedStepIds) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/defect`, { method: 'POST', body: JSON.stringify({ reviewer, reviewed_step_ids: reviewedStepIds }) }),
   recordCorrection: (failureExecutionId, reviewer) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/correction`, { method: 'POST', body: JSON.stringify({ reviewer }) }),
   runDirectRepeat: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/direct-repeat`, { method: 'POST', body: JSON.stringify({ actor }) }),
+  startRegression: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/regression/start`, { method: 'POST', body: JSON.stringify({ actor }) }),
   runRegression: (failureExecutionId, actor) => request<InvestigationWorkspace>(`/api/v1/investigations/${failureExecutionId}/regression`, { method: 'POST', body: JSON.stringify({ actor }) }),
+  resetLocalShowcase: () => request<void>('/api/v1/local-showcase/reset', { method: 'POST', body: JSON.stringify({ confirmation: 'RESET LOCAL SHOWCASE' }) }),
   evidenceExportCandidates: () => request<EvidenceExportCandidate[]>('/api/v1/evidence-packages/candidates'),
   evidencePackages: () => request<EvidencePackage[]>('/api/v1/evidence-packages'),
   generateEvidencePackage: (validationExecutionId) => request<EvidencePackage>('/api/v1/evidence-packages', { method: 'POST', body: JSON.stringify({ validation_execution_id: validationExecutionId }) }),

@@ -4,19 +4,36 @@ import { NetworkOneLine } from '../../components/network/NetworkOneLine'
 import { formatKw, humanise } from '../../components/format'
 import { ActionPanel } from './ActionPanel'
 import { EntityInspector } from './EntityInspector'
+import { ExplorationRunSelector } from './ExplorationRunSelector'
 
 export function OperationalWorkspace({
   projection,
   busyActionId,
   onExecute,
   onStartNewRun,
+  runControlLabel = 'Start a new clean scenario',
+  runControlDescription,
+  correctedRepeatReady = false,
+  alarmReviewPending = false,
+  safetyEvidenceBlocked = false,
+  onRunCorrectedScenario,
+  explorationSectionIds,
+  onStartExploration,
   onNavigate,
 }: {
   projection: WorkspaceProjection
   busyActionId: string | null
   onExecute: (action: WorkspaceAction) => void
   onStartNewRun: () => void
-  onNavigate: (view: 'events' | 'restoration') => void
+  runControlLabel?: string
+  runControlDescription?: string
+  correctedRepeatReady?: boolean
+  alarmReviewPending?: boolean
+  safetyEvidenceBlocked?: boolean
+  onRunCorrectedScenario?: () => void
+  explorationSectionIds?: string[]
+  onStartExploration?: (sectionId: string) => void
+  onNavigate: (view: 'events' | 'restoration' | 'telemetry') => void
 }) {
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(projection.run.fault_section_id)
   const onSelect = useCallback((entityId: string) => setSelectedEntityId(entityId), [])
@@ -33,12 +50,14 @@ export function OperationalWorkspace({
         <article><span className="eyebrow">Customers just restored</span><strong data-testid="restored-customers">{projection.summary.restored_customer_delta}</strong><small>Change since the previous scenario step</small></article>
         <article><span className="eyebrow">Active alarms</span><strong>{projection.summary.active_alarm_count}</strong><small>{projection.summary.unacknowledged_alarm_count} awaiting acknowledgement</small></article>
         <article><span className="eyebrow">Alternate-supply check</span><strong>{humanise(projection.summary.current_assessment_status)}</strong><small>{projection.summary.current_assessment_id ?? 'Not yet run'}</small></article>
-        {resetAction !== undefined && <article className="summary-run-control"><span className="eyebrow">Run control</span><button type="button" disabled={!canStartNewRun || busyActionId !== null} onClick={onStartNewRun}>{busyActionId === resetAction.action_id || busyActionId === 'INITIALISE_RUN' ? 'Starting clean scenario…' : 'Start a new clean scenario'}</button><small>{projection.run.status === 'CLOSED' ? 'Starts a fresh run; this completed run remains preserved in history.' : 'Preserves this run, then returns the network to a separate clean starting state.'}</small></article>}
+        {resetAction !== undefined && <article className="summary-run-control"><span className="eyebrow">Run control</span>{correctedRepeatReady && onRunCorrectedScenario !== undefined ? <><button type="button" className="corrected-run-action" disabled={busyActionId !== null} onClick={onRunCorrectedScenario}>{busyActionId === 'RUN_CORRECTED_SCENARIO' ? 'Running corrected scenario…' : 'Run corrected full scenario'}</button><small>Repeats the complete six-stage sequence automatically, then opens the assurance and validation result. Or continue the sequence manually using the action cards below.</small></> : explorationSectionIds !== undefined && onStartExploration !== undefined ? <><ExplorationRunSelector sectionIds={explorationSectionIds} currentSectionId={projection.run.fault_section_id} busy={busyActionId !== null} onStart={onStartExploration} idPrefix="operational-exploration" /><small>Starts a separate clean run and preserves this run in history. Select {projection.run.fault_section_id} again to repeat the same scenario.</small></> : <><button type="button" disabled={!canStartNewRun || busyActionId !== null} onClick={onStartNewRun}>{busyActionId === resetAction.action_id || busyActionId === 'INITIALISE_RUN' ? 'Opening walkthrough selection…' : runControlLabel}</button><small>{runControlDescription ?? (projection.run.status === 'CLOSED' ? 'Starts a fresh run; this completed run remains preserved in history.' : 'Preserves this run, then returns the network to a separate clean starting state.')}</small></>}</article>}
       </section>
+
+      {correctedRepeatReady && <section className="panel corrected-network-banner" aria-labelledby="corrected-network-title"><div><span className="eyebrow">Corrected configuration loaded</span><h2 id="corrected-network-title">Review the v1.1 topology before the full repeat</h2><p>The focused post-trip comparison passed at 850 affected customers. The diagram below now uses the corrected GIS endpoint. Continue manually with the available action cards, or use “Run corrected full scenario” to complete all six stages automatically.</p></div><span className="status-badge success">Focused check PASS</span></section>}
 
       <section className="operational-workbench" aria-label="Network and guided actions">
         <NetworkOneLine nodes={projection.network_nodes} edges={projection.network_edges} selectedEntityId={selectedEntityId} onSelect={onSelect} />
-        <ActionPanel actions={projection.allowed_actions} faultSectionId={projection.run.fault_section_id} busyActionId={busyActionId} onExecute={onExecute} onNavigate={onNavigate} />
+        <ActionPanel actions={projection.allowed_actions} faultSectionId={projection.run.fault_section_id} busyActionId={busyActionId} alarmReviewPending={alarmReviewPending} safetyEvidenceBlocked={safetyEvidenceBlocked} onExecute={onExecute} onNavigate={onNavigate} />
       </section>
 
       <EntityInspector node={selected} />
@@ -62,7 +81,7 @@ export function OperationalWorkspace({
       <section className="panel feeder-panel" aria-labelledby="feeder-load-title">
         <div className="panel-heading"><div><span className="eyebrow">Feeder loading</span><h2 id="feeder-load-title">Normal rating compared with present supply</h2></div><p>Planned normal load and rated capacity remain separate from the load the current switch arrangement is supplying.</p></div>
         <div className="table-scroll"><table>
-          <thead><tr><th>Feeder</th><th>Normal planned load</th><th>Rated capacity</th><th>Load presently supplied</th><th>Sections presently supplied</th><th>Calculation status</th></tr></thead>
+          <thead><tr><th>Feeder</th><th>Normal planned load</th><th>Rated capacity</th><th>Load currently supplied</th><th>Sections currently supplied</th><th>Calculation status</th></tr></thead>
           <tbody>{projection.feeders.map((feeder) => <tr key={feeder.feeder_id}>
             <th scope="row">{feeder.feeder_id}<small>{feeder.name}</small></th>
             <td>{formatKw(feeder.configured_normal_load_kw)}</td><td>{formatKw(feeder.configured_capacity_kw)}</td>

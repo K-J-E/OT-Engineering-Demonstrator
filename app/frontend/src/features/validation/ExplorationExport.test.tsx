@@ -12,7 +12,7 @@ function bootstrap(): WorkspaceBootstrap {
   const formal = makeProjection().validation.definitions[0]!
   return {
     application_build_id: '1'.repeat(64),
-    default_actor: 'Graduate Engineer',
+    default_actor: 'Simulated Reviewer',
     default_mode: 'FORMAL',
     default_evidence_class: 'FORMAL',
     default_configuration_id: 'network-configuration-v1.1',
@@ -22,7 +22,7 @@ function bootstrap(): WorkspaceBootstrap {
     formal_definition: formal,
     exploration_section_ids: ['SEC-A1', 'SEC-A2', 'SEC-A3', 'SEC-A4', 'SEC-B1', 'SEC-B2', 'SEC-B3', 'SEC-B4'],
     definition_count: 24,
-    conceptual_boundary_notice: 'Fictional local engineering demonstrator.',
+    conceptual_boundary_notice: 'Fictional local operational technology demonstrator — conceptual and simplified SCADA, ADMS and OMS functions only.',
   }
 }
 
@@ -54,65 +54,88 @@ function exploratoryProjection() {
   })
 }
 
-describe('I8 Exploration and export presentation', () => {
-  it('offers only configured v1.1 section selections as transient Exploration input', () => {
+describe('I8 Trial and export presentation', () => {
+  it('offers only configured v1.1 section selections as transient trial input', () => {
     const onStart = vi.fn()
-    render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStart={onStart} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={vi.fn()} />)
-    fireEvent.change(screen.getByRole('combobox', { name: 'Exploration fault section' }), { target: { value: 'SEC-B2' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Start exploration' }))
-    expect(onStart).toHaveBeenCalledWith('Graduate Engineer', 'EXPLORATION', 'SEC-B2')
-    expect(screen.getByText(/saved results remain separate from the approved formal walkthrough/i)).toBeVisible()
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStartDefectInvestigation={vi.fn()} onStart={onStart} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={vi.fn()} />)
+    const sectionSelector = screen.getByRole('combobox', { name: 'Trial fault section' })
+    expect(sectionSelector).toHaveValue('SEC-A2')
+    expect(within(sectionSelector).getByRole('option', { name: 'SEC-A2 (recommended for first run)' })).toBeVisible()
+    expect(within(sectionSelector).getByRole('option', { name: 'SEC-A3 (recommended for first run)' })).toBeVisible()
+    expect(within(sectionSelector).getByRole('option', { name: 'SEC-B2 (recommended for first run)' })).toBeVisible()
+    expect(within(sectionSelector).getByRole('option', { name: 'SEC-B3 (recommended for first run)' })).toBeVisible()
+    expect(within(sectionSelector).getByRole('option', { name: 'SEC-A1' })).toBeVisible()
+    expect(Array.from(rendered.container.querySelectorAll('.setup-card h2')).map((heading) => heading.textContent).slice(0, 2)).toEqual([
+      'Test a selected fault location',
+      'Expose a seeded configuration defect—and prove its correction',
+    ])
+    expect(screen.getByRole('heading', { name: 'Choose a walkthrough to begin' })).toBeVisible()
+    expect(screen.queryByLabelText('Actor / reviewer')).not.toBeInTheDocument()
+    fireEvent.change(sectionSelector, { target: { value: 'SEC-B2' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Start trial' }))
+    expect(onStart).toHaveBeenCalledWith('Simulated Reviewer', 'EXPLORATION', 'SEC-B2')
+    expect(screen.getByText('Trials:', { exact: true })).toBeVisible()
+    expect(screen.queryByText('Exploration:', { exact: true })).not.toBeInTheDocument()
   })
 
   it('offers the accepted stale-evidence safety walkthrough without changing engineering rules', () => {
     const onStartSafetyWalkthrough = vi.fn()
-    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStart={vi.fn()} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={onStartSafetyWalkthrough} />)
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStartDefectInvestigation={vi.fn()} onStart={vi.fn()} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={onStartSafetyWalkthrough} />)
     const setup = within(rendered.container)
     fireEvent.click(setup.getByRole('button', { name: 'Start stale-evidence walkthrough' }))
-    expect(onStartSafetyWalkthrough).toHaveBeenCalledWith('Graduate Engineer')
+    expect(onStartSafetyWalkthrough).toHaveBeenCalledWith('Simulated Reviewer')
     expect(setup.getByText(/stale readings cannot prove isolation/i)).toBeVisible()
   })
 
-  it('keeps a preserved investigation within the combined formal validation story', () => {
+  it('keeps a preserved investigation within the combined validation story', () => {
     const onResumeInvestigation = vi.fn()
-    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation onStart={vi.fn()} onResumeInvestigation={onResumeInvestigation} onStartSafetyWalkthrough={vi.fn()} />)
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation onStartDefectInvestigation={vi.fn()} onStart={vi.fn()} onResumeInvestigation={onResumeInvestigation} onStartSafetyWalkthrough={vi.fn()} />)
     const setup = within(rendered.container)
-    expect(setup.getByRole('heading', { name: 'Prove the operating logic—and show it detecting a defect' })).toBeVisible()
+    expect(setup.getByRole('heading', { name: 'Expose a seeded configuration defect—and prove its correction' })).toBeVisible()
     expect(setup.queryByRole('heading', { name: 'Begin DEF-001 investigation' })).not.toBeInTheDocument()
     fireEvent.click(setup.getByRole('button', { name: 'Resume preserved defect investigation' }))
-    expect(onResumeInvestigation).toHaveBeenCalledWith('Graduate Engineer')
+    expect(onResumeInvestigation).toHaveBeenCalledWith('Simulated Reviewer')
   })
 
-  it('keeps selected section and EXPLORATORY identity visible without calling it a formal N-state', () => {
+  it('starts the combined validation story directly from the preserved v1.0 defect', () => {
+    const onStartDefectInvestigation = vi.fn()
+    const rendered = render(<RunSetup bootstrap={bootstrap()} busy={false} existingInvestigation={false} onStartDefectInvestigation={onStartDefectInvestigation} onStart={vi.fn()} onResumeInvestigation={vi.fn()} onStartSafetyWalkthrough={vi.fn()} />)
+    const setup = within(rendered.container)
+    fireEvent.click(setup.getByRole('button', { name: 'Start defect walkthrough' }))
+    expect(onStartDefectInvestigation).toHaveBeenCalledWith('Simulated Reviewer')
+    expect(setup.getByText(/directly against preserved GIS configuration v1.0/i)).toBeVisible()
+  })
+
+  it('keeps the selected section and trial identity visible without presenting a validation checkpoint', () => {
     render(<ContextRibbon projection={exploratoryProjection()} />)
     const ribbon = within(screen.getByLabelText('Persistent run context'))
-    expect(ribbon.getByText('EXPLORATION')).toBeVisible()
-    expect(ribbon.getByText('EXPLORATORY')).toBeVisible()
+    expect(ribbon.getByText('TRIAL')).toBeVisible()
+    expect(ribbon.getByText('TRIAL RECORD')).toBeVisible()
     expect(ribbon.getByText('SEC-B2')).toBeVisible()
     expect(ribbon.getByTestId('exploration-stage')).toHaveTextContent('RESTORATION ASSESSED')
     expect(screen.queryByText('Formal state')).not.toBeInTheDocument()
   })
 
-  it('keeps formal assurance simple while exposing the formal validation procedure separately', () => {
+  it('keeps assurance simple while exposing the validation procedure separately', () => {
     render(<ValidationView projection={makeProjection()} busy={false} onAction={vi.fn()} onContinue={vi.fn()} />)
     expect(screen.getByRole('heading', { name: 'How each operating stage was checked' })).toBeVisible()
     expect(screen.getByRole('heading', { name: 'Operating assurance and system validation are different' })).toBeVisible()
-    expect(screen.getByRole('heading', { name: 'How the formal result is produced' })).toBeVisible()
-    expect(screen.getByLabelText('Formal validation procedure').querySelectorAll('article')).toHaveLength(4)
+    expect(screen.getByRole('heading', { name: 'How the validation result is produced' })).toBeVisible()
+    expect(screen.getByLabelText('Controlled validation procedure').querySelectorAll('article')).toHaveLength(4)
     expect(screen.getByText('Lock the validation basis')).toBeVisible()
     expect(screen.getByText('Evaluate controlled criteria')).toBeVisible()
   })
 
-  it('presents an exploration report with assurance and its own technical traceability', () => {
+  it('presents a trial report with assurance and its own technical traceability', () => {
     const { container } = render(<ValidationView projection={exploratoryProjection()} busy={false} onAction={vi.fn()} onContinue={vi.fn()} />)
     const view = within(container)
     expect(view.getByRole('heading', { name: 'Validation of the operating logic for this case' })).toBeVisible()
     expect(view.getByRole('heading', { name: 'How each operating stage was checked' })).toBeVisible()
     expect(container.querySelector('.stage-validation-grid')?.querySelectorAll('article')).toHaveLength(6)
-    expect(view.getByText(/result remains separate and is never counted as formal evidence/i)).toBeVisible()
+    expect(view.getByText(/result remains separate and is never counted as controlled validation evidence/i)).toBeVisible()
     const report = within(container.querySelector('[aria-labelledby="exploration-evidence-title"]')!)
     expect(report.getByText('Technical test traceability')).toBeVisible()
-    expect(view.getByRole('heading', { name: 'How the exploration evidence is controlled and extended' })).toBeVisible()
+    expect(view.getByRole('heading', { name: 'How the trial evidence is controlled and extended' })).toBeVisible()
     expect(view.getByRole('heading', { name: 'Multi-scenario validation campaigns' })).toBeVisible()
     expect(view.getByRole('article', { name: 'Validation campaign: All represented fault locations' })).toBeVisible()
     expect(view.getByRole('article', { name: 'Validation campaign: Feeder-role reversal and varied restoration outcomes' })).toBeVisible()

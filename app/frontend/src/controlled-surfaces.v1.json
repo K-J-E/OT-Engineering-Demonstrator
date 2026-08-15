@@ -49,7 +49,7 @@
       "surface_id": "Defect Investigation",
       "view_id": "investigation",
       "fixed_notice": "Simulated operation only — no real equipment control",
-      "component_module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx",
+      "component_module": "app/frontend/src/features/investigation/InvestigationWorkspace.tsx|app/frontend/src/features/investigation/DefectWorkflow.tsx",
       "required_identity_profile": "Fixed notice; Network Configuration v1.0 failure, DEF-001, COR-001, corrected v1.1 repeat/regression identities; same-build and source-catalogue provenance."
     },
     {

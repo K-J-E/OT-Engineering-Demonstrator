@@ -30,7 +30,7 @@ function eventTitle(event: OperationalEvent): string {
   }
 }
 
-export function EventTimeline({ projection, busyActionId, onExecute, onContinue }: { projection: WorkspaceProjection; busyActionId: string | null; onExecute: (action: WorkspaceAction) => void; onContinue: () => void }) {
+export function EventTimeline({ projection, busyActionId, onExecute, onContinue, continueLabel = 'Continue to fault isolation' }: { projection: WorkspaceProjection; busyActionId: string | null; onExecute: (action: WorkspaceAction) => void; onContinue: () => void; continueLabel?: string }) {
   const acknowledgeAction = projection.allowed_actions.find((item) => item.command_type === 'ACKNOWLEDGE_ALARM')
   const activeAlarm = projection.alarms.find((alarm) => alarm.active)
   const alarmAcknowledged = projection.alarms.some((alarm) => alarm.acknowledgement_state === 'ACKNOWLEDGED')
@@ -46,7 +46,7 @@ export function EventTimeline({ projection, busyActionId, onExecute, onContinue 
           <dl className="identity-grid"><div><dt>Alarm</dt><dd>{humanise(activeAlarm.alarm_type)}</dd></div><div><dt>Equipment</dt><dd>{activeAlarm.entity_id}</dd></div><div><dt>Status</dt><dd>{humanise(activeAlarm.acknowledgement_state)}</dd></div></dl>
         </>}
         {acknowledgeAction?.available && <button type="button" className="primary-action" disabled={busyActionId !== null} onClick={() => onExecute(acknowledgeAction)}>Acknowledge this feeder-trip alarm</button>}
-        {activeAlarm?.acknowledgement_state === 'ACKNOWLEDGED' && <button type="button" className="primary-action" onClick={onContinue}>Continue to fault isolation</button>}
+        {activeAlarm?.acknowledgement_state === 'ACKNOWLEDGED' && <button type="button" className="primary-action" onClick={onContinue}>{continueLabel}</button>}
       </section>
 
       <section className="panel" aria-labelledby="journey-title">

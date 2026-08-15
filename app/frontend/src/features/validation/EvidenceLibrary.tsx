@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import type { EvidenceExportCandidate, EvidencePackage, EvidenceSnapshot, ValidationExecutionSummary, WorkspaceProjection } from '../../api/contracts'
 import type { WorkspaceApi } from '../../api/client'
 import { formatKw, formatTime, humanise, shortId } from '../../components/format'
+import { ExplorationRunSelector } from '../operational/ExplorationRunSelector'
 
 const checkpointCopy: Record<string, { title: string; description: string }> = {
   N0: { title: 'Normal network', description: 'Starting configuration and normal supply saved before the fault.' },
@@ -10,7 +11,7 @@ const checkpointCopy: Record<string, { title: string; description: string }> = {
   N3: { title: 'Healthy upstream section restored', description: 'Normal supply restored where it does not cross the isolated fault.' },
   N4: { title: 'Alternate supply checked', description: 'Safety, telemetry, radiality and feeder-capacity checks saved.' },
   N5: { title: 'Eligible healthy sections restored', description: 'Final switching result, customer impact and network state saved.' },
-  CONTROLLED_RESULT: { title: 'Controlled result', description: 'The selected exploration result and its supporting records were saved.' },
+  CONTROLLED_RESULT: { title: 'Controlled result', description: 'The selected trial result and its supporting records were saved.' },
 }
 
 function checkpoint(snapshot: EvidenceSnapshot): { title: string; description: string } {
@@ -95,7 +96,7 @@ function EvidenceOutcome({ summary, projection }: { summary: ValidationExecution
     const alternateSupplyRestoredCustomers = savedResultShowsApplied && restoredCustomers !== null ? restoredCustomers : proposedRestoredCustomers
     const finalAffectedCustomers = beforeAlternateCustomers === null ? null : Math.max(0, beforeAlternateCustomers - alternateSupplyRestoredCustomers)
     const initialCustomers = feederCustomerTotal > 0 ? feederCustomerTotal : initialAffectedCustomers
-    return <div className="evidence-outcome-grid" aria-label="Exploration evidence summary">
+    return <div className="evidence-outcome-grid" aria-label="Trial evidence summary">
       <article><span>Fault impact</span><strong>{initialCustomers === null ? selectedSection : `${initialCustomers} customers affected`}</strong><p>The feeder trip for {selectedSection} on {affectedFeeder} was recorded{boundaries.length === 0 ? '.' : ` and ${boundaries.join(' and ')} proved the fault isolated.`}</p></article>
       <article><span>Normal-supply recovery</span><strong>{beforeAlternateCustomers === null ? 'Customer impact saved' : `${beforeAlternateCustomers} remained affected`}</strong><p>{normalSupplyRestoredCustomers === null ? 'The healthy upstream recovery was preserved.' : `${normalSupplyRestoredCustomers} customers were restored upstream of the isolated fault.`}</p></article>
       <article><span>Alternate-supply decision</span><strong>{outcome === null ? 'Assessment saved' : humanise(outcome)}</strong><p>{resultingLoad !== null && feederCapacity !== null ? `${alternateFeeder ?? 'The alternate feeder'} ${restorationApplied ? 'carries' : 'would carry'} ${formatKw(resultingLoad)}, or ${resultingLoading === null ? 'a saved share' : `${resultingLoading.toFixed(1)}%`} of ${formatKw(feederCapacity)} capacity.` : proposedSections.length === 0 ? 'No sections were eligible for alternate supply.' : `${proposedSections.join(', ')} ${restorationApplied ? 'were' : 'could be'} supplied from ${alternateFeeder ?? 'the alternate feeder'}${transferableLoad === null ? '' : ` (${formatKw(transferableLoad)})`}.`} {radiality === null ? '' : `The network remains ${humanise(radiality).toLowerCase()}.`}</p></article>
@@ -144,7 +145,7 @@ function ExplorationJourney({ summary, projection }: { summary: ValidationExecut
   const alternateRestoredCustomers = savedResultShowsApplied && restoredCustomers !== null ? restoredCustomers : proposedRestoredCustomers
   const finalAffectedCustomers = beforeAlternateCustomers === null ? null : Math.max(0, beforeAlternateCustomers - alternateRestoredCustomers)
   const stages = [
-    { title: 'Normal network', description: `The corrected configuration and ${selectedSection} exploration input were retained.` },
+    { title: 'Normal network', description: `The corrected configuration and ${selectedSection} trial input were retained.` },
     { title: 'Fault and feeder trip', description: `${feederCustomerTotal > 0 ? `${feederCustomerTotal} customers were affected` : 'The initial outage was recorded'} on ${affectedFeeder}.` },
     { title: 'Fault isolated', description: boundaries.length === 0 ? 'The isolation result was retained.' : `${boundaries.join(' and ')} were proven open around the selected fault.` },
     { title: 'Healthy upstream section restored', description: normalRestoredCustomers === null ? 'Normal-supply recovery was retained.' : `${normalRestoredCustomers} customers were restored upstream; ${beforeAlternateCustomers} remained affected.` },
@@ -152,8 +153,8 @@ function ExplorationJourney({ summary, projection }: { summary: ValidationExecut
     { title: 'Eligible healthy sections restored', description: alternateRestoredCustomers > 0 ? `${alternateRestoredCustomers} customers ${restorationApplied ? 'were' : 'would be'} restored; ${finalAffectedCustomers ?? 'the faulted-section customers'} remained affected.` : 'No additional healthy sections were eligible; the fault remained isolated.' },
   ]
   return <>
-    <p className="exploration-sequence-note">Exploration preserves these six operating stages within one combined controlled-result record; they are not relabelled as six formal checkpoints.</p>
-    <div className="evidence-grid exploration-sequence" aria-label="Exploration operating sequence">{stages.map((stage) => <article key={stage.title}><span className="status-badge success">Included</span><strong>{stage.title}</strong><small>{stage.description}</small></article>)}</div>
+    <p className="exploration-sequence-note">A trial preserves these six operating stages within one combined controlled-result record; they are not relabelled as six validation checkpoints.</p>
+    <div className="evidence-grid exploration-sequence" aria-label="Trial operating sequence">{stages.map((stage) => <article key={stage.title}><span className="status-badge success">Included</span><strong>{stage.title}</strong><small>{stage.description}</small></article>)}</div>
   </>
 }
 
@@ -162,12 +163,18 @@ export function EvidenceLibrary({
   api,
   refreshKey = 0,
   onReturnToOperational,
+  explorationSectionIds,
+  explorationRestartBusy = false,
+  onStartExploration,
   children,
 }: {
   projection: WorkspaceProjection
   api: WorkspaceApi
   refreshKey?: number
   onReturnToOperational: () => void
+  explorationSectionIds?: string[]
+  explorationRestartBusy?: boolean
+  onStartExploration?: (sectionId: string) => void
   children?: ReactNode
 }) {
   const [candidates, setCandidates] = useState<EvidenceExportCandidate[]>([])
@@ -239,8 +246,8 @@ export function EvidenceLibrary({
   return <div className="view-stack">
     <section className="panel" aria-labelledby="evidence-library-title">
       <div className="panel-heading evidence-record-heading">
-        <div><span className="eyebrow">Saved operational evidence</span><h2 id="evidence-library-title">What this walkthrough demonstrates</h2></div>
-        <button type="button" className="secondary-action" onClick={onReturnToOperational}>Return to final network state</button>
+        <div><span className="eyebrow">Saved operational evidence</span><h2 id="evidence-library-title">Results and saved evidence for this run</h2></div>
+        <button type="button" className="secondary-action" onClick={onReturnToOperational}>View the final network state</button>
       </div>
       <p>The key operating results are shown first. Record identities and integrity fingerprints remain available under technical traceability for anyone who needs to verify the saved source.</p>
       {error !== null && <div className="callout danger" role="alert">{error}</div>}
@@ -251,7 +258,7 @@ export function EvidenceLibrary({
         return <article key={summary.execution.validation_execution_id} aria-label={`Saved evidence: ${summary.execution.test_id}`}>
           <div className="evidence-status-row">
             <span className={`status-badge ${summary.execution.status === 'FINALISED' ? 'success' : 'neutral'}`}>{summary.execution.status === 'FINALISED' ? 'Evidence complete' : 'Evidence still being completed'}</span>
-            <span className={`status-badge ${summary.execution.evidence_class === 'FORMAL' ? 'formal' : 'exploratory'}`}>{summary.execution.evidence_class === 'FORMAL' ? 'Approved walkthrough' : 'Exploration'}</span>
+            <span className={`status-badge ${summary.execution.evidence_class === 'FORMAL' ? 'formal' : 'exploratory'}`}>{summary.execution.evidence_class === 'FORMAL' ? 'Controlled validation' : 'Trial'}</span>
             {summary.execution.verdict !== null && <span className={`status-badge ${summary.execution.verdict === 'PASS' ? 'success' : 'danger'}`}>{summary.execution.verdict === 'PASS' ? 'All defined checks passed' : 'One or more defined checks need review'}</span>}
           </div>
           {summary.evidence_snapshots.length === 0 ? <p className="empty-state">Complete the operating sequence to populate the result summary and its saved stage evidence.</p> : <>
@@ -279,7 +286,7 @@ export function EvidenceLibrary({
       {latestRunPackages.length === 0 ? <p className="empty-state">No downloadable package has been created for the latest evidence run yet.</p> : <div className="record-list">{latestRunPackages.map((item) => {
         const source = summaryByExecution.get(item.validation_execution_id)
         return <article key={item.package_id} aria-label={`Current evidence package ${item.package_id}`}>
-          <div><span className="status-badge success">Verified</span><span className={`status-badge ${item.evidence_class === 'FORMAL' ? 'formal' : 'exploratory'}`}>{item.evidence_class === 'FORMAL' ? 'Approved walkthrough' : 'Exploration'}</span></div>
+          <div><span className="status-badge success">Verified</span><span className={`status-badge ${item.evidence_class === 'FORMAL' ? 'formal' : 'exploratory'}`}>{item.evidence_class === 'FORMAL' ? 'Controlled validation' : 'Trial'}</span></div>
           <h3>Latest-run evidence package</h3><p className="package-run-label">Run {shortId(item.scenario_run_id)} · completed {source?.execution.finalised_scenario_time === null || source === undefined ? 'after the saved result' : formatTime(source.execution.finalised_scenario_time)}</p><p>This archive contains the saved result and its supporting records.</p>
           <a className="download-link" href={`/api/v1/evidence-packages/${item.package_id}/download`}>Download evidence package (.zip)</a>
           <details className="technical-details"><summary>Package identity and integrity fingerprints</summary><dl className="identity-grid"><div><dt>Package ID</dt><dd>{item.package_id}</dd></div><div><dt>Source run</dt><dd>{item.scenario_run_id}</dd></div><div><dt>Source evidence record</dt><dd>{item.validation_execution_id}</dd></div><div><dt>Source configuration</dt><dd>{item.configuration_id} · v{item.configuration_version}</dd></div><div><dt>Source build</dt><dd>{item.application_build_id}</dd></div><div><dt>Generation build</dt><dd>{item.generation_application_build_id}</dd></div><div><dt>Archive path</dt><dd>{item.archive_path}</dd></div><div><dt>Manifest fingerprint</dt><dd>{item.manifest_sha256}</dd></div><div><dt>Archive fingerprint</dt><dd>{item.archive_sha256}</dd></div><div><dt>Source links</dt><dd>{item.source_record_references.join(', ')}</dd></div></dl></details>
@@ -288,9 +295,13 @@ export function EvidenceLibrary({
       {historicalPackages.length > 0 && <section className="saved-journey" aria-labelledby="package-history-title"><h3 id="package-history-title">Earlier evidence packages</h3><p>Earlier runs stay collapsed until you choose one.</p><div className="record-list">{historicalPackages.map((item) => {
         const source = summaryByExecution.get(item.validation_execution_id)
         const completed = source?.execution.finalised_scenario_time ?? source?.execution.started_scenario_time
-        return <details className="package-history" key={item.package_id}><summary><span>Run {shortId(item.scenario_run_id)}</span><span className="package-run-label">{completed === undefined ? item.package_id : formatTime(completed)} · {item.package_id}</span></summary><div><p>{item.evidence_class === 'FORMAL' ? 'Approved formal walkthrough' : 'Exploration record'} from configuration {item.configuration_id} v{item.configuration_version}.</p><a className="download-link" href={`/api/v1/evidence-packages/${item.package_id}/download`}>Download this evidence package (.zip)</a><details className="technical-details"><summary>Integrity fingerprints</summary><dl className="identity-grid"><div><dt>Manifest fingerprint</dt><dd>{item.manifest_sha256}</dd></div><div><dt>Archive fingerprint</dt><dd>{item.archive_sha256}</dd></div><div><dt>Archive path</dt><dd>{item.archive_path}</dd></div></dl></details></div></details>
+        return <details className="package-history" key={item.package_id}><summary><span>Run {shortId(item.scenario_run_id)}</span><span className="package-run-label">{completed === undefined ? item.package_id : formatTime(completed)} · {item.package_id}</span></summary><div><p>{item.evidence_class === 'FORMAL' ? 'Defect-investigation validation record' : 'Trial record'} from configuration {item.configuration_id} v{item.configuration_version}.</p><a className="download-link" href={`/api/v1/evidence-packages/${item.package_id}/download`}>Download this evidence package (.zip)</a><details className="technical-details"><summary>Integrity fingerprints</summary><dl className="identity-grid"><div><dt>Manifest fingerprint</dt><dd>{item.manifest_sha256}</dd></div><div><dt>Archive fingerprint</dt><dd>{item.archive_sha256}</dd></div><div><dt>Archive path</dt><dd>{item.archive_path}</dd></div></dl></details></div></details>
       })}</div></section>}
-      <div className="return-action"><button type="button" className="secondary-action" onClick={onReturnToOperational}>Return to final network state</button></div>
+      <div className="return-action"><button type="button" className="secondary-action" onClick={onReturnToOperational}>View the final network state</button></div>
     </section>
+    {projection.run.mode === 'EXPLORATION' && explorationSectionIds !== undefined && onStartExploration !== undefined && <section className="panel exploration-restart-panel" aria-labelledby="exploration-restart-title">
+      <div><span className="eyebrow">Start another trial</span><h2 id="exploration-restart-title">Clear the current workspace and try another fault section</h2><p>Any saved result and downloadable package remain preserved. A separate clean starting state opens for the selected section; choose {projection.run.fault_section_id} again to repeat this scenario.</p></div>
+      <ExplorationRunSelector sectionIds={explorationSectionIds} currentSectionId={projection.run.fault_section_id} busy={explorationRestartBusy} onStart={onStartExploration} idPrefix="results-exploration" />
+    </section>}
   </div>
 }

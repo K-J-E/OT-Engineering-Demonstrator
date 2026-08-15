@@ -1,7 +1,10 @@
 import type { WorkspaceProjection } from '../../api/contracts'
 import { formatAge, formatTime, humanise } from '../../components/format'
 
-export function TelemetryView({ projection, onContinue }: { projection: WorkspaceProjection; onContinue?: () => void }) {
+export function TelemetryView({ projection, focusEntityIds, onContinue }: { projection: WorkspaceProjection; focusEntityIds?: string[]; onContinue?: () => void }) {
+  const telemetryRows = focusEntityIds === undefined
+    ? projection.telemetry
+    : projection.telemetry.filter((row) => focusEntityIds.includes(row.entity_id))
   return (
     <div className="view-stack">
       <section className="panel telemetry-panel" aria-labelledby="telemetry-title">
@@ -12,8 +15,8 @@ export function TelemetryView({ projection, onContinue }: { projection: Workspac
         <div className="callout neutral"><strong>Quality and age answer different questions.</strong> GOOD means the signal arrived without a quality warning. FRESH means its timestamp is recent enough for the decision. A GOOD reading can therefore still be unusable when it is STALE.</div>
         <div className="table-scroll"><table>
           <thead><tr><th>Point / device</th><th>Observed value</th><th>Quality</th><th>Timestamp</th><th>Age</th><th>Freshness</th><th>Overall validity</th><th>Reason / deficiency</th></tr></thead>
-          <tbody>{projection.telemetry.map((row) => <tr key={row.point_id}>
-            <th scope="row">{row.point_id}<small>{row.entity_id}</small></th>
+          <tbody>{telemetryRows.map((row) => <tr key={row.point_id}>
+            <th scope="row">{row.point_id}{row.entity_id !== row.point_id && <small>{row.entity_id}</small>}</th>
             <td>{row.value}</td>
             <td><span className={`status-badge quality-${row.quality.toLowerCase()}`}>{row.quality}</span></td>
             <td>{formatTime(row.timestamp)}</td><td>{formatAge(row.age_ms)}</td>
