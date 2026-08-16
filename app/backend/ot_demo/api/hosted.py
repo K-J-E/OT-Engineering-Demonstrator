@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import os
-import secrets
 from pathlib import Path
 
 from fastapi import Request
@@ -17,7 +16,6 @@ from ..infrastructure.build_identity import (
 from .runtime import create_local_app
 
 
-COOKIE_NAME = "ot_public_workspace"
 PINNED_NODE_VERSION = "24.19.0"
 PINNED_NPM_VERSION = "11.17.0"
 
@@ -94,30 +92,13 @@ def _deployment_dirty(commit: str) -> bool:
 
 def install_fresh_browser_boundary(app) -> None:
     lock = asyncio.Lock()
-    active_token: str | None = None
 
     @app.middleware("http")
     async def fresh_browser_workspace(request: Request, call_next):
-        nonlocal active_token
-        replacement_token: str | None = None
         if (
             request.method == "GET"
             and request.url.path == "/api/v1/workspace/bootstrap"
         ):
-            supplied_token = request.cookies.get(COOKIE_NAME)
             async with lock:
-                if active_token is None or supplied_token != active_token:
-                    app.state.reset_showcase()
-                    active_token = secrets.token_urlsafe(24)
-                    replacement_token = active_token
-        response = await call_next(request)
-        if replacement_token is not None:
-            response.set_cookie(
-                COOKIE_NAME,
-                replacement_token,
-                httponly=True,
-                samesite="lax",
-                secure=request.url.scheme == "https",
-                path="/",
-            )
-        return response
+                app.state.reset_showcase()
+        return await call_next(request)

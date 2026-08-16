@@ -28,7 +28,9 @@ test('reviewer landing explains the boundary and launches the unchanged demonstr
   await expect(page.getByRole('button', { name: 'Start another review' })).toBeVisible()
   await page.reload()
   await expect(page).toHaveURL(/\/demo\/?$/)
-  await expect(page.getByRole('heading', { name: 'OT Systems Demonstrator' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'OT systems review workspace' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start defect walkthrough' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Start trial' })).toBeVisible()
 })
 
 test('reviewer landing remains readable without horizontal overflow on a narrow viewport', async ({ page }) => {

@@ -141,7 +141,7 @@ def test_fresh_browser_resets_an_abandoned_defect_case_and_can_start_each_walkth
         )[0] == 200
 
 
-def test_same_browser_bootstrap_preserves_its_active_run(tmp_path: Path) -> None:
+def test_same_browser_refresh_resets_its_active_run(tmp_path: Path) -> None:
     with live_server(hosted_app(tmp_path)) as base_url:
         client = Browser(base_url)
         _, bootstrap = client.request("/api/v1/workspace/bootstrap")
@@ -152,7 +152,10 @@ def test_same_browser_bootstrap_preserves_its_active_run(tmp_path: Path) -> None
         run_id = started["snapshot"]["run"]["scenario_run_id"]
 
         assert client.request("/api/v1/workspace/bootstrap")[0] == 200
-        assert client.request(f"/api/v1/workspace/runs/{run_id}")[0] == 200
+        assert client.request(f"/api/v1/workspace/runs/{run_id}")[0] == 404
+        assert client.request(
+            "/api/v1/investigations/start", {"actor": "Same reviewer after refresh"}
+        )[0] == 200
 
 
 def test_public_mode_hides_api_docs_and_exposes_minimal_health(tmp_path: Path) -> None:

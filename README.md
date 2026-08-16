@@ -100,9 +100,9 @@ Railway supplies `PORT` and `RAILWAY_GIT_COMMIT_SHA`. The hosted build identity 
 
 ### Shared transient workspace
 
-The public service deliberately remains a single ephemeral SQLite workspace, not a multi-user system. A fresh browser that enters `/demo` receives a new workspace token and resets generated runtime/evidence state before its first bootstrap. Returning pages in that browser retain the active run. A container restart or redeploy also starts with a clean runtime.
+The public service deliberately remains a single ephemeral SQLite workspace, not a multi-user system. Every full load or browser refresh of `/demo` resets generated runtime/evidence state before the workspace opens. Navigation within the loaded demonstrator retains the active run. A container restart or redeploy also starts with a clean runtime.
 
-This supports sequential review and prevents an abandoned prior walkthrough from blocking the next fresh browser. It does **not** provide concurrent session isolation: two simultaneous reviewers share one transient workspace, and the later fresh browser can reset the earlier reviewer's run. No persistent evidence is promised by the public service; downloadable evidence should be saved during the active visit.
+This supports sequential review and prevents an abandoned prior walkthrough from blocking the next visitor or a repeated review in the same browser. It does **not** provide concurrent session isolation: two simultaneous reviewers share one transient workspace, and the later page load can reset the earlier reviewer's run. Refreshing `/demo` also deliberately abandons the current run. No persistent evidence is promised by the public service; downloadable evidence should be saved during the active visit.
 
 ## Deliberate limits and future work
 
