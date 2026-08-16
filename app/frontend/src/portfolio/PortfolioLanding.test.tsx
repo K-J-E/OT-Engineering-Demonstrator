@@ -6,6 +6,13 @@ import type { PortfolioConfig } from './config'
 const emptyConfig: PortfolioConfig = {
   portfolioUrl: '/', demoUrl: '/demo', githubUrl: null, releaseUrl: null, evidenceUrl: null,
 }
+const linkedConfig: PortfolioConfig = {
+  portfolioUrl: '/',
+  demoUrl: '/demo',
+  githubUrl: 'https://github.com/K-J-E/OT-Engineering-Demonstrator',
+  releaseUrl: 'https://github.com/K-J-E/OT-Engineering-Demonstrator/tree/public-showcase-v1',
+  evidenceUrl: 'https://github.com/K-J-E/OT-Engineering-Demonstrator/tree/main/01-engineering-source-documents',
+}
 
 afterEach(cleanup)
 
@@ -50,5 +57,12 @@ describe('external reviewer portfolio landing', () => {
   it('renders deliberate pending states instead of broken document links', () => {
     const { container } = render(<PortfolioLanding config={emptyConfig} />)
     expect(container.querySelectorAll('.portfolio-resource-link.pending')).toHaveLength(2)
+  })
+
+  it('links the reviewed release and controlled engineering records when configured', () => {
+    const { container } = render(<PortfolioLanding config={linkedConfig} />)
+    expect(container.querySelectorAll('.portfolio-resource-link.pending')).toHaveLength(0)
+    expect(screen.getByRole('link', { name: /GitHub \/ reviewed release/i })).toHaveAttribute('href', linkedConfig.releaseUrl)
+    expect(screen.getByRole('link', { name: /Evidence and technical documentation/i })).toHaveAttribute('href', linkedConfig.evidenceUrl)
   })
 })

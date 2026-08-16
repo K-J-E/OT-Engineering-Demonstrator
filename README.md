@@ -93,7 +93,7 @@ Deployment steps after the release branch has been reviewed and merged:
 1. Connect the GitHub repository to Railway and select `main` as the deployment branch.
 2. Deploy the repository root as one service; Railway detects the Dockerfile and checks `/healthz`.
 3. Generate the Railway domain. No database service, persistent volume, custom domain or secret is required.
-4. Optionally supply the neutral frontend build variables `VITE_PORTFOLIO_GITHUB_URL`, `VITE_PORTFOLIO_RELEASE_URL` and `VITE_PORTFOLIO_EVIDENCE_URL`. Empty values produce labelled unavailable-resource states rather than broken links. Set the release URL only after the final tag exists.
+4. The neutral portfolio defaults to this public repository, the reviewed `public-showcase-v1` tag and the controlled engineering-source-document directory. The frontend build variables `VITE_PORTFOLIO_GITHUB_URL`, `VITE_PORTFOLIO_RELEASE_URL` and `VITE_PORTFOLIO_EVIDENCE_URL` can override those destinations for a later release or host.
 5. Use Railway's deployment history to redeploy or roll back to a previously accepted image.
 
 Railway supplies `PORT` and `RAILWAY_GIT_COMMIT_SHA`. The hosted build identity binds that triggering commit, a clean packaged-deployment state, the pinned Python/Node/npm versions, both dependency-lock hashes, the backend source hash and the built frontend-bundle hash. Local runs continue to derive identity directly from Git and installed tools.

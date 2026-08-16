@@ -12,6 +12,9 @@ test('reviewer landing explains the boundary and launches the unchanged demonstr
   await expect(page.getByRole('button', { name: 'Start defect walkthrough' })).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Review the common project artefact and its supporting records' })).toBeVisible()
   await expect(page.getByText(/Application materials/i)).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /GitHub \/ reviewed release/i })).toHaveAttribute('href', 'https://github.com/K-J-E/OT-Engineering-Demonstrator/tree/public-showcase-v1')
+  await expect(page.getByRole('link', { name: /Evidence and technical documentation/i })).toHaveAttribute('href', 'https://github.com/K-J-E/OT-Engineering-Demonstrator/tree/main/01-engineering-source-documents')
+  await expect(page.getByText('Asset pending')).toHaveCount(0)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow')
 
   const actions = page.locator('.portfolio-hero-actions').getByRole('link')
